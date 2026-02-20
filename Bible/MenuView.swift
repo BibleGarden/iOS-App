@@ -23,6 +23,7 @@ struct MenuView: View {
         ZStack {
             // Blur View
             BlurView(style: .systemUltraThinMaterialDark)
+                .accessibilityIdentifier("side-menu")
 
             Color("DarkGreen")
                 .opacity(0.2)
@@ -60,6 +61,7 @@ struct MenuView: View {
                     }
                 }
                 .accessibilityIdentifier("menu-main")
+                .accessibilityAddTraits(settingsManager.selectedMenuItem == .main ? .isSelected : [])
 
                 // 2. Мультичтение
                 Button {
@@ -87,6 +89,7 @@ struct MenuView: View {
                     }
                 }
                 .accessibilityIdentifier("menu-multilingual")
+                .accessibilityAddTraits(settingsManager.selectedMenuItem == .multilingual || settingsManager.selectedMenuItem == .multilingualRead ? .isSelected : [])
 
                 // 3. Обычное чтение
                 Button {
@@ -111,6 +114,7 @@ struct MenuView: View {
                     }
                 }
                 .accessibilityIdentifier("menu-read")
+                .accessibilityAddTraits(settingsManager.selectedMenuItem == .read ? .isSelected : [])
 
                 // 4. Прогресс
                 Button {
@@ -133,6 +137,7 @@ struct MenuView: View {
                     }
                 }
                 .accessibilityIdentifier("menu-progress")
+                .accessibilityAddTraits(settingsManager.selectedMenuItem == .progress ? .isSelected : [])
 
                 // 5. Язык интерфейса
                 Button {
@@ -177,6 +182,7 @@ struct MenuView: View {
                     }
                 }
                 .accessibilityIdentifier("menu-contacts")
+                .accessibilityAddTraits(settingsManager.selectedMenuItem == .contacts ? .isSelected : [])
 
                 Spacer(minLength: 10)
             }
@@ -202,7 +208,6 @@ struct MenuView: View {
                 .padding(.leading, -50)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier("side-menu")
         .onAppear {
             refreshReadSubtitleSnapshot()
         }
@@ -293,6 +298,7 @@ private struct InterfaceLanguageSheetView: View {
         ZStack {
             Color("DarkGreen")
                 .ignoresSafeArea()
+                .accessibilityIdentifier("language-sheet")
 
             VStack(spacing: 0) {
                 ZStack {
@@ -311,6 +317,7 @@ private struct InterfaceLanguageSheetView: View {
                                 .frame(width: 32, height: 32)
                         }
                         .foregroundColor(.white.opacity(0.7))
+                        .accessibilityIdentifier("language-close")
 
                         Spacer()
 
@@ -342,6 +349,8 @@ private struct InterfaceLanguageSheetView: View {
                             .background(Color("DarkGreen-light").opacity(0.6))
                             .cornerRadius(8)
                         }
+                        .accessibilityIdentifier("language-\(language.rawValue)")
+                        .accessibilityAddTraits(localizationManager.currentLanguage == language ? .isSelected : [])
                     }
 
                     Spacer(minLength: 0)

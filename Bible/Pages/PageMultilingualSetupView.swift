@@ -35,7 +35,8 @@ struct PageMultilingualSetupView: View {
             // Background
             Color("DarkGreen")
                 .edgesIgnoringSafeArea(.all)
-            
+                .accessibilityIdentifier("page-multi-setup")
+
             VStack(spacing: 0) {
                 // MARK: Header
                 HStack {

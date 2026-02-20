@@ -71,7 +71,8 @@ struct PageMultilingualReadView: View {
         ZStack {
             Color("DarkGreen")
                 .edgesIgnoringSafeArea(.all)
-            
+                .accessibilityIdentifier("page-multi-reading")
+
             VStack(spacing: 0) {
                 // MARK: Header
                 HStack(alignment: .center) {

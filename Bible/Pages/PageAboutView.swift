@@ -110,6 +110,7 @@ struct PageAboutView: View {
             // Background layer
             .background(
                 Color("DarkGreen")
+                    .accessibilityIdentifier("page-about")
             )
             
         }
