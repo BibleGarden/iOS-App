@@ -1,40 +1,41 @@
-# Библия с паузами
+# Bible Garden
 
-Приложение для iOS, позволяющее пользователю прослушивать различные озвучки Библии с паузами между абзацами/стихами. Паузы помогают более вдумчиво воспринимать слышимую информацию. Особенностью приложения является то, что оно позволяет прослушивать текст, прочитанный несколькими известными дикторами.
+An iOS app (SwiftUI) for listening to the Bible with configurable pauses between verses, paragraphs, or fragments. Supports multiple translations, languages (Russian, English, Ukrainian), and narrators. Key feature — multilingual reading: sequential playback of the same passage in different languages/translations.
 
-# Примечания для разработки
+## Project Setup
 
-**OpenApi Generation**
+### Requirements
 
-- https://swiftpackageindex.com/apple/swift-openapi-generator/1.3.0/tutorials/swift-openapi-generator/clientxcode
-- https://developer.apple.com/videos/play/wwdc2023/10171/
-- https://www.doctave.com/blog/python-export-fastapi-openapi-spec
+- Xcode (Swift 5, SwiftUI)
+- iOS (iPhone + iPad)
+- Dependencies are fetched automatically via Xcode SPM
 
-# Configuration Setup
+### API Configuration (required before building)
 
-## Initial Setup
+API keys and URLs are set via xcconfig files, which are in `.gitignore`:
 
-After cloning this repository, you need to create your local configuration file:
-
-1. Copy the example configuration file:
+1. Copy the example files:
    ```bash
-   cp Bible/Configuration.plist.example Bible/Configuration.plist
+   cp Bible/Debug.xcconfig.example Bible/Debug.xcconfig
+   cp Bible/Release.xcconfig.example Bible/Release.xcconfig
    ```
 
-2. Edit `Bible/Configuration.plist` and replace `your-api-key-here` with your actual API key.
+2. Replace `your-api-key-here` with your actual API key in each file.
 
-3. The `Configuration.plist` file is gitignored and will not be committed to the repository.
+3. `Debug.xcconfig` and `Release.xcconfig` are gitignored — never commit them.
 
-## Configuration Structure
+### xcconfig Structure
 
-The `Configuration.plist` file contains:
-- **BaseURL**: The base URL for the Bible API (default: `https://bibleapi.space`)
-- **APIKey**: Your personal API key for accessing the Bible API
+- `Bible/Debug.xcconfig` — URL and key for the test API
+- `Bible/Release.xcconfig` — URL and key for the production API (`https://bibleapi.space`)
 
-## Important Notes
+Values are injected via `Info.plist` → `Config.swift` (`Config.baseURL`, `Config.apiKey`).
 
-- **Never commit** `Configuration.plist` to git - it contains sensitive data
-- Always use `Configuration.plist.example` as a template for new developers
-- If you need to change the API endpoint or add new configuration values, update both files
+## OpenAPI Generation
 
+The API client is auto-generated at build time from `Bible/openapi.yaml` using the Apple Swift OpenAPI Generator plugin (config: `Bible/openapi-generator-config.yml`).
 
+References:
+- [Swift OpenAPI Generator — Xcode tutorial](https://swiftpackageindex.com/apple/swift-openapi-generator/1.3.0/tutorials/swift-openapi-generator/clientxcode)
+- [WWDC 2023 — Meet Swift OpenAPI Generator](https://developer.apple.com/videos/play/wwdc2023/10171/)
+- [Export FastAPI OpenAPI spec](https://www.doctave.com/blog/python-export-fastapi-openapi-spec)
