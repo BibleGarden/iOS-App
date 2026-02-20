@@ -48,6 +48,7 @@ struct PageProgressView: View {
                                     Text("progress.total".localized)
                                         .font(.subheadline)
                                         .foregroundColor(.white)
+                                        .accessibilityIdentifier("progress-total")
                                     
                                     // Progress bar with overlayed percent
                                     ZStack {

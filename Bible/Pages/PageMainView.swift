@@ -43,6 +43,7 @@ struct PageMainView: View {
                     ) {
                         settingsManager.selectedMenuItem = .multilingual
                     }
+                    .accessibilityIdentifier("card-multilingual")
 
                     // Option 1: Silence (Classic Reading)
                     MainMenuCard(
@@ -53,6 +54,7 @@ struct PageMainView: View {
                     ) {
                         settingsManager.selectedMenuItem = .read
                     }
+                    .accessibilityIdentifier("card-classic-reading")
                 }
                 
                 // Push remaining content upward
@@ -128,6 +130,7 @@ struct PageMainView: View {
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
+                    .accessibilityIdentifier("card-progress")
                     .padding(16)
                     .background(
                         RoundedRectangle(cornerRadius: 12)

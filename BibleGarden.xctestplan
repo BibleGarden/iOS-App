@@ -1,0 +1,29 @@
+{
+  "configurations" : [
+    {
+      "id" : "FBC17875-516F-4009-B11C-77601EBE3766",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:BibleGarden.xcodeproj",
+      "identifier" : "4C76911F2BECEA1300C66FDC",
+      "name" : "BibleGarden"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:BibleGarden.xcodeproj",
+        "identifier" : "04DED7512F48328500D0B620",
+        "name" : "BibleGardenUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

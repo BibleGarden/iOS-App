@@ -223,10 +223,10 @@ struct PageMultilingualReadView: View {
             invalidateAudioProgressTracking()
             invalidateTextReadingTracking()
         }
-        .onChange(of: settingsManager.autoProgressByReading) { _, _ in
+        .onChange(of: settingsManager.autoProgressByReading) { _ in
             evaluateTextReadingAutoProgress()
         }
-        .onChange(of: settingsManager.autoProgressFrom90Percent) { _, _ in
+        .onChange(of: settingsManager.autoProgressFrom90Percent) { _ in
             evaluateNinetyPercentAutoProgress()
         }
     }
@@ -394,7 +394,7 @@ struct PageMultilingualReadView: View {
         .frame(height: showAudioPanel ? audioPanelHeight : 45)
         .background(Color("DarkGreen-light"))
         .clipShape(
-            .rect(
+            UnevenRoundedRectangle(
                 topLeadingRadius: 25,
                 bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0,

@@ -83,6 +83,7 @@ struct PageReadView: View {
                             }
                             .padding(.top, 6)
                         }
+                        .accessibilityIdentifier("read-chapter-title")
 
                         Spacer()
 
@@ -93,6 +94,7 @@ struct PageReadView: View {
                             Image(systemName: "gearshape.fill")
                                 .font(.system(size: 26))
                         }
+                        .accessibilityIdentifier("read-settings-button")
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, globalBasePadding)
@@ -255,7 +257,7 @@ struct PageReadView: View {
                 audioStateObserver = nil
                 invalidateTextReadingTracking()
             }
-            .onChange(of: settingsManager.autoProgressByReading) { _, _ in
+            .onChange(of: settingsManager.autoProgressByReading) { _ in
                 evaluateTextReadingAutoProgress()
             }
         }
@@ -710,8 +712,9 @@ struct PageReadView: View {
         .frame(height: showAudioPanel ? audioPanelHeight : 45)
         .padding(.horizontal, globalBasePadding)
         .background(Color("DarkGreen-light"))
+        .accessibilityIdentifier("audio-panel")
         .clipShape(
-            .rect(
+            UnevenRoundedRectangle(
                 topLeadingRadius: 25,
                 bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0,
@@ -1077,6 +1080,7 @@ struct PageReadView: View {
                 Image(systemName: "chevron.backward.2")
                     .foregroundColor(prevColor)
             }
+            .accessibilityIdentifier("read-prev-chapter")
             Spacer()
 
             // Restart excerpt
@@ -1118,6 +1122,7 @@ struct PageReadView: View {
                     .font(.system(size: 55))
                     .foregroundColor(buttonsColor)
             }
+            .accessibilityIdentifier("read-play-pause")
             .disabled(!hasAudio)
             Spacer()
 
@@ -1156,6 +1161,7 @@ struct PageReadView: View {
                 Image(systemName: "chevron.forward.2")
                     .foregroundColor(nextColor)
             }
+            .accessibilityIdentifier("read-next-chapter")
 
         }
         .foregroundColor(Color("localAccentColor"))

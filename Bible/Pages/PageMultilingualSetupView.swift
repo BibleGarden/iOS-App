@@ -190,6 +190,7 @@ struct PageMultilingualSetupView: View {
                         .background(Color("Marigold"))
                         .cornerRadius(12)
                 }
+                .accessibilityIdentifier("multilingual-save-and-read")
                 .padding(.horizontal, globalBasePadding)
                 .padding(.bottom, 5)
                 .padding(.top, 10)

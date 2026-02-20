@@ -100,7 +100,7 @@ struct PageSetupView: View {
                 .padding(.vertical, 12)
                 .background(Color("DarkGreen").brightness(0.05))
                 .clipShape(
-                    .rect(
+                    UnevenRoundedRectangle(
                         topLeadingRadius: showFromRead ? 22 : 0,
                         bottomLeadingRadius: 0,
                         bottomTrailingRadius: 0,
@@ -379,6 +379,7 @@ struct PageSetupView: View {
                     )
                 }
             }
+            .accessibilityIdentifier("setup-language-section")
 
             selectionAccordionSectionCard(
                 section: .translation,
@@ -411,6 +412,7 @@ struct PageSetupView: View {
                     )
                 }
             }
+            .accessibilityIdentifier("setup-translation-section")
 
             selectionAccordionSectionCard(
                 section: .voice,
@@ -447,8 +449,9 @@ struct PageSetupView: View {
                     )
                 }
             }
+            .accessibilityIdentifier("setup-voice-section")
         }
-        
+
         Spacer()
             .id("bottom")
     }

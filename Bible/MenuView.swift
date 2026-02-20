@@ -59,6 +59,7 @@ struct MenuView: View {
                             .foregroundColor(colorFor(.main))
                     }
                 }
+                .accessibilityIdentifier("menu-main")
 
                 // 2. Мультичтение
                 Button {
@@ -85,6 +86,7 @@ struct MenuView: View {
                         }
                     }
                 }
+                .accessibilityIdentifier("menu-multilingual")
 
                 // 3. Обычное чтение
                 Button {
@@ -108,6 +110,7 @@ struct MenuView: View {
                         }
                     }
                 }
+                .accessibilityIdentifier("menu-read")
 
                 // 4. Прогресс
                 Button {
@@ -129,6 +132,7 @@ struct MenuView: View {
                         }
                     }
                 }
+                .accessibilityIdentifier("menu-progress")
 
                 // 5. Язык интерфейса
                 Button {
@@ -150,6 +154,7 @@ struct MenuView: View {
                         }
                     }
                 }
+                .accessibilityIdentifier("menu-language")
 
                 // 6. Контакты
                 Button {
@@ -171,6 +176,7 @@ struct MenuView: View {
                         }
                     }
                 }
+                .accessibilityIdentifier("menu-contacts")
 
                 Spacer(minLength: 10)
             }
@@ -196,15 +202,16 @@ struct MenuView: View {
                 .padding(.leading, -50)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("side-menu")
         .onAppear {
             refreshReadSubtitleSnapshot()
         }
-        .onChange(of: settingsManager.currentExcerptTitle) {
+        .onChange(of: settingsManager.currentExcerptTitle) { _ in
             if !settingsManager.showMenu {
                 refreshReadSubtitleSnapshot()
             }
         }
-        .onChange(of: settingsManager.currentExcerptSubtitle) {
+        .onChange(of: settingsManager.currentExcerptSubtitle) { _ in
             if !settingsManager.showMenu {
                 refreshReadSubtitleSnapshot()
             }
@@ -391,6 +398,7 @@ struct MenuButtonView: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 32, height: 32)
         }
+        .accessibilityIdentifier("menu-button")
     }
 }
 

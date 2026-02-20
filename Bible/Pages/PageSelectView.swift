@@ -41,6 +41,7 @@ struct PageSelectView: View {
                                         .frame(width: 32, height: 32)
                                 }
                                 .foregroundColor(Color.white.opacity(0.7))
+                                .accessibilityIdentifier("select-close")
                             }
                             else {
                                 MenuButtonView()
@@ -131,6 +132,7 @@ struct PageSelectView: View {
         }
         .padding(.vertical, 15)
         .font(.title)
+        .accessibilityIdentifier("testament-selector")
     }
     
     // MARK: Chapter list
@@ -334,7 +336,7 @@ struct PageSelectView: View {
             .onAppear {
                 proxy.scrollTo("book_\(settingsManager.currentBookId)", anchor: .top)
             }
-            .onChange(of: scrollToTop) { oldValue, newValue in
+            .onChange(of: scrollToTop) { newValue in
                 if newValue {
                     withAnimation {
                         proxy.scrollTo("top", anchor: .top)

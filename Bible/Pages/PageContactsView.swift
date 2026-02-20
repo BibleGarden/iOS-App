@@ -67,6 +67,7 @@ struct PageContactsView: View {
                             .background(Color("DarkGreen-light").opacity(0.6))
                             .cornerRadius(8)
                         }
+                        .accessibilityIdentifier("contacts-telegram")
                         
                         Button {
                             if let url = URL(string: "https://bibleapi.space") {
@@ -92,6 +93,7 @@ struct PageContactsView: View {
                             .background(Color("DarkGreen-light").opacity(0.6))
                             .cornerRadius(8)
                         }
+                        .accessibilityIdentifier("contacts-website")
                         
                         viewGroupHeader(text: "contacts.about".localized)
                         
