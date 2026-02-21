@@ -7,7 +7,7 @@
 | `BibleGardenUITests.swift` | App launch | ✅ Exists |
 | `MenuTests.swift` | Menu navigation | ✅ Exists (6 tests) |
 | `Helpers/XCUIApplication+Helpers.swift` | Shared helpers | ✅ Exists |
-| `ClassicReadingTests.swift` | Classic reading, audio, settings, pauses | ✅ 38 tests, 8 classes — all pass |
+| `ClassicReadingTests.swift` | Classic reading, audio, settings, pauses | ✅ 40 tests, 7 classes — all pass |
 | `MainTests.swift` | Main screen cards | 📝 Planned |
 | `ChapterSelectTests.swift` | OT/NT filter, book/chapter pick | 📝 Planned |
 | `MultiReadingTests.swift` | Multilingual setup + reading | 📝 Planned |
@@ -39,100 +39,96 @@
 
 ## ClassicReadingTests.swift
 
-Тесты требуют работающий API (bibleapi.space) и сеть. Ряд тестов требует поддержки launch arguments в приложении (см. "Инфраструктура" ниже).
+Тесты требуют работающий API (bibleapi.space) и сеть. Ряд тестов требует поддержки launch arguments в приложении (см. "Инфраструктура" ниже). Все тесты должны проходить — если что-то падает, чиним.
 
-### Приоритеты
-
-- **P0** — релиз-блокер: если падает при доступном API, релиз не выпускаем. При недоступном API — `XCTSkip`.
-- **P1** — важная функциональность: если падает, исправляем до следующего релиза
-- **P2** — глубокое покрытие: если падает, разбираемся в следующем спринте
-
-### P0 — Базовая загрузка и отображение
+### Загрузка и отображение
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
 | 1 | `testReadPageLoadsText` | Переход через меню → WebView с текстом загрузился |
 | 2 | `testReadPageShowsChapterTitle` | Заголовок (книга + глава) отображается в хедере |
 | 3 | `testAudioPanelShowsAllControls` | Панель видна, все кнопки на месте: play/pause, prev/next chapter, prev/next verse, restart, speed |
-| 4 | `testPlayAndPause` | Тап play → `read-playback-state.label` == "playing" → тап pause → label == "pausing" |
-| 5 | `testNextChapter` | Тап next chapter → заголовок главы меняется |
-| 6 | `testPrevChapter` | Тап prev chapter → заголовок главы меняется |
-| 7 | `testChapterSelectAndNavigate` | Тап на заголовок → sheet → выбор другой главы → sheet закрывается → заголовок обновился *(детали OT/NT фильтра → ChapterSelectTests)* |
-| 8 | `testSettingsOpenAndClose` | Тап шестерёнку → sheet с секциями language, translation, voice → закрытие |
+| 4 | `testAudioInfoShowsTranslationAndVoice` | `read-translation-chip` и `read-voice-chip` содержат непустой текст |
 
-### P0 — Ошибки и деградация
+### Воспроизведение
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 9 | `testErrorStateOnLoadFailure` | ⚙️ `--force-load-error` → `read-error-text` виден |
-| 10 | `testRetryAfterLoadError` | ⚙️ `--force-load-error-once` (one-shot: первая загрузка → ошибка, последующие → нормально) → `read-error-text` виден → pull-to-refresh → текст загрузился |
-| 11 | `testNoAudioWarningAndDisabledControls` | ⚙️ `--force-no-audio` → `read-audio-warning` виден, кнопки play/restart/speed/verse `isEnabled == false` |
+| 5 | `testPlayAndPause` | Тап play → "playing" → тап pause → "pausing" |
+| 6 | `testSpeedCycleAndWrapAround` | Тапы по скорости: 1.0→1.2→...→2.0→0.6 (wrap-around) |
+| 7 | `testSeekSlider` | Перемотка `read-timeline-slider` в середину → `read-time-current` обновилось |
+| 8 | `testAudioPanelCollapseAndExpand` | Тап `read-chevron` → кнопки play/speed не видны → тап снова → видны |
+| 9 | `testPlayAdvancesVerseCounter` | Play → подождать → `read-time-current` изменилось |
+| 10 | `testNextVerseButton` | Во время play тап `read-next-verse` → `read-verse-counter` увеличился |
+| 11 | `testRestartButton` | Во время play тап `read-restart` → `read-time-current` сбросилось к началу |
+| 12 | `testSpeedPersistsAcrossChapters` | Скорость 1.4x → next chapter → скорость не сбросилась |
 
-### P1 — Управление воспроизведением
-
-| # | Тест | Что проверяет |
-|---|------|---------------|
-| 12 | `testSpeedCycleAndWrapAround` | Тапы по скорости: 1.0→1.2→...→2.0→0.6 (wrap-around). Проверка `read-speed-label` после каждого тапа |
-| 13 | `testSeekSlider` | Перемотка `read-timeline-slider` в середину → `read-time-current` обновилось |
-| 14 | `testAudioPanelCollapseAndExpand` | Тап `read-chevron` → кнопки play/speed не видны → тап `read-chevron` → видны обратно |
-| 15 | `testPlayAdvancesVerseCounter` | Play → подождать ~5с → `read-verse-counter` или `read-time-current` изменились |
-| 16 | `testNextVerseButton` | Во время play тап `read-next-verse` → `read-verse-counter` увеличился |
-| 17 | `testRestartButton` | Во время play тап `read-restart` → `read-time-current` сбросилось к началу |
-
-### P1 — Навигация по главам (граничные случаи)
+### Навигация по главам
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 18 | `testFirstChapterPrevDisabled` | Перейти на Gen 1 → `read-prev-chapter.isEnabled == false` |
-| 19 | `testLastChapterNextDisabled` | Перейти на Rev 22 → `read-next-chapter.isEnabled == false` |
+| 13 | `testNextChapter` | Тап next chapter → заголовок главы меняется |
+| 14 | `testPrevChapter` | Тап prev chapter → заголовок главы меняется |
+| 15 | `testChapterSelectAndNavigate` | Тап на заголовок → sheet с testament-selector → закрытие |
+| 16 | `testFirstChapterPrevDisabled` | ⚙️ `--start-excerpt "gen 1"` → `read-prev-chapter.isEnabled == false` |
+| 17 | `testLastChapterNextDisabled` | ⚙️ `--start-excerpt "rev 22"` → `read-next-chapter.isEnabled == false` |
+| 18 | `testAutoNextChapter` | ⚙️ `--start-excerpt "psa 117"` → дослушать главу → заголовок сменился на следующую |
+| 19 | `testNoAutoNextChapter` | ⚙️ `--no-auto-next-chapter` + `--start-excerpt "psa 117"` → дослушать → заголовок НЕ меняется |
 
-### P1 — Настройки чтения
+### Паузы
 
-Тесты #21-#22 проверяют **визуальное состояние sheet** (локальный UI reset), не персист в settingsManager. Persist происходит только после выбора voice.
-
-| # | Тест | Что проверяет |
-|---|------|---------------|
-| 20 | `testSettingsChangeTranslation` | Выбрать другой перевод → закрыть → текст/аудио обновились |
-| 21 | `testSettingsLanguageResetsTranslationAndVoice` | В sheet: сменить язык → секции перевода/диктора показывают пустое/дефолтное значение |
-| 22 | `testSettingsTranslationResetsVoice` | В sheet: сменить перевод → секция диктора показывает пустое значение |
-| 23 | `testSettingsResetNotPersistedWithoutVoice` | Сменить язык в sheet → закрыть без выбора voice → переоткрыть → старые значения сохранились |
-| 24 | `testSettingsPauseTypeControls` | Выбрать type=time → `settings-pause-duration` виден. type=full → скрыт. type=none → все контролы паузы скрыты |
-| 25 | `testSettingsFontSizeControls` | Тап `settings-font-increase` → процент растёт, тап `settings-font-decrease` → уменьшается, тап `settings-font-reset` → 100% |
-
-### P1 — Паузы (реальное поведение)
-
-Тесты используют `read-playback-state` (debug-only скрытый label) для проверки состояния. Настройки пауз задаются через launch arguments `--pause-type` / `--pause-block`.
+Настройки пауз задаются через `--pause-type` / `--pause-block`. Состояние проверяется через `read-playback-state`.
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 26 | `testPauseTimedVerse` | ⚙️ `--pause-type time --pause-block verse` → play → после стиха "autopausing" → через N сек снова "playing" |
-| 27 | `testPauseFullVerse` | ⚙️ `--pause-type full --pause-block verse` → play → после стиха "pausing" → остаётся 5 сек, не возобновляется |
-| 34 | `testPauseTimedParagraph` | ⚙️ `--pause-type time --pause-block paragraph` → play на 2x → доигрывает до границы абзаца → "autopausing" → авто-возобновление |
+| 20 | `testPauseTimedVerse` | ⚙️ `--pause-type time --pause-block verse` → play → после стиха "autopausing" → авто-возобновление |
+| 21 | `testPauseFullVerse` | ⚙️ `--pause-type full --pause-block verse` → play → после стиха "pausing" → не возобновляется |
+| 22 | `testPauseTimedParagraph` | ⚙️ `--pause-type time --pause-block paragraph` → play на 2x → пауза только на границе абзаца |
 
-### P1 — Прогресс и авто-прогресс
+### Настройки
 
-| # | Тест | Что проверяет |
-|---|------|---------------|
-| 28 | `testMarkChapterReadAndUnread` | Тап `read-chapter-progress` → checkmark (прочитано) → тап снова → checkmark исчез (не прочитано) |
-| 29 | `testAutoProgressOnAudioEnd` | Включить autoProgressAudioEnd → дослушать главу (скорость 2.0x) → глава автоматически отмечена прочитанной |
-| 30 | `testAutoNextChapter` | ⚙️ `--start-excerpt "psa 117"` → дослушать главу → `read-chapter-title` изменился (переход на следующую) |
-| 30b | `testNoAutoNextChapter` | ⚙️ `--no-auto-next-chapter` + `--start-excerpt "psa 117"` → дослушать главу → заголовок НЕ меняется |
-
-### P1 — Аудио-информация
+Тесты #25-#27 проверяют визуальное состояние sheet (локальный UI reset). Persist происходит только после выбора voice.
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 31 | `testAudioInfoShowsTranslationAndVoice` | `read-translation-chip` и `read-voice-chip` содержат непустой текст |
+| 23 | `testSettingsOpenAndClose` | Тап шестерёнку → sheet с секциями language, translation, voice → закрытие |
+| 24 | `testSettingsChangeTranslation` | Выбрать другой перевод и диктора → закрыть → чип перевода обновился |
+| 25 | `testSettingsLanguageResetsTranslationAndVoice` | Сменить язык → секции перевода/диктора сбрасываются |
+| 26 | `testSettingsTranslationResetsVoice` | Сменить перевод → секция диктора сбрасывается |
+| 27 | `testSettingsResetNotPersistedWithoutVoice` | Сменить язык → закрыть без выбора voice → старые значения сохранились |
+| 28 | `testSettingsPauseTypeControls` | Меню типа паузы открывается по тапу |
+| 29 | `testSettingsFontSizeControls` | Тап +/− → процент шрифта меняется, reset → 100% |
+| 30 | `testVoicePreviewPlayAndStop` | Тап превью голоса → играет → тап снова → остановка |
 
-### P2 — Глубокое покрытие
+### Прогресс
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 32 | `testAutoProgressByReading` | ⚙️ `--reading-progress-seconds 3` → включить autoProgressByReading → доскроллить до конца → через ~3с глава отмечена |
-| 35 | `testVoicePreviewPlayAndStop` | В настройках тап `settings-voice-preview-0` → превью играет → тап снова → остановка |
-| 36 | `testSpeedPersistsAcrossChapters` | Скорость 1.5x → next chapter → `read-speed-label` всё ещё "x1.5" |
-| 37 | `testFullReadingJourney` | E2E: открыть чтение → сменить translation/voice → play → дождаться autoNextChapter → в Progress глава отмечена |
-| 38 | `testBackgroundPlaybackContinues` | Play → home → 5 сек в фоне → activate → время увеличилось (аудио играло в фоне) |
+| 31 | `testMarkChapterReadAndUnread` | Тап `read-chapter-progress` → прочитано → тап снова → не прочитано |
+| 32 | `testAutoProgressOnAudioEnd` | ⚙️ `--auto-progress-audio-end` + `--start-excerpt "psa 117"` → дослушать → глава отмечена |
+| 33 | `testAutoProgressByReading` | ⚙️ `--reading-progress-seconds 3` → доскроллить до конца → через ~3с глава отмечена |
+
+### Фоновое воспроизведение
+
+| # | Тест | Что проверяет |
+|---|------|---------------|
+| 34 | `testBackgroundPlaybackContinues` | Play → home → 5 сек в фоне → activate → время увеличилось |
+| 35 | `testPauseTimedVerseInBackground` | ⚙️ `--pause-type time --pause-block verse` → play → home → 10 сек → activate → время увеличилось |
+| 36 | `testAutoNextChapterInBackground` | ⚙️ `--start-excerpt "psa 117"` → play на 2x → home → activate → заголовок сменился |
+
+### Ошибки и деградация
+
+| # | Тест | Что проверяет |
+|---|------|---------------|
+| 37 | `testErrorStateOnLoadFailure` | ⚙️ `--force-load-error` → `read-error-text` виден |
+| 38 | `testRetryAfterLoadError` | ⚙️ `--force-load-error-once` → ошибка → pull-to-refresh → текст загрузился |
+| 39 | `testNoAudioWarningAndDisabledControls` | ⚙️ `--force-no-audio` → кнопки play/restart/speed/verse `isEnabled == false` |
+
+### E2E
+
+| # | Тест | Что проверяет |
+|---|------|---------------|
+| 40 | `testFullReadingJourney` | Загрузка → play → next chapter → mark read → настройки → закрытие |
 
 ---
 
@@ -154,40 +150,40 @@
 | Аргумент | Действие |
 |----------|----------|
 | `--uitesting` | Сбрасывает UserDefaults/прогресс перед запуском (чистое состояние) |
-| `--force-load-error` | Симулирует ошибку загрузки главы, все запросы (#9) |
-| `--force-load-error-once` | One-shot: первый запрос → ошибка, последующие → нормально (#10) |
-| `--force-no-audio` | Симулирует отсутствие аудио (#11) |
-| `--start-excerpt <excerpt>` | Переопределяет начальный excerpt (напр. "gen 1", "rev 22") (#18, #19, #29, #30) |
-| `--reading-progress-seconds N` | Переопределяет порог авто-прогресса по чтению (#32, по умолчанию до 60с) |
-| `--auto-progress-audio-end` | Включает autoProgressAudioEnd + отключает autoNextChapter (#29) |
-| `--no-auto-next-chapter` | Отключает autoNextChapter (#30b) |
-| `--pause-type <type>` | Переопределяет тип паузы: none/time/full (#26, #27, #34) |
-| `--pause-block <block>` | Переопределяет блок паузы: verse/paragraph/fragment (#34) |
+| `--force-load-error` | Симулирует ошибку загрузки главы, все запросы (#37) |
+| `--force-load-error-once` | One-shot: первый запрос → ошибка, последующие → нормально (#38) |
+| `--force-no-audio` | Симулирует отсутствие аудио (#39) |
+| `--start-excerpt <excerpt>` | Переопределяет начальный excerpt (напр. "gen 1", "rev 22") (#16, #17, #18, #19, #32, #36) |
+| `--reading-progress-seconds N` | Переопределяет порог авто-прогресса по чтению (#33, по умолчанию до 60с) |
+| `--auto-progress-audio-end` | Включает autoProgressAudioEnd + отключает autoNextChapter (#32) |
+| `--no-auto-next-chapter` | Отключает autoNextChapter (#19) |
+| `--pause-type <type>` | Переопределяет тип паузы: none/time/full (#20, #21, #22, #35) |
+| `--pause-block <block>` | Переопределяет блок паузы: verse/paragraph/fragment (#20, #21, #22, #35) |
 
 #### Архитектура тестового класса ✅
 
-8 классов для разделения зависимостей:
+7 классов для разделения зависимостей:
 
 ```swift
-// Основной — тесты с живым API (#1-8, #12-25, #28, #31, #35-38)
+// Основной — тесты с живым API (#1-15, #23-31, #34, #40)
 class ClassicReadingTests: XCTestCase { ... }
 
-// Forced-error тесты (#9, #10, #11) — НЕ зависят от API
+// Forced-error тесты (#37, #38, #39) — НЕ зависят от API
 class ClassicReadingErrorTests: XCTestCase { ... }
 
-// Авто-прогресс по чтению с --reading-progress-seconds (#32)
+// Авто-прогресс по чтению с --reading-progress-seconds (#33)
 class ClassicReadingAutoProgressTests: XCTestCase { ... }
 
-// Граничные главы с --start-excerpt (#18, #19)
+// Граничные главы с --start-excerpt (#16, #17)
 class ClassicReadingBoundaryTests: XCTestCase { ... }
 
-// Авто-прогресс по аудио с --auto-progress-audio-end (#29)
+// Авто-прогресс по аудио с --auto-progress-audio-end (#32)
 class ClassicReadingAudioEndProgressTests: XCTestCase { ... }
 
-// Автопереход с --start-excerpt (#30, #30b)
+// Автопереход с --start-excerpt (#18, #19, #36)
 class ClassicReadingAutoNextTests: XCTestCase { ... }
 
-// Паузы с --pause-type / --pause-block (#26, #27, #34)
+// Паузы с --pause-type / --pause-block (#20, #21, #22, #35)
 class ClassicReadingPauseTests: XCTestCase { ... }
 ```
 
@@ -195,7 +191,7 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 
 - Все ожидания через `waitForExistence(timeout:)`, **никогда** `sleep()`
 - Таймауты: 5с загрузка контента, 3с UI-переходы, 10с аудио-буферизация
-- Тесты с реальным аудио (#15-17, #26-27, #29-30, #33) — потенциально flaky при медленной сети
+- Тесты с реальным аудио (#9-11, #18-22, #32, #35-36) — потенциально flaky при медленной сети
 - Проверка `isEnabled` вместо визуальных свойств (opacity/color) — менее хрупкие ассерты
 - `read-playback-state` — единственный debug-only индикатор; остальные тесты опираются на стандартные accessibility properties
 
@@ -209,26 +205,18 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 
 ### Accessibility identifiers
 
-#### Уже существуют (PageReadView.swift):
+#### PageReadView.swift ✅
 - `read-chapter-title` — кнопка выбора главы (заголовок)
 - `read-settings-button` — шестерёнка настроек
 - `audio-panel` — контейнер аудио-панели
 - `read-prev-chapter` — кнопка предыдущей главы
 - `read-play-pause` — кнопка play/pause
 - `read-next-chapter` — кнопка следующей главы
-
-#### Уже существуют (PageReadSettingsView.swift):
-- `setup-language-section` — секция языка
-- `setup-translation-section` — секция перевода
-- `setup-voice-section` — секция диктора
-
-#### Нужно добавить (PageReadView.swift):
 - `page-reading` — фон страницы
 - `read-restart` — кнопка restart
 - `read-prev-verse` — кнопка prev verse
 - `read-next-verse` — кнопка next verse
 - `read-speed` — кнопка скорости
-- `read-speed-label` — текст текущей скорости (напр. "x1.0")
 - `read-translation-chip` — чип текущего перевода
 - `read-voice-chip` — чип текущего диктора
 - `read-chapter-progress` — кружок прогресса (mark as read toggle)
@@ -238,18 +226,17 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 - `read-time-total` — общее время
 - `read-chevron` — кнопка сворачивания панели
 - `read-error-text` — текст ошибки загрузки
-- `read-audio-warning` — warning "нет аудио"
 - `read-text-content` — WebView с текстом главы
 - `read-playback-state` — DEBUG-only: `.accessibilityLabel` = строковое имя state (playing/pausing/autopausing/...) через computed property, **не** `rawValue` (который Int)
 
-#### Нужно добавить (PageReadSettingsView.swift):
+#### PageReadSettingsView.swift ✅
+- `setup-language-section` — секция языка
+- `setup-translation-section` — секция перевода
+- `setup-voice-section` — секция диктора
 - `settings-close` — кнопка закрытия
 - `settings-font-decrease` — кнопка уменьшить шрифт
 - `settings-font-increase` — кнопка увеличить шрифт
 - `settings-font-size` — текст текущего размера
 - `settings-font-reset` — кнопка сброса шрифта
 - `settings-pause-type` — picker типа паузы
-- `settings-pause-duration` — контрол длительности паузы
-- `settings-pause-block` — picker блока паузы
-- `settings-auto-next` — toggle авто-перехода
 - `settings-voice-preview-{index}` — кнопка превью голоса

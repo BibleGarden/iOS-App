@@ -81,7 +81,7 @@ final class ClassicReadingTests: XCTestCase {
                       "Should return to reading page")
     }
 
-    // MARK: - P0: Basic loading
+    // MARK: - Загрузка и отображение
 
     // #1 — Открываем страницу чтения через меню.
     // Результат: WebView с текстом главы загрузился.
@@ -115,7 +115,7 @@ final class ClassicReadingTests: XCTestCase {
         }
     }
 
-    // #4 — Нажимаем play, затем pause.
+    // #5 — Нажимаем play, затем pause.
     // Результат: состояние переходит в "playing", затем в "pausing".
     @MainActor
     func testPlayAndPause() {
@@ -135,7 +135,7 @@ final class ClassicReadingTests: XCTestCase {
         XCTAssertTrue(paused, "State should become 'pausing' after second tap")
     }
 
-    // #5 — Нажимаем кнопку «следующая глава».
+    // #13 — Нажимаем кнопку «следующая глава».
     // Результат: заголовок главы меняется на другой.
     @MainActor
     func testNextChapter() {
@@ -151,7 +151,7 @@ final class ClassicReadingTests: XCTestCase {
             "Chapter title should change after tapping next")
     }
 
-    // #6 — Переходим вперёд, затем назад кнопкой «предыдущая глава».
+    // #14 — Переходим вперёд, затем назад кнопкой «предыдущая глава».
     // Результат: заголовок возвращается к прежнему значению.
     @MainActor
     func testPrevChapter() {
@@ -174,7 +174,7 @@ final class ClassicReadingTests: XCTestCase {
             "Chapter title should change after tapping prev")
     }
 
-    // #7 — Открываем sheet выбора главы по тапу на заголовок.
+    // #15 — Открываем sheet выбора главы по тапу на заголовок.
     // Результат: sheet появляется с testament-selector, закрывается по кнопке.
     @MainActor
     func testChapterSelectAndNavigate() {
@@ -196,7 +196,7 @@ final class ClassicReadingTests: XCTestCase {
         waitForReadingPage()
     }
 
-    // #8 — Открываем настройки по шестерёнке, проверяем секции.
+    // #23 — Открываем настройки по шестерёнке, проверяем секции.
     // Результат: секции language, translation, voice видны; sheet закрывается.
     @MainActor
     func testSettingsOpenAndClose() {
@@ -212,9 +212,9 @@ final class ClassicReadingTests: XCTestCase {
         waitForReadingPage()
     }
 
-    // MARK: - P1: Playback controls
+    // MARK: - Воспроизведение
 
-    // #12 — Тапаем по кнопке скорости 8 раз, проходим полный цикл.
+    // #6 — Тапаем по кнопке скорости 8 раз, проходим полный цикл.
     // Результат: скорость возвращается к начальной, в цикле минимум 5 уникальных значений.
     @MainActor
     func testSpeedCycleAndWrapAround() {
@@ -242,7 +242,7 @@ final class ClassicReadingTests: XCTestCase {
                                      "Should cycle through at least 5 speed values. Got: \(uniqueLabels)")
     }
 
-    // #13 — Перемещаем слайдер таймлайна на середину.
+    // #7 — Перемещаем слайдер таймлайна на середину.
     // Результат: текущее время воспроизведения изменилось.
     @MainActor
     func testSeekSlider() {
@@ -261,7 +261,7 @@ final class ClassicReadingTests: XCTestCase {
             "Current time should change after seeking")
     }
 
-    // #14 — Сворачиваем аудио-панель шевроном, затем разворачиваем.
+    // #8 — Сворачиваем аудио-панель шевроном, затем разворачиваем.
     // Результат: кнопка play скрывается при сворачивании и появляется при разворачивании.
     @MainActor
     func testAudioPanelCollapseAndExpand() {
@@ -284,7 +284,7 @@ final class ClassicReadingTests: XCTestCase {
                       "Play button should be hittable again after expanding")
     }
 
-    // #15 — Запускаем воспроизведение, ждём несколько секунд.
+    // #9 — Запускаем воспроизведение, ждём несколько секунд.
     // Результат: текущее время увеличилось (аудио играет).
     @MainActor
     func testPlayAdvancesVerseCounter() {
@@ -304,7 +304,7 @@ final class ClassicReadingTests: XCTestCase {
         playPause.tap() // stop
     }
 
-    // #16 — Во время воспроизведения нажимаем «следующий стих».
+    // #10 — Во время воспроизведения нажимаем «следующий стих».
     // Результат: счётчик стиха увеличился.
     @MainActor
     func testNextVerseButton() {
@@ -333,7 +333,7 @@ final class ClassicReadingTests: XCTestCase {
         playPause.tap() // stop
     }
 
-    // #17 — Воспроизводим аудио, затем нажимаем restart.
+    // #11 — Воспроизводим аудио, затем нажимаем restart.
     // Результат: время сбрасывается к началу (меньше, чем до рестарта).
     @MainActor
     func testRestartButton() {
@@ -365,13 +365,14 @@ final class ClassicReadingTests: XCTestCase {
         playPause.tap() // stop
     }
 
-    // MARK: - P1: Chapter boundary
+    // MARK: - Навигация по главам
 
-    // #18, #19 — вынесены в ClassicReadingBoundaryTests (отдельный launch с --start-excerpt)
+    // #16, #17 — вынесены в ClassicReadingBoundaryTests (отдельный launch с --start-excerpt)
+    // #18, #19 — вынесены в ClassicReadingAutoNextTests (отдельный launch с --start-excerpt)
 
-    // MARK: - P1: Settings
+    // MARK: - Настройки
 
-    // #20 — В настройках выбираем другой перевод и диктора.
+    // #24 — В настройках выбираем другой перевод и диктора.
     // Результат: чип перевода на аудио-панели меняется на новое значение.
     @MainActor
     func testSettingsChangeTranslation() {
@@ -426,7 +427,7 @@ final class ClassicReadingTests: XCTestCase {
                           "Translation chip should change after selecting a different translation")
     }
 
-    // #21 — Меняем язык в настройках.
+    // #25 — Меняем язык в настройках.
     // Результат: заголовки секций перевода и диктора сбрасываются на дефолтные заглушки.
     @MainActor
     func testSettingsLanguageResetsTranslationAndVoice() throws {
@@ -486,7 +487,7 @@ final class ClassicReadingTests: XCTestCase {
         closeSettings()
     }
 
-    // #22 — Меняем перевод в настройках.
+    // #26 — Меняем перевод в настройках.
     // Результат: заголовок секции диктора сбрасывается на заглушку.
     @MainActor
     func testSettingsTranslationResetsVoice() throws {
@@ -536,7 +537,7 @@ final class ClassicReadingTests: XCTestCase {
         closeSettings()
     }
 
-    // #23 — Меняем язык в настройках, но НЕ выбираем диктора и закрываем sheet.
+    // #27 — Меняем язык в настройках, но НЕ выбираем диктора и закрываем sheet.
     // Результат: перевод остаётся прежним — изменения не сохранились без выбора voice.
     @MainActor
     func testSettingsResetNotPersistedWithoutVoice() throws {
@@ -586,7 +587,7 @@ final class ClassicReadingTests: XCTestCase {
                        "Translation should not change when settings closed without voice selection")
     }
 
-    // #24 — Открываем настройки, находим контрол типа паузы.
+    // #28 — Открываем настройки, находим контрол типа паузы.
     // Результат: меню типа паузы существует и открывается по тапу.
     @MainActor
     func testSettingsPauseTypeControls() {
@@ -613,7 +614,7 @@ final class ClassicReadingTests: XCTestCase {
         closeSettings()
     }
 
-    // #25 — Увеличиваем, уменьшаем и сбрасываем размер шрифта в настройках.
+    // #29 — Увеличиваем, уменьшаем и сбрасываем размер шрифта в настройках.
     // Результат: процент шрифта меняется при +/−, возвращается к 100% при reset.
     @MainActor
     func testSettingsFontSizeControls() {
@@ -654,11 +655,11 @@ final class ClassicReadingTests: XCTestCase {
         closeSettings()
     }
 
-    // #26, #27, #34 — вынесены в ClassicReadingPauseTests (отдельный launch с --pause-type / --pause-block)
+    // #20, #21, #22 — вынесены в ClassicReadingPauseTests (отдельный launch с --pause-type / --pause-block)
 
-    // MARK: - P1: Progress
+    // MARK: - Прогресс
 
-    // #28 — Тапаем кнопку прогресса дважды: прочитано → не прочитано.
+    // #31 — Тапаем кнопку прогресса дважды: прочитано → не прочитано.
     // Результат: кнопка переключается и остаётся на месте.
     @MainActor
     func testMarkChapterReadAndUnread() {
@@ -678,13 +679,12 @@ final class ClassicReadingTests: XCTestCase {
                       "Progress button should still exist after toggling")
     }
 
-    // #29 — вынесен в ClassicReadingAudioEndProgressTests (отдельный launch с --auto-progress-audio-end)
+    // #32 — вынесен в ClassicReadingAudioEndProgressTests (отдельный launch с --auto-progress-audio-end)
+    // #33 — вынесен в ClassicReadingAutoProgressTests (отдельный launch с --reading-progress-seconds)
 
-    // #30 — вынесен в ClassicReadingAutoNextTests (отдельный launch с --start-excerpt "psa 117")
+    // MARK: - Аудио-информация
 
-    // MARK: - P1: Audio info
-
-    // #31 — Проверяем чипы перевода и диктора на аудио-панели.
+    // #4 — Проверяем чипы перевода и диктора на аудио-панели.
     // Результат: оба чипа существуют и содержат непустой текст.
     @MainActor
     func testAudioInfoShowsTranslationAndVoice() {
@@ -701,10 +701,11 @@ final class ClassicReadingTests: XCTestCase {
                        "Voice chip should have text")
     }
 
-    // MARK: - P2: Deep coverage
+    // MARK: - Фоновое воспроизведение
 
-    // #38 — Запускаем воспроизведение, отправляем приложение в фон, возвращаем.
+    // #34 — Запускаем воспроизведение, отправляем приложение в фон, возвращаем.
     // Результат: после возврата время увеличилось — аудио играло в фоне.
+    // #35, #36 — вынесены в ClassicReadingPauseTests и ClassicReadingAutoNextTests
     @MainActor
     func testBackgroundPlaybackContinues() {
         waitForAudioReady()
@@ -735,7 +736,7 @@ final class ClassicReadingTests: XCTestCase {
         playPause.tap() // stop
     }
 
-    // #35 — В настройках нажимаем кнопку превью голоса, потом останавливаем.
+    // #30 — В настройках нажимаем кнопку превью голоса, потом останавливаем.
     // Результат: превью запускается и останавливается без ошибок.
     @MainActor
     func testVoicePreviewPlayAndStop() {
@@ -769,7 +770,7 @@ final class ClassicReadingTests: XCTestCase {
         closeSettings()
     }
 
-    // #36 — Меняем скорость дважды, переходим на следующую главу.
+    // #12 — Меняем скорость дважды, переходим на следующую главу.
     // Результат: скорость сохраняется после смены главы.
     @MainActor
     func testSpeedPersistsAcrossChapters() {
@@ -796,7 +797,9 @@ final class ClassicReadingTests: XCTestCase {
                        "Speed should persist across chapter changes")
     }
 
-    // #37 — E2E: загрузка → play → next chapter → mark read → настройки → закрытие.
+    // MARK: - E2E
+
+    // #40 — E2E: загрузка → play → next chapter → mark read → настройки → закрытие.
     // Результат: полный пользовательский сценарий проходит без ошибок.
     @MainActor
     func testFullReadingJourney() {
@@ -855,7 +858,7 @@ final class ClassicReadingErrorTests: XCTestCase {
         app = nil
     }
 
-    // #9 — Запускаем с --force-load-error (ошибка загрузки главы).
+    // #37 — Запускаем с --force-load-error (ошибка загрузки главы).
     // Результат: отображается текст ошибки.
     @MainActor
     func testErrorStateOnLoadFailure() {
@@ -870,7 +873,7 @@ final class ClassicReadingErrorTests: XCTestCase {
                       "Error text should appear when load fails")
     }
 
-    // #10 — Запускаем с --force-load-error-once (ошибка только на первый запрос).
+    // #38 — Запускаем с --force-load-error-once (ошибка только на первый запрос).
     // Результат: ошибка → pull-to-refresh → текст загружается.
     @MainActor
     func testRetryAfterLoadError() {
@@ -894,7 +897,7 @@ final class ClassicReadingErrorTests: XCTestCase {
         XCTAssertNotNil(textContent, "Text content should load after retry")
     }
 
-    // #11 — Запускаем с --force-no-audio (нет аудио-файла).
+    // #39 — Запускаем с --force-no-audio (нет аудио-файла).
     // Результат: кнопки play, restart, speed, verse заблокированы (isEnabled == false).
     @MainActor
     func testNoAudioWarningAndDisabledControls() {
@@ -933,7 +936,7 @@ final class ClassicReadingAutoProgressTests: XCTestCase {
         app = nil
     }
 
-    // #32 — Скроллим текст до конца с порогом 3 сек (--reading-progress-seconds 3).
+    // #33 — Скроллим текст до конца с порогом 3 сек (--reading-progress-seconds 3).
     // Результат: глава переходит из "unread" в "read" после прокрутки и ожидания.
     @MainActor
     func testAutoProgressByReadingWithOverride() throws {
@@ -988,7 +991,7 @@ final class ClassicReadingBoundaryTests: XCTestCase {
         app = nil
     }
 
-    // #18 — Запускаем приложение на Бытие 1 (первая глава Библии).
+    // #16 — Запускаем приложение на Бытие 1 (первая глава Библии).
     // Результат: кнопка «предыдущая глава» заблокирована, «следующая» активна.
     @MainActor
     func testFirstChapterPrevDisabled() {
@@ -1007,7 +1010,7 @@ final class ClassicReadingBoundaryTests: XCTestCase {
                       "Next chapter should be enabled at Genesis 1")
     }
 
-    // #19 — Запускаем приложение на Откровение 22 (последняя глава Библии).
+    // #17 — Запускаем приложение на Откровение 22 (последняя глава Библии).
     // Результат: кнопка «следующая глава» заблокирована, «предыдущая» активна.
     @MainActor
     func testLastChapterNextDisabled() {
@@ -1037,7 +1040,7 @@ final class ClassicReadingAudioEndProgressTests: XCTestCase {
         app = nil
     }
 
-    // #29 — Включаем autoProgressAudioEnd, открываем короткий Псалом 117 (2 стиха),
+    // #32 — Включаем autoProgressAudioEnd, открываем короткий Псалом 117 (2 стиха),
     // пролистываем стихи кнопкой «следующий стих» до конца.
     // Результат: глава автоматически отмечается как прочитанная после окончания аудио.
     @MainActor
@@ -1118,7 +1121,7 @@ final class ClassicReadingAutoNextTests: XCTestCase {
         app = nil
     }
 
-    // #30 — Открываем короткий Псалом 117, дослушиваем до конца с autoNextChapter=true.
+    // #18 — Открываем короткий Псалом 117, дослушиваем до конца с autoNextChapter=true.
     // Результат: заголовок главы автоматически меняется на следующую (Псалом 118).
     @MainActor
     func testAutoNextChapter() throws {
@@ -1170,7 +1173,7 @@ final class ClassicReadingAutoNextTests: XCTestCase {
             "Chapter title should change after audio finishes with autoNextChapter enabled. Was: \(originalTitle)")
     }
 
-    // #30b — Открываем Псалом 117 с --no-auto-next-chapter, дослушиваем до конца.
+    // #19 — Открываем Псалом 117 с --no-auto-next-chapter, дослушиваем до конца.
     // Результат: заголовок главы НЕ меняется — автопереход отключён.
     @MainActor
     func testNoAutoNextChapter() throws {
@@ -1231,7 +1234,7 @@ final class ClassicReadingAutoNextTests: XCTestCase {
                        "Chapter title should NOT change with autoNextChapter disabled")
     }
 
-    // #40 — Играем Псалом 117 на 2x, уходим в фон до окончания аудио.
+    // #36 — Играем Псалом 117 на 2x, уходим в фон до окончания аудио.
     // Результат: после возврата заголовок сменился — autoNextChapter сработал в фоне.
     @MainActor
     func testAutoNextChapterInBackground() throws {
@@ -1316,7 +1319,7 @@ final class ClassicReadingPauseTests: XCTestCase {
         return app.waitForLabel(element: stateLabel, toBe: state, timeout: timeout)
     }
 
-    // #26 — Запускаем с pauseType=time + pauseBlock=verse.
+    // #20 — Запускаем с pauseType=time + pauseBlock=verse.
     // Результат: после стиха плеер переходит в "autopausing", затем сам возобновляется.
     @MainActor
     func testPauseTimedVerse() throws {
@@ -1339,7 +1342,7 @@ final class ClassicReadingPauseTests: XCTestCase {
         playPause.tap() // stop
     }
 
-    // #27 — Запускаем с pauseType=full + pauseBlock=verse.
+    // #21 — Запускаем с pauseType=full + pauseBlock=verse.
     // Результат: после стиха плеер останавливается и НЕ возобновляется сам.
     @MainActor
     func testPauseFullVerse() throws {
@@ -1364,7 +1367,7 @@ final class ClassicReadingPauseTests: XCTestCase {
         playPause.tap() // cleanup
     }
 
-    // #34 — Запускаем с pauseType=time + pauseBlock=paragraph, скорость 2x.
+    // #22 — Запускаем с pauseType=time + pauseBlock=paragraph, скорость 2x.
     // Результат: плеер доигрывает до границы абзаца и переходит в "autopausing".
     // С pauseBlock=verse autopausing случилась бы раньше (после первого стиха),
     // а с paragraph — позже (только на границе абзаца).
@@ -1398,7 +1401,7 @@ final class ClassicReadingPauseTests: XCTestCase {
         playPause.tap() // stop
     }
 
-    // #39 — Запускаем с pauseType=time + pauseBlock=verse, играем → уходим в фон.
+    // #35 — Запускаем с pauseType=time + pauseBlock=verse, играем → уходим в фон.
     // Результат: после возврата из фона время продвинулось — паузы корректно
     // срабатывали и воспроизведение продолжалось в фоне.
     @MainActor
