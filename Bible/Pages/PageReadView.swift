@@ -1069,8 +1069,8 @@ struct PageReadView: View {
                     Text("\(currentAudioVerseIndex)")
                         .accessibilityIdentifier("read-verse-counter")
                 }
-                .foregroundStyle(Color("localAccentColor").opacity(0.05))
-                .font(.caption2)
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
                 #endif
                 Spacer()
                 Text("\(formatTime(audiopleer.currentDuration))")
