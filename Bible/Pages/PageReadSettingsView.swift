@@ -83,6 +83,7 @@ struct PageReadSettingsView: View {
                                     .frame(width: 32, height: 32)
                             }
                             .foregroundColor(Color.white.opacity(0.7))
+                            .accessibilityIdentifier("settings-close")
                         }
                         else {
                             MenuButtonView()
@@ -171,6 +172,7 @@ struct PageReadSettingsView: View {
                 Text("\(Int(settingsManager.fontIncreasePercent))%")
                     .foregroundColor(.white)
                     .frame(width: 70)
+                    .accessibilityIdentifier("settings-font-size")
                 
                 Spacer()
                 
@@ -186,10 +188,11 @@ struct PageReadSettingsView: View {
                             .background(Color.clear)
                             .foregroundColor(.white)
                     }
-                    
+                    .accessibilityIdentifier("settings-font-decrease")
+
                     Divider() // Divider between buttons
                         .background(Color.white)
-                    
+
                     Button(action: {
                         if settingsManager.fontIncreasePercent < 500 {
                             settingsManager.fontIncreasePercent = settingsManager.fontIncreasePercent + 10
@@ -201,6 +204,7 @@ struct PageReadSettingsView: View {
                             .background(Color.clear)
                             .foregroundColor(.white)
                     }
+                    .accessibilityIdentifier("settings-font-increase")
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 5)
@@ -222,6 +226,7 @@ struct PageReadSettingsView: View {
                         .foregroundColor(Color("Mustard"))
                         .frame(width: 70)
                 }
+                .accessibilityIdentifier("settings-font-reset")
             }
             
             Text("settings.font.example".localized)
@@ -268,7 +273,8 @@ struct PageReadSettingsView: View {
         viewGroupHeader(text: "settings.pause".localized)
         VStack(spacing: 15) {
             viewEnumPicker(title: settingsManager.pauseType.displayName, selection: $settingsManager.pauseType)
-            
+                .accessibilityIdentifier("settings-pause-type")
+
             if settingsManager.pauseType != .none {
                 // Duration controls
                 if settingsManager.pauseType == .time {
@@ -325,21 +331,24 @@ struct PageReadSettingsView: View {
                         
                         Text("settings.pause.unit.seconds".localized)
                     }
+                    .accessibilityIdentifier("settings-pause-duration")
                 }
-                
+
                 // Pause trigger
                 HStack {
                     Text("settings.pause.after_every".localized)
                         .frame(width: 140, alignment: .leading)
                     Spacer()
-                    
+
                     viewEnumPicker(title: settingsManager.pauseBlock.displayName, selection: $settingsManager.pauseBlock)
+                        .accessibilityIdentifier("settings-pause-block")
                 }
             }
 
             HStack {
                 Toggle("settings.auto_next_chapter".localized, isOn: $settingsManager.autoNextChapter)
                     .toggleStyle(SwitchToggleStyle(tint: Color("DarkGreen-accent")))
+                    .accessibilityIdentifier("settings-auto-next")
             }
         }
         .padding(1)
@@ -354,6 +363,7 @@ struct PageReadSettingsView: View {
                 section: .language,
                 title: "settings.bible_language".localized,
                 value: selectedLanguageLabel(),
+                isPlaceholder: language.isEmpty,
                 isLoading: isLanguagesLoading
             ) {
                 if isLanguagesLoading {
@@ -379,12 +389,14 @@ struct PageReadSettingsView: View {
                     )
                 }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("setup-language-section")
 
             selectionAccordionSectionCard(
                 section: .translation,
                 title: "settings.translation".localized,
                 value: selectedTranslationLabel(),
+                isPlaceholder: translation.isEmpty,
                 isLoading: isTranslationsLoading
             ) {
                 if isTranslationsLoading {
@@ -412,12 +424,14 @@ struct PageReadSettingsView: View {
                     )
                 }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("setup-translation-section")
 
             selectionAccordionSectionCard(
                 section: .voice,
                 title: "settings.reader".localized,
                 value: selectedVoiceLabel(),
+                isPlaceholder: voice.isEmpty,
                 isLoading: false
             ) {
                 if voiceTexts.isEmpty {
@@ -449,6 +463,7 @@ struct PageReadSettingsView: View {
                     )
                 }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("setup-voice-section")
         }
 
@@ -460,6 +475,7 @@ struct PageReadSettingsView: View {
         section: SelectionAccordionSection,
         title: String,
         value: String,
+        isPlaceholder: Bool = false,
         isLoading: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
@@ -478,8 +494,8 @@ struct PageReadSettingsView: View {
                             .foregroundColor(.white.opacity(0.7))
                         Text(value)
                             .font(.callout)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .fontWeight(isPlaceholder ? .regular : .medium)
+                            .foregroundColor(.white.opacity(isPlaceholder ? 0.4 : 1))
                             .lineLimit(1)
                     }
                     Spacer()
@@ -604,6 +620,7 @@ struct PageReadSettingsView: View {
                             .font(.system(size: 24))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings-voice-preview-\(index)")
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {

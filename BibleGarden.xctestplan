@@ -18,6 +18,7 @@
   },
   "testTargets" : [
     {
+      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:BibleGarden.xcodeproj",
         "identifier" : "04DED7512F48328500D0B620",

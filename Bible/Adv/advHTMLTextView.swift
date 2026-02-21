@@ -121,6 +121,11 @@ struct HTMLTextView: UIViewRepresentable {
 
             let contentHeight = scrollView.contentSize.height
             let visibleHeight = scrollView.bounds.height
+
+            // WKWebView may report zero/tiny contentSize before content is rendered.
+            // Ignore scroll metrics until content is meaningfully laid out.
+            guard contentHeight > visibleHeight * 0.5 else { return }
+
             let maxOffset = max(contentHeight - visibleHeight, 0)
 
             let progress: Double

@@ -115,6 +115,7 @@ struct PageReadView: View {
                                 Text(self.errorDescription)
                                     .foregroundColor(.pink)
                                     .padding(globalBasePadding)
+                                    .accessibilityIdentifier("read-error-text")
                                 Spacer()
                             }
                         }
@@ -135,6 +136,7 @@ struct PageReadView: View {
                                     .padding(.vertical, 8)
                                     .frame(maxWidth: .infinity)
                                     .background(Color("DarkGreen-light"))
+                                    .accessibilityIdentifier("read-audio-warning")
                             }
                             
                         HTMLTextView(
@@ -151,6 +153,7 @@ struct PageReadView: View {
                             )
                         )
                         .padding(12)
+                        .accessibilityIdentifier("read-text-content")
                     }
                     }
                     // MARK: Audio panel
@@ -161,6 +164,7 @@ struct PageReadView: View {
                 // Background layer
                 .background(
                     Color("DarkGreen")
+                        .accessibilityIdentifier("page-reading")
                 )
 
 
@@ -275,7 +279,15 @@ struct PageReadView: View {
                 self.errorDescription = ""
                 self.hasText = false
 
+            // UI Testing: simulate load error
+            if TestingEnvironment.shouldForceLoadError {
+                throw NSError(domain: "UITesting", code: 500, userInfo: [NSLocalizedDescriptionKey: "Simulated load error for UI testing"])
+            }
+
             let (thisTextVerses, audioVerses, firstUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(excerpts: settingsManager.currentExcerpt, client: settingsManager.client, translation: settingsManager.translation, voice: settingsManager.voice)
+
+            // UI Testing: simulate no audio
+            let effectiveFirstUrl = TestingEnvironment.forceNoAudio ? "" : firstUrl
 
             textVerses = thisTextVerses
             self.hasText = true
@@ -303,10 +315,10 @@ struct PageReadView: View {
             }
             
             // Check for audio availability
-            if firstUrl.isEmpty {
+            if effectiveFirstUrl.isEmpty {
                 self.hasAudio = false
                 self.errorDescription = "Audio file for this chapter is missing"
-            } else if let url = URL(string: firstUrl) {
+            } else if let url = URL(string: effectiveFirstUrl) {
                 let (from, to) = getExcerptPeriod(audioVerses: audioVerses)
                 
                 let playerItem = AVPlayerItem(url: url)
@@ -596,6 +608,9 @@ struct PageReadView: View {
     }
 
     private var textReadingAutoProgressRequiredSeconds: Double {
+        if let override = TestingEnvironment.readingProgressSecondsOverride {
+            return override
+        }
         let verseCount = textVerses.count
         guard verseCount > 0 else { return 60 }
         return min(60, max(10, Double(verseCount) * 2))
@@ -698,8 +713,9 @@ struct PageReadView: View {
                     .background(Color("DarkGreen").opacity(0.5))
                     .cornerRadius(8)
                     .padding(.top, 8)
+                    .accessibilityIdentifier("read-audio-warning-panel")
                 }
-                
+
                 viewAudioTimeline()
                 viewAudioButtons(proxy: proxy)
             }
@@ -712,6 +728,7 @@ struct PageReadView: View {
         .frame(height: showAudioPanel ? audioPanelHeight : 45)
         .padding(.horizontal, globalBasePadding)
         .background(Color("DarkGreen-light"))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("audio-panel")
         .clipShape(
             UnevenRoundedRectangle(
@@ -751,9 +768,8 @@ struct PageReadView: View {
                     .foregroundColor(Color("DarkGreen"))
             }
             .frame(maxWidth: .infinity)
-            //.background(.red)
         }
-
+        .accessibilityIdentifier("read-chevron")
     }
 
     // MARK: Panel – info
@@ -781,6 +797,7 @@ struct PageReadView: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("read-translation-chip")
 
             Button {
                 openSetupFromRead()
@@ -797,6 +814,7 @@ struct PageReadView: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("read-voice-chip")
 
             Spacer()
             
@@ -940,6 +958,8 @@ struct PageReadView: View {
         .disabled(!canMark)
         .opacity(canMark ? 1 : 0) // Reserve space to avoid panel jumping while chapter loads.
         .padding(.top, 2)
+        .accessibilityIdentifier("read-chapter-progress")
+        .accessibilityValue(isRead ? "read" : "unread")
     }
 
     private var currentChapterProgressTarget: (bookAlias: String, chapter: Int)? {
@@ -993,6 +1013,7 @@ struct PageReadView: View {
                                                    withConfiguration: progressCircleConfig), for: .normal)
                     }
                     .disabled(audiopleer.state == .waitingForSelection || audiopleer.state == .buffering)
+                    .accessibilityIdentifier("read-timeline-slider")
 
                 // Highlight current excerpt
                 if audiopleer.periodTo > 0 {
@@ -1039,18 +1060,44 @@ struct PageReadView: View {
                 // time
                 Text("\(formatTime(audiopleer.currentTime))")
                     .foregroundStyle(Color("Mustard"))
+                    .accessibilityIdentifier("read-time-current")
                 Spacer()
-                //Text("\(audiopleer.state)")
-                    //.foregroundStyle(Color("localAccentColor").opacity(0.1))
+                #if DEBUG
+                VStack(spacing: 0) {
+                    Text(playbackStateName)
+                        .accessibilityIdentifier("read-playback-state")
+                    Text("\(currentAudioVerseIndex)")
+                        .accessibilityIdentifier("read-verse-counter")
+                }
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
+                #endif
                 Spacer()
                 Text("\(formatTime(audiopleer.currentDuration))")
                     .foregroundStyle(Color("localAccentColor").opacity(0.4))
+                    .accessibilityIdentifier("read-time-total")
             }
             .font(.subheadline)
         }
         .padding(.top, 2)
 
     }
+
+    #if DEBUG
+    private var playbackStateName: String {
+        switch audiopleer.state {
+        case .waitingForSelection: return "waitingForSelection"
+        case .waitingForPlay: return "waitingForPlay"
+        case .waitingForPause: return "waitingForPause"
+        case .buffering: return "buffering"
+        case .playing: return "playing"
+        case .pausing: return "pausing"
+        case .autopausing: return "autopausing"
+        case .finished: return "finished"
+        case .segmentFinished: return "segmentFinished"
+        }
+    }
+    #endif
 
     func formatTime(_ time: TimeInterval) -> String {
         let minutes = Int(time) / 60
@@ -1081,6 +1128,7 @@ struct PageReadView: View {
                     .foregroundColor(prevColor)
             }
             .accessibilityIdentifier("read-prev-chapter")
+            .disabled(prevExcerpt.isEmpty)
             Spacer()
 
             // Restart excerpt
@@ -1090,6 +1138,7 @@ struct PageReadView: View {
                 Image(systemName: "gobackward")
                     .foregroundColor(buttonsColor)
             }
+            .accessibilityIdentifier("read-restart")
             .disabled(!hasAudio)
             Spacer()
 
@@ -1101,6 +1150,7 @@ struct PageReadView: View {
                 Image(systemName: "arrow.turn.left.up")
                     .foregroundColor(verseGoColor)
             }
+            .accessibilityIdentifier("read-prev-verse")
             .disabled(!hasAudio)
             Spacer()
 
@@ -1134,6 +1184,7 @@ struct PageReadView: View {
                 Image(systemName: "arrow.turn.right.down")
                     .foregroundColor(verseGoColor)
             }
+            .accessibilityIdentifier("read-next-verse")
             .disabled(!hasAudio)
             Spacer()
 
@@ -1145,7 +1196,9 @@ struct PageReadView: View {
                 Text(audiopleer.currentSpeed == 1 ? "x1" : String(format: "%.1f", audiopleer.currentSpeed))
                     .font(.system(size: 18))
                     .foregroundColor(buttonsColor)
+                    .accessibilityIdentifier("read-speed-label")
             }
+            .accessibilityIdentifier("read-speed")
             .disabled(!hasAudio)
             Spacer()
 
@@ -1162,6 +1215,7 @@ struct PageReadView: View {
                     .foregroundColor(nextColor)
             }
             .accessibilityIdentifier("read-next-chapter")
+            .disabled(nextExcerpt.isEmpty)
 
         }
         .foregroundColor(Color("localAccentColor"))
