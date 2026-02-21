@@ -758,18 +758,7 @@ final class SimpleReadingTests: XCTestCase {
                       "Progress button should still exist after toggling")
     }
 
-    // #29 — Авто-прогресс по окончании аудио (фича без UI-тогла).
-    // Результат: XCTSkip — требуется launch argument для включения.
-    @MainActor
-    func testAutoProgressOnAudioEnd() throws {
-        // autoProgressAudioEnd defaults to false with --uitesting
-        // This feature has no UI toggle in settings, so it requires a launch arg to enable
-        // Verify the progress button exists and is interactive
-        let progressBtn = app.buttons["read-chapter-progress"]
-        XCTAssertTrue(progressBtn.waitForExistence(timeout: 8))
-
-        throw XCTSkip("autoProgressAudioEnd not exposed in UI — requires launch arg to enable")
-    }
+    // #29 — вынесен в SimpleReadingAudioEndProgressTests (отдельный launch с --auto-progress-audio-end)
 
     // #30 — Проверяем тогл «автопереход на следующую главу» в настройках.
     // Результат: тогл включён по умолчанию, переключается off/on.
@@ -1168,5 +1157,86 @@ final class SimpleReadingBoundaryTests: XCTestCase {
         let prevBtn = app.buttons["read-prev-chapter"]
         XCTAssertTrue(prevBtn.isEnabled,
                       "Previous chapter should be enabled at Revelation 22")
+    }
+}
+
+// MARK: - SimpleReadingAudioEndProgressTests (авто-прогресс по окончании аудио)
+
+final class SimpleReadingAudioEndProgressTests: XCTestCase {
+
+    private var app: XCUIApplication!
+
+    override func tearDownWithError() throws {
+        app = nil
+    }
+
+    // #29 — Включаем autoProgressAudioEnd, открываем короткий Псалом 117 (2 стиха),
+    // пролистываем стихи кнопкой «следующий стих» до конца.
+    // Результат: глава автоматически отмечается как прочитанная после окончания аудио.
+    @MainActor
+    func testAutoProgressOnAudioEnd() throws {
+        app = XCUIApplication()
+        app.launchArguments = [
+            "--uitesting",
+            "--auto-progress-audio-end",
+            "--start-excerpt", "psa 117"
+        ]
+        app.launch()
+        app.navigateToReadingPage()
+
+        // Ждём загрузку аудио
+        let stateLabel = app.staticTexts["read-playback-state"]
+        guard stateLabel.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Playback state label not found — cannot verify")
+        }
+        let waitingPredicate = NSPredicate(format: "label == %@", "waitingForPlay")
+        let waitExp = XCTNSPredicateExpectation(predicate: waitingPredicate, object: stateLabel)
+        _ = XCTWaiter.wait(for: [waitExp], timeout: 15)
+
+        // Проверяем что глава ещё не прочитана
+        let progressBtn = app.buttons["read-chapter-progress"]
+        XCTAssertTrue(progressBtn.waitForExistence(timeout: 5))
+        XCTAssertEqual(progressBtn.value as? String, "unread",
+                       "Chapter should be unread before audio finishes")
+
+        // Устанавливаем скорость 2x для ускорения
+        let speedBtn = app.buttons["read-speed"]
+        XCTAssertTrue(speedBtn.waitForExistence(timeout: 3))
+        // Тапаем до 2x: 1.0→1.2→1.4→1.6→1.8→2.0 (5 тапов)
+        for _ in 0..<5 { speedBtn.tap() }
+
+        // Запускаем воспроизведение
+        let playPause = app.buttons["read-play-pause"]
+        playPause.tap()
+
+        let playingPredicate = NSPredicate(format: "label == %@", "playing")
+        let playExp = XCTNSPredicateExpectation(predicate: playingPredicate, object: stateLabel)
+        _ = XCTWaiter.wait(for: [playExp], timeout: 10)
+
+        // Псалом 117 — 2 стиха. Прокликиваем «следующий стих» чтобы ускорить.
+        let nextVerse = app.buttons["read-next-verse"]
+        if nextVerse.waitForExistence(timeout: 3) {
+            // Пропускаем на последний стих
+            Thread.sleep(forTimeInterval: 1)
+            nextVerse.tap()
+        }
+
+        // Ждём завершения аудио (finished/segmentFinished) — до 30 сек на 2x
+        let finishedPredicate = NSPredicate(format: "label == %@ OR label == %@",
+                                            "finished", "segmentFinished")
+        let finishExp = XCTNSPredicateExpectation(predicate: finishedPredicate, object: stateLabel)
+        let finished = XCTWaiter.wait(for: [finishExp], timeout: 30) == .completed
+
+        if !finished {
+            // Если не дождались finished, возможно глава уже отмечена
+            // (autoProgress мог сработать до смены state label)
+        }
+
+        // Даём время на обработку авто-прогресса
+        Thread.sleep(forTimeInterval: 2)
+
+        // Глава должна быть отмечена как прочитанная
+        XCTAssertEqual(progressBtn.value as? String, "read",
+                       "Chapter should be auto-marked as read after audio finishes")
     }
 }

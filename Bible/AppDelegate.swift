@@ -16,6 +16,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             if let excerpt = TestingEnvironment.startExcerptOverride {
                 UserDefaults.standard.set(excerpt, forKey: "currentExcerpt")
             }
+            // Enable autoProgressAudioEnd if requested
+            if TestingEnvironment.autoProgressAudioEnd {
+                UserDefaults.standard.set(true, forKey: "autoProgressAudioEnd")
+                // Disable autoNextChapter so test can verify progress mark
+                // before chapter switches
+                UserDefaults.standard.set(false, forKey: "autoNextChapter")
+            }
         }
 
         // Preload WKWebView ahead of time
