@@ -363,6 +363,7 @@ struct PageReadSettingsView: View {
                 section: .language,
                 title: "settings.bible_language".localized,
                 value: selectedLanguageLabel(),
+                isPlaceholder: language.isEmpty,
                 isLoading: isLanguagesLoading
             ) {
                 if isLanguagesLoading {
@@ -395,6 +396,7 @@ struct PageReadSettingsView: View {
                 section: .translation,
                 title: "settings.translation".localized,
                 value: selectedTranslationLabel(),
+                isPlaceholder: translation.isEmpty,
                 isLoading: isTranslationsLoading
             ) {
                 if isTranslationsLoading {
@@ -429,6 +431,7 @@ struct PageReadSettingsView: View {
                 section: .voice,
                 title: "settings.reader".localized,
                 value: selectedVoiceLabel(),
+                isPlaceholder: voice.isEmpty,
                 isLoading: false
             ) {
                 if voiceTexts.isEmpty {
@@ -472,6 +475,7 @@ struct PageReadSettingsView: View {
         section: SelectionAccordionSection,
         title: String,
         value: String,
+        isPlaceholder: Bool = false,
         isLoading: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
@@ -490,8 +494,8 @@ struct PageReadSettingsView: View {
                             .foregroundColor(.white.opacity(0.7))
                         Text(value)
                             .font(.callout)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .fontWeight(isPlaceholder ? .regular : .medium)
+                            .foregroundColor(.white.opacity(isPlaceholder ? 0.4 : 1))
                             .lineLimit(1)
                     }
                     Spacer()

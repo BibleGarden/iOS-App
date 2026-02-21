@@ -391,54 +391,12 @@ final class SimpleReadingTests: XCTestCase {
 
     // MARK: - P1: Chapter boundary
 
-    // #18 — Запускаем приложение на Бытие 1 (первая глава Библии).
-    // Результат: кнопка «предыдущая глава» заблокирована, «следующая» активна.
-    @MainActor
-    func testFirstChapterPrevDisabled() {
-        // Relaunch at Genesis 1 (the very first chapter)
-        app.terminate()
-        app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--start-excerpt", "gen 1"]
-        app.launch()
-        app.navigateToReadingPage()
-
-        let prevBtn = app.buttons["read-prev-chapter"]
-        XCTAssertTrue(prevBtn.waitForExistence(timeout: 5))
-        XCTAssertFalse(prevBtn.isEnabled,
-                       "Previous chapter should be disabled at Genesis 1")
-
-        // Next should still be enabled
-        let nextBtn = app.buttons["read-next-chapter"]
-        XCTAssertTrue(nextBtn.isEnabled,
-                      "Next chapter should be enabled at Genesis 1")
-    }
-
-    // #19 — Запускаем приложение на Откровение 22 (последняя глава Библии).
-    // Результат: кнопка «следующая глава» заблокирована, «предыдущая» активна.
-    @MainActor
-    func testLastChapterNextDisabled() {
-        // Relaunch at Revelation 22 (the very last chapter)
-        app.terminate()
-        app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--start-excerpt", "rev 22"]
-        app.launch()
-        app.navigateToReadingPage()
-
-        let nextBtn = app.buttons["read-next-chapter"]
-        XCTAssertTrue(nextBtn.waitForExistence(timeout: 5))
-        XCTAssertFalse(nextBtn.isEnabled,
-                       "Next chapter should be disabled at Revelation 22")
-
-        // Prev should still be enabled
-        let prevBtn = app.buttons["read-prev-chapter"]
-        XCTAssertTrue(prevBtn.isEnabled,
-                      "Previous chapter should be enabled at Revelation 22")
-    }
+    // #18, #19 — вынесены в SimpleReadingBoundaryTests (отдельный launch с --start-excerpt)
 
     // MARK: - P1: Settings
 
     // #20 — В настройках выбираем другой перевод и диктора.
-    // Результат: перевод успешно переключается, sheet закрывается.
+    // Результат: чип перевода на аудио-панели меняется на новое значение.
     @MainActor
     func testSettingsChangeTranslation() {
         let translationChip = app.buttons["read-translation-chip"]
@@ -447,18 +405,21 @@ final class SimpleReadingTests: XCTestCase {
 
         openSettings()
 
-        // Expand translation section
+        // Раскрываем секцию перевода (тап по заголовку аккордеона)
         let transSection = app.otherElements["setup-translation-section"]
         XCTAssertTrue(transSection.waitForExistence(timeout: 5))
         transSection.tap()
-        Thread.sleep(forTimeInterval: 0.5)
+        Thread.sleep(forTimeInterval: 1) // ждём загрузку списка переводов
 
-        // Find a different translation button within the section
+        // transSection.buttons: index 0 — заголовок аккордеона, index 1+ — опции перевода.
+        // У выбранного перевода внутри кнопки есть Image(checkmark), у остальных — нет.
         let translationButtons = transSection.buttons
         var tappedDifferent = false
-        for i in 0..<translationButtons.count {
+        for i in 1..<translationButtons.count {
             let btn = translationButtons.element(boundBy: i)
-            if btn.exists && !btn.label.isEmpty && btn.label != originalTranslation {
+            guard btn.exists else { continue }
+            // Пропускаем текущий выбранный перевод (у него есть checkmark)
+            if btn.images.count == 0 {
                 btn.tap()
                 tappedDifferent = true
                 break
@@ -467,94 +428,134 @@ final class SimpleReadingTests: XCTestCase {
 
         guard tappedDifferent else {
             closeSettings()
-            return // Only one translation available
+            return // Только один перевод доступен
         }
 
-        // After tapping translation, voice section auto-expands
-        // Select a voice to persist changes
+        // После выбора перевода раскрывается секция диктора — выбираем первого.
+        // Голоса выбираются через onTapGesture на HStack (не Button),
+        // поэтому тапаем по области имени — левее кнопки превью.
         Thread.sleep(forTimeInterval: 1)
-        let voiceSection = app.otherElements["setup-voice-section"]
-        if voiceSection.waitForExistence(timeout: 5) {
-            let voiceButtons = voiceSection.buttons
-            for i in 0..<voiceButtons.count {
-                let btn = voiceButtons.element(boundBy: i)
-                if btn.exists && !btn.label.isEmpty {
-                    btn.tap()
-                    break
-                }
-            }
+        let previewBtn = app.buttons["settings-voice-preview-0"]
+        if previewBtn.waitForExistence(timeout: 5) {
+            let nameArea = previewBtn.coordinate(withNormalizedOffset: CGVector(dx: -3.0, dy: 0.5))
+            nameArea.tap()
         }
 
         closeSettings()
         waitForReadingPage()
+
+        // Чип перевода должен измениться
+        XCTAssertTrue(translationChip.waitForExistence(timeout: 5))
+        XCTAssertNotEqual(translationChip.label, originalTranslation,
+                          "Translation chip should change after selecting a different translation")
     }
 
     // #21 — Меняем язык в настройках.
-    // Результат: секции перевода и диктора сбрасываются (каскадный reset).
+    // Результат: заголовки секций перевода и диктора сбрасываются на дефолтные заглушки.
     @MainActor
     func testSettingsLanguageResetsTranslationAndVoice() throws {
         openSettings()
 
-        // Expand language section
+        // Запоминаем текущие заголовки секций перевода и диктора
+        let transSection = app.otherElements["setup-translation-section"]
+        let voiceSection = app.otherElements["setup-voice-section"]
+        XCTAssertTrue(transSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(voiceSection.waitForExistence(timeout: 3))
+
+        // Заголовок аккордеона — кнопка (index 0) с label "Title\nValue"
+        let transHeaderBefore = transSection.buttons.element(boundBy: 0).label
+        let voiceHeaderBefore = voiceSection.buttons.element(boundBy: 0).label
+
+        // Раскрываем секцию языка
         let langSection = app.otherElements["setup-language-section"]
         XCTAssertTrue(langSection.waitForExistence(timeout: 5))
         langSection.tap()
         Thread.sleep(forTimeInterval: 0.5)
 
-        // Need at least 2 languages to test cascading reset
+        // langSection.buttons: index 0 — заголовок аккордеона, index 1+ — опции языка
         let langButtons = langSection.buttons
-        guard langButtons.count >= 2 else {
+        guard langButtons.count >= 3 else {
             closeSettings()
-            throw XCTSkip("Only one language available, cannot test cascading reset")
+            throw XCTSkip("Need at least 2 languages (header + 2 options)")
         }
 
-        // Note current state of translation and voice sections
-        let transSection = app.otherElements["setup-translation-section"]
-        let voiceSection = app.otherElements["setup-voice-section"]
-        XCTAssertTrue(transSection.waitForExistence(timeout: 3))
-        XCTAssertTrue(voiceSection.waitForExistence(timeout: 3))
+        // Выбираем язык, отличный от текущего (без checkmark)
+        var tappedDifferent = false
+        for i in 1..<langButtons.count {
+            let btn = langButtons.element(boundBy: i)
+            guard btn.exists else { continue }
+            if btn.images.count == 0 {
+                btn.tap()
+                tappedDifferent = true
+                break
+            }
+        }
+        guard tappedDifferent else {
+            closeSettings()
+            throw XCTSkip("Could not find a different language to select")
+        }
 
-        // Select a different language (second option)
-        langButtons.element(boundBy: 1).tap()
-        Thread.sleep(forTimeInterval: 1) // wait for translations to load
+        Thread.sleep(forTimeInterval: 1.5) // ждём загрузку новых переводов
 
-        // After language change, translation section auto-expands
-        // Translation and voice should be reset (cleared)
-        // The section values should show defaults like "Select translation" / "Select reader"
-        // We verify by checking sections still exist (structure preserved)
-        XCTAssertTrue(transSection.exists, "Translation section should exist after language change")
-        XCTAssertTrue(voiceSection.exists, "Voice section should exist after language change")
+        // После смены языка перевод и диктор сбрасываются —
+        // заголовки секций должны измениться (показать заглушки)
+        let transHeaderAfter = transSection.buttons.element(boundBy: 0).label
+        let voiceHeaderAfter = voiceSection.buttons.element(boundBy: 0).label
+
+        XCTAssertNotEqual(transHeaderAfter, transHeaderBefore,
+                          "Translation section header should change after language switch")
+        XCTAssertNotEqual(voiceHeaderAfter, voiceHeaderBefore,
+                          "Voice section header should change after language switch")
 
         closeSettings()
     }
 
     // #22 — Меняем перевод в настройках.
-    // Результат: секция диктора сбрасывается и раскрывается для выбора нового.
+    // Результат: заголовок секции диктора сбрасывается на заглушку.
     @MainActor
     func testSettingsTranslationResetsVoice() throws {
         openSettings()
 
-        // Expand translation section
+        // Запоминаем заголовок секции диктора до изменений
+        let voiceSection = app.otherElements["setup-voice-section"]
+        XCTAssertTrue(voiceSection.waitForExistence(timeout: 5))
+        let voiceHeaderBefore = voiceSection.buttons.element(boundBy: 0).label
+
+        // Раскрываем секцию перевода
         let transSection = app.otherElements["setup-translation-section"]
         XCTAssertTrue(transSection.waitForExistence(timeout: 5))
         transSection.tap()
-        Thread.sleep(forTimeInterval: 0.5)
+        Thread.sleep(forTimeInterval: 1)
 
-        // Need at least 2 translations
+        // transSection.buttons: index 0 — заголовок, index 1+ — опции перевода
         let translationButtons = transSection.buttons
-        guard translationButtons.count >= 2 else {
+        guard translationButtons.count >= 3 else {
             closeSettings()
-            throw XCTSkip("Only one translation available, cannot test voice reset")
+            throw XCTSkip("Need at least 2 translations (header + 2 options)")
         }
 
-        // Select a different translation
-        translationButtons.element(boundBy: 1).tap()
-        Thread.sleep(forTimeInterval: 0.5)
+        // Выбираем перевод без checkmark (не текущий)
+        var tappedDifferent = false
+        for i in 1..<translationButtons.count {
+            let btn = translationButtons.element(boundBy: i)
+            guard btn.exists else { continue }
+            if btn.images.count == 0 {
+                btn.tap()
+                tappedDifferent = true
+                break
+            }
+        }
+        guard tappedDifferent else {
+            closeSettings()
+            throw XCTSkip("Could not find a different translation")
+        }
 
-        // Voice section auto-expands and voice selection is cleared
-        let voiceSection = app.otherElements["setup-voice-section"]
-        XCTAssertTrue(voiceSection.waitForExistence(timeout: 3),
-                      "Voice section should exist after translation change")
+        Thread.sleep(forTimeInterval: 1)
+
+        // После смены перевода диктор сбрасывается — заголовок секции меняется
+        let voiceHeaderAfter = voiceSection.buttons.element(boundBy: 0).label
+        XCTAssertNotEqual(voiceHeaderAfter, voiceHeaderBefore,
+                          "Voice section header should change after translation switch")
 
         closeSettings()
     }
@@ -569,20 +570,34 @@ final class SimpleReadingTests: XCTestCase {
 
         openSettings()
 
-        // Expand language section and select different language
+        // Раскрываем секцию языка и выбираем другой
         let langSection = app.otherElements["setup-language-section"]
         XCTAssertTrue(langSection.waitForExistence(timeout: 5))
         langSection.tap()
         Thread.sleep(forTimeInterval: 0.5)
 
+        // langSection.buttons: index 0 — заголовок, index 1+ — опции
         let langButtons = langSection.buttons
-        guard langButtons.count >= 2 else {
+        guard langButtons.count >= 3 else {
             closeSettings()
-            throw XCTSkip("Only one language available")
+            throw XCTSkip("Need at least 2 languages")
         }
 
-        // Select a different language — this clears translation + voice locally
-        langButtons.element(boundBy: 1).tap()
+        // Выбираем язык без checkmark
+        var tappedDifferent = false
+        for i in 1..<langButtons.count {
+            let btn = langButtons.element(boundBy: i)
+            guard btn.exists else { continue }
+            if btn.images.count == 0 {
+                btn.tap()
+                tappedDifferent = true
+                break
+            }
+        }
+        guard tappedDifferent else {
+            closeSettings()
+            throw XCTSkip("Could not find a different language")
+        }
         Thread.sleep(forTimeInterval: 1)
 
         // Close WITHOUT selecting a voice — changes should NOT persist
@@ -1133,5 +1148,54 @@ final class SimpleReadingAutoProgressTests: XCTestCase {
         // Chapter should now be auto-marked as read
         XCTAssertEqual(progressBtn.value as? String, "read",
                        "Chapter should be auto-marked as read after scrolling to bottom + waiting")
+    }
+}
+
+// MARK: - SimpleReadingBoundaryTests (граничные главы, отдельный launch с --start-excerpt)
+
+final class SimpleReadingBoundaryTests: XCTestCase {
+
+    private var app: XCUIApplication!
+
+    override func tearDownWithError() throws {
+        app = nil
+    }
+
+    // #18 — Запускаем приложение на Бытие 1 (первая глава Библии).
+    // Результат: кнопка «предыдущая глава» заблокирована, «следующая» активна.
+    @MainActor
+    func testFirstChapterPrevDisabled() {
+        app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--start-excerpt", "gen 1"]
+        app.launch()
+        app.navigateToReadingPage()
+
+        let prevBtn = app.buttons["read-prev-chapter"]
+        XCTAssertTrue(prevBtn.waitForExistence(timeout: 5))
+        XCTAssertFalse(prevBtn.isEnabled,
+                       "Previous chapter should be disabled at Genesis 1")
+
+        let nextBtn = app.buttons["read-next-chapter"]
+        XCTAssertTrue(nextBtn.isEnabled,
+                      "Next chapter should be enabled at Genesis 1")
+    }
+
+    // #19 — Запускаем приложение на Откровение 22 (последняя глава Библии).
+    // Результат: кнопка «следующая глава» заблокирована, «предыдущая» активна.
+    @MainActor
+    func testLastChapterNextDisabled() {
+        app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--start-excerpt", "rev 22"]
+        app.launch()
+        app.navigateToReadingPage()
+
+        let nextBtn = app.buttons["read-next-chapter"]
+        XCTAssertTrue(nextBtn.waitForExistence(timeout: 5))
+        XCTAssertFalse(nextBtn.isEnabled,
+                       "Next chapter should be disabled at Revelation 22")
+
+        let prevBtn = app.buttons["read-prev-chapter"]
+        XCTAssertTrue(prevBtn.isEnabled,
+                      "Previous chapter should be enabled at Revelation 22")
     }
 }

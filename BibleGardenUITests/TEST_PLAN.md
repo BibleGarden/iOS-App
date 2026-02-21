@@ -7,7 +7,7 @@
 | `BibleGardenUITests.swift` | App launch | ✅ Exists |
 | `MenuTests.swift` | Menu navigation | ✅ Exists (6 tests) |
 | `Helpers/XCUIApplication+Helpers.swift` | Shared helpers | ✅ Exists |
-| `SimpleReadingTests.swift` | Classic reading, audio, settings | ✅ 37 tests, 3 classes — all pass (1 skipped by design: #5) |
+| `SimpleReadingTests.swift` | Classic reading, audio, settings | ✅ 37 tests, 4 classes — all pass (1 skipped by design: #29) |
 | `MainTests.swift` | Main screen cards | 📝 Planned |
 | `ChapterSelectTests.swift` | OT/NT filter, book/chapter pick | 📝 Planned |
 | `MultiReadingTests.swift` | Multilingual setup + reading | 📝 Planned |
@@ -164,12 +164,15 @@
 Три класса для разделения зависимостей:
 
 ```swift
-// Основной — тесты с живым API (#1-8, #12-37, кроме #32)
+// Основной — тесты с живым API (#1-8, #12-37, кроме #18, #19, #32)
 // API health check один раз за test run через static var
 class SimpleReadingTests: XCTestCase { ... }
 
 // Forced-error тесты (#9, #10, #11) — НЕ зависят от API
 class SimpleReadingErrorTests: XCTestCase { ... }
+
+// Граничные главы (#18, #19) — отдельный launch с --start-excerpt
+class SimpleReadingBoundaryTests: XCTestCase { ... }
 
 // Авто-прогресс с override launch args (#32)
 class SimpleReadingAutoProgressTests: XCTestCase { ... }
