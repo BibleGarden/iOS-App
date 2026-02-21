@@ -1,8 +1,8 @@
 import XCTest
 
-// MARK: - SimpleReadingTests (requires live API)
+// MARK: - ClassicReadingTests (requires live API)
 
-final class SimpleReadingTests: XCTestCase {
+final class ClassicReadingTests: XCTestCase {
 
     private var app: XCUIApplication!
     private static var apiChecked = false
@@ -367,7 +367,7 @@ final class SimpleReadingTests: XCTestCase {
 
     // MARK: - P1: Chapter boundary
 
-    // #18, #19 — вынесены в SimpleReadingBoundaryTests (отдельный launch с --start-excerpt)
+    // #18, #19 — вынесены в ClassicReadingBoundaryTests (отдельный launch с --start-excerpt)
 
     // MARK: - P1: Settings
 
@@ -654,7 +654,7 @@ final class SimpleReadingTests: XCTestCase {
         closeSettings()
     }
 
-    // #26, #27, #34 — вынесены в SimpleReadingPauseTests (отдельный launch с --pause-type / --pause-block)
+    // #26, #27, #34 — вынесены в ClassicReadingPauseTests (отдельный launch с --pause-type / --pause-block)
 
     // MARK: - P1: Progress
 
@@ -678,9 +678,9 @@ final class SimpleReadingTests: XCTestCase {
                       "Progress button should still exist after toggling")
     }
 
-    // #29 — вынесен в SimpleReadingAudioEndProgressTests (отдельный launch с --auto-progress-audio-end)
+    // #29 — вынесен в ClassicReadingAudioEndProgressTests (отдельный launch с --auto-progress-audio-end)
 
-    // #30 — вынесен в SimpleReadingAutoNextTests (отдельный launch с --start-excerpt "psa 117")
+    // #30 — вынесен в ClassicReadingAutoNextTests (отдельный launch с --start-excerpt "psa 117")
 
     // MARK: - P1: Audio info
 
@@ -845,9 +845,9 @@ final class SimpleReadingTests: XCTestCase {
     }
 }
 
-// MARK: - SimpleReadingErrorTests (forced errors, no API dependency)
+// MARK: - ClassicReadingErrorTests (forced errors, no API dependency)
 
-final class SimpleReadingErrorTests: XCTestCase {
+final class ClassicReadingErrorTests: XCTestCase {
 
     private var app: XCUIApplication!
 
@@ -923,9 +923,9 @@ final class SimpleReadingErrorTests: XCTestCase {
     }
 }
 
-// MARK: - SimpleReadingAutoProgressTests (special launch args)
+// MARK: - ClassicReadingAutoProgressTests (special launch args)
 
-final class SimpleReadingAutoProgressTests: XCTestCase {
+final class ClassicReadingAutoProgressTests: XCTestCase {
 
     private var app: XCUIApplication!
 
@@ -978,9 +978,9 @@ final class SimpleReadingAutoProgressTests: XCTestCase {
     }
 }
 
-// MARK: - SimpleReadingBoundaryTests (граничные главы, отдельный launch с --start-excerpt)
+// MARK: - ClassicReadingBoundaryTests (граничные главы, отдельный launch с --start-excerpt)
 
-final class SimpleReadingBoundaryTests: XCTestCase {
+final class ClassicReadingBoundaryTests: XCTestCase {
 
     private var app: XCUIApplication!
 
@@ -1027,9 +1027,9 @@ final class SimpleReadingBoundaryTests: XCTestCase {
     }
 }
 
-// MARK: - SimpleReadingAudioEndProgressTests (авто-прогресс по окончании аудио)
+// MARK: - ClassicReadingAudioEndProgressTests (авто-прогресс по окончании аудио)
 
-final class SimpleReadingAudioEndProgressTests: XCTestCase {
+final class ClassicReadingAudioEndProgressTests: XCTestCase {
 
     private var app: XCUIApplication!
 
@@ -1108,9 +1108,9 @@ final class SimpleReadingAudioEndProgressTests: XCTestCase {
     }
 }
 
-// MARK: - SimpleReadingAutoNextTests (автопереход на следующую главу после окончания аудио)
+// MARK: - ClassicReadingAutoNextTests (автопереход на следующую главу после окончания аудио)
 
-final class SimpleReadingAutoNextTests: XCTestCase {
+final class ClassicReadingAutoNextTests: XCTestCase {
 
     private var app: XCUIApplication!
 
@@ -1287,9 +1287,9 @@ final class SimpleReadingAutoNextTests: XCTestCase {
     }
 }
 
-// MARK: - SimpleReadingPauseTests (тесты пауз с --pause-type / --pause-block)
+// MARK: - ClassicReadingPauseTests (тесты пауз с --pause-type / --pause-block)
 
-final class SimpleReadingPauseTests: XCTestCase {
+final class ClassicReadingPauseTests: XCTestCase {
 
     private var app: XCUIApplication!
 

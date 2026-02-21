@@ -7,7 +7,7 @@
 | `BibleGardenUITests.swift` | App launch | ✅ Exists |
 | `MenuTests.swift` | Menu navigation | ✅ Exists (6 tests) |
 | `Helpers/XCUIApplication+Helpers.swift` | Shared helpers | ✅ Exists |
-| `SimpleReadingTests.swift` | Classic reading, audio, settings, pauses | ✅ 38 tests, 8 classes — all pass |
+| `ClassicReadingTests.swift` | Classic reading, audio, settings, pauses | ✅ 38 tests, 8 classes — all pass |
 | `MainTests.swift` | Main screen cards | 📝 Planned |
 | `ChapterSelectTests.swift` | OT/NT filter, book/chapter pick | 📝 Planned |
 | `MultiReadingTests.swift` | Multilingual setup + reading | 📝 Planned |
@@ -37,7 +37,7 @@
 
 ---
 
-## SimpleReadingTests.swift
+## ClassicReadingTests.swift
 
 Тесты требуют работающий API (bibleapi.space) и сеть. Ряд тестов требует поддержки launch arguments в приложении (см. "Инфраструктура" ниже).
 
@@ -170,25 +170,25 @@
 
 ```swift
 // Основной — тесты с живым API (#1-8, #12-25, #28, #31, #35-38)
-class SimpleReadingTests: XCTestCase { ... }
+class ClassicReadingTests: XCTestCase { ... }
 
 // Forced-error тесты (#9, #10, #11) — НЕ зависят от API
-class SimpleReadingErrorTests: XCTestCase { ... }
+class ClassicReadingErrorTests: XCTestCase { ... }
 
 // Авто-прогресс по чтению с --reading-progress-seconds (#32)
-class SimpleReadingAutoProgressTests: XCTestCase { ... }
+class ClassicReadingAutoProgressTests: XCTestCase { ... }
 
 // Граничные главы с --start-excerpt (#18, #19)
-class SimpleReadingBoundaryTests: XCTestCase { ... }
+class ClassicReadingBoundaryTests: XCTestCase { ... }
 
 // Авто-прогресс по аудио с --auto-progress-audio-end (#29)
-class SimpleReadingAudioEndProgressTests: XCTestCase { ... }
+class ClassicReadingAudioEndProgressTests: XCTestCase { ... }
 
 // Автопереход с --start-excerpt (#30, #30b)
-class SimpleReadingAutoNextTests: XCTestCase { ... }
+class ClassicReadingAutoNextTests: XCTestCase { ... }
 
 // Паузы с --pause-type / --pause-block (#26, #27, #34)
-class SimpleReadingPauseTests: XCTestCase { ... }
+class ClassicReadingPauseTests: XCTestCase { ... }
 ```
 
 #### Стабильность и ожидания
@@ -203,7 +203,7 @@ class SimpleReadingPauseTests: XCTestCase { ... }
 
 - **ChapterSelectTests**: детали OT/NT фильтрации, развёртывание книг, поиск — всё что внутри sheet выбора главы
 - **ProgressTests**: отображение статистики, синхронизация прогресса между страницами
-- **SimpleReadingTests**: всё что происходит на странице чтения + настройки чтения
+- **ClassicReadingTests**: всё что происходит на странице чтения + настройки чтения
 
 ---
 
