@@ -20,8 +20,9 @@
 "page.main.reading_progress" = "Reading Progress";
 "page.main.header" = "Bible Garden";
 "page.main.classic.title" = "Classic Reading";
-"page.main.multilingual.title" = "Multilingual Reading";
-"page.main.multilingual.subtitle" = "Compare translations • Audio • Language study";
+"page.main.classic.subtitle" = "In one language, with optional pauses between verses";
+"page.main.multilingual.title" = "Multi Reading";
+"page.main.multilingual.subtitle" = "Read and listen to every verse in 2+ languages";
 
 /* Errors */
 "error.prefix" = "Error: %@";
@@ -147,7 +148,7 @@
 /* Multilingual */
 "unit.paragraph" = "paragraph";
 "unit.fragment" = "fragment";
-"multilingual.title" = "Multilingual Reading";
+"multilingual.title" = "Multi Reading";
 "multilingual.subtitle" = "New configuration";
 "multilingual.read_by" = "Read by";
 "multilingual.add_read_step" = "+ Read";

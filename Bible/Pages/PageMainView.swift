@@ -48,7 +48,7 @@ struct PageMainView: View {
                     // Option 1: Silence (Classic Reading)
                     MainMenuCard(
                         title: "page.main.classic.title".localized,
-                        subtitle: "\(settingsManager.currentExcerptTitle), \(settingsManager.currentExcerptSubtitle)",
+                        subtitle: "page.main.classic.subtitle".localized,
                         icon: "book.fill", // Classic book icon
                         color: Color("ForestGreen")
                     ) {

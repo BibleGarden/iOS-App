@@ -20,8 +20,9 @@
 "page.main.reading_progress" = "Прогрес читання";
 "page.main.header" = "Bible Garden";
 "page.main.classic.title" = "Звичайне читання";
-"page.main.multilingual.title" = "Багатомовне читання";
-"page.main.multilingual.subtitle" = "Порівняння перекладів • Аудіо • Вивчення мов";
+"page.main.classic.subtitle" = "Однією мовою, можна додати паузи між віршами";
+"page.main.multilingual.title" = "Мультичитання";
+"page.main.multilingual.subtitle" = "Читайте і слухайте кожен вірш 2+ мовами";
 
 /* Errors */
 "error.prefix" = "Помилка: %@";
@@ -145,7 +146,7 @@
 "unit.paragraph" = "абзацу";
 "unit.fragment" = "фрагменту";
 "settings.setup" = "Налаштування"; 
-"multilingual.title" = "Багатомовне читання";
+"multilingual.title" = "Мультичитання";
 "multilingual.subtitle" = "Нове налаштування";
 "multilingual.read_by" = "Читати по";
 "multilingual.add_read_step" = "+ Читання";
