@@ -123,7 +123,7 @@
 
 "settings.pause.block.verse" = "вірша";
 "settings.pause.block.paragraph" = "абзаца";
-"settings.pause.block.fragment" = "уривка";
+"settings.pause.block.fragment" = "розділу";
 
 "settings.pause.unit.seconds" = "сек.";
 "settings.pause.after_every" = "Після кожного";
@@ -137,14 +137,14 @@
 
 "settings.pause.block.short.verse" = "вірш";
 "settings.pause.block.short.paragraph" = "абзац";
-"settings.pause.block.short.fragment" = "урив.";
+"settings.pause.block.short.fragment" = "розд.";
 
 /* Multilingual */
 "menu.multilingual" = "Мультичитання";
 "unit.verse" = "віршу";
 "unit.chapter" = "розділу";
 "unit.paragraph" = "абзацу";
-"unit.fragment" = "фрагменту";
+"unit.fragment" = "розділу";
 "settings.setup" = "Налаштування"; 
 "multilingual.title" = "Мультичитання";
 "multilingual.subtitle" = "Нове налаштування";

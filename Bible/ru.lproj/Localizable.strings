@@ -123,7 +123,7 @@
 
 "settings.pause.block.verse" = "стиха";
 "settings.pause.block.paragraph" = "абзаца";
-"settings.pause.block.fragment" = "отрывка";
+"settings.pause.block.fragment" = "раздела";
 
 "settings.pause.unit.seconds" = "сек.";
 "settings.pause.after_every" = "После каждого";
@@ -137,7 +137,7 @@
 
 "settings.pause.block.short.verse" = "стих";
 "settings.pause.block.short.paragraph" = "абзац";
-"settings.pause.block.short.fragment" = "отр.";
+"settings.pause.block.short.fragment" = "разд.";
 
 /* Multilingual */
 "menu.multilingual" = "Мультичтение";
@@ -147,7 +147,7 @@
 
 /* Multilingual */
 "unit.paragraph" = "абзацу";
-"unit.fragment" = "фрагменту";
+"unit.fragment" = "разделу";
 "multilingual.title" = "Мультичтение";
 "multilingual.subtitle" = "Новая настройка";
 "multilingual.empty.title" = "Как это работает";

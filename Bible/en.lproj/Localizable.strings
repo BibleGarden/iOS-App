@@ -123,7 +123,7 @@
 
 "settings.pause.block.verse" = "verse";
 "settings.pause.block.paragraph" = "paragraph";
-"settings.pause.block.fragment" = "fragment";
+"settings.pause.block.fragment" = "section";
 
 "settings.pause.unit.seconds" = "sec.";
 "settings.pause.after_every" = "After every";
@@ -137,7 +137,7 @@
 
 "settings.pause.block.short.verse" = "verse";
 "settings.pause.block.short.paragraph" = "paragraph";
-"settings.pause.block.short.fragment" = "fragment";
+"settings.pause.block.short.fragment" = "section";
 
 /* Multilingual */
 "menu.multilingual" = "Multi Reading";
@@ -147,7 +147,7 @@
 
 /* Multilingual */
 "unit.paragraph" = "paragraph";
-"unit.fragment" = "fragment";
+"unit.fragment" = "section";
 "multilingual.title" = "Multi Reading";
 "multilingual.subtitle" = "New configuration";
 "multilingual.empty.title" = "How it works";
