@@ -1042,8 +1042,10 @@ final class SimpleReadingErrorTests: XCTestCase {
         XCTAssertTrue(errorText.waitForExistence(timeout: 8),
                       "Error text should appear on first load")
 
-        // Pull to refresh (swipe down on the error scroll view)
-        app.swipeDown()
+        // Pull to refresh — медленный drag вниз по тексту ошибки для .refreshable
+        let start = errorText.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.0))
+        let end = errorText.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 8.0))
+        start.press(forDuration: 0.1, thenDragTo: end)
 
         // After retry with one-shot consumed, text content should load
         let textContent = app.waitForTextContent(timeout: 15)
