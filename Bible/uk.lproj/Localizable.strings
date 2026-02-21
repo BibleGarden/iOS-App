@@ -148,6 +148,10 @@
 "settings.setup" = "Налаштування"; 
 "multilingual.title" = "Мультичитання";
 "multilingual.subtitle" = "Нове налаштування";
+"multilingual.empty.title" = "Як це працює";
+"multilingual.empty.description" = "Кожен вірш буде програний послідовно в усіх доданих перекладах. \n\n Наприклад:";
+"multilingual.empty.example" = "NPU (Українська)\nПауза 2 сек\nBSB (English)";
+"multilingual.empty.hint" = "Натисніть «+ Читання» щоб додати перший переклад";
 "multilingual.read_by" = "Читати по";
 "multilingual.add_read_step" = "+ Читання";
 "multilingual.add_pause_step" = "+ Пауза";

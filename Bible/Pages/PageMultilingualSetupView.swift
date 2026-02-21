@@ -118,20 +118,23 @@ struct PageMultilingualSetupView: View {
                 }
                 
                 // MARK: Steps List
-                // MARK: Steps List
-                List {
-                    ForEach(Array(settingsManager.multilingualSteps.enumerated()), id: \.element.id) { index, step in
-                        stepRow(index: index, step: step)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 5, leading: globalBasePadding, bottom: 5, trailing: 16))
+                if settingsManager.multilingualSteps.isEmpty {
+                    emptyStateView()
+                } else {
+                    List {
+                        ForEach(Array(settingsManager.multilingualSteps.enumerated()), id: \.element.id) { index, step in
+                            stepRow(index: index, step: step)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 5, leading: globalBasePadding, bottom: 5, trailing: 16))
+                        }
+                        .onMove(perform: moveSteps)
                     }
-                    .onMove(perform: moveSteps)
+                    .listStyle(.plain)
+                    .environment(\.editMode, .constant(.active))
+                    .scrollContentBackground(.hidden)
+                    .environment(\.colorScheme, .dark)
                 }
-                .listStyle(.plain)
-                .environment(\.editMode, .constant(.active))
-                .scrollContentBackground(.hidden) 
-                .environment(\.colorScheme, .dark) // Force dark mode controls for visibility 
                 
                 // MARK: Action Buttons
                 HStack(spacing: 15) {
@@ -295,6 +298,56 @@ struct PageMultilingualSetupView: View {
     // MARK: Drop Delegate Removed - using native List EditMode
 
     
+    // MARK: Empty State
+    @ViewBuilder
+    func emptyStateView() -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Text("multilingual.empty.title".localized)
+                .font(.headline)
+                .foregroundColor(.white)
+
+            Text("multilingual.empty.description".localized)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: 8) {
+                let lines = "multilingual.empty.example".localized.components(separatedBy: "\n")
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    HStack(spacing: 8) {
+                        if line.lowercased().contains("paus") || line.lowercased().contains("ауз") {
+                            Image(systemName: "hourglass")
+                                .foregroundColor(.white.opacity(0.5))
+                                .frame(width: 16)
+                        } else {
+                            Image(systemName: "book.fill")
+                                .foregroundColor(.white.opacity(0.5))
+                                .frame(width: 16)
+                        }
+                        Text(line)
+                            .font(.callout)
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(10)
+
+            Text("multilingual.empty.hint".localized)
+                .font(.subheadline)
+                .foregroundColor(Color("Mustard"))
+                .multilineTextAlignment(.center)
+
+            Spacer()
+        }
+        .padding(.horizontal, globalBasePadding)
+    }
+
     // MARK: Rows
     @ViewBuilder
     func stepRow(index: Int, step: MultilingualStep) -> some View {

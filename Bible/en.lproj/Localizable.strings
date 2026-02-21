@@ -150,6 +150,10 @@
 "unit.fragment" = "fragment";
 "multilingual.title" = "Multi Reading";
 "multilingual.subtitle" = "New configuration";
+"multilingual.empty.title" = "How it works";
+"multilingual.empty.description" = "Each verse will be played sequentially in all added translations. \n\n For example:";
+"multilingual.empty.example" = "WEB (English)\nPause 2 sec\nBSB (English)";
+"multilingual.empty.hint" = "Tap \"+ Read\" to add your first translation";
 "multilingual.read_by" = "Read by";
 "multilingual.add_read_step" = "+ Read";
 "multilingual.add_pause_step" = "+ Pause";

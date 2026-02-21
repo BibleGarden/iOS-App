@@ -150,6 +150,10 @@
 "unit.fragment" = "фрагменту";
 "multilingual.title" = "Мультичтение";
 "multilingual.subtitle" = "Новая настройка";
+"multilingual.empty.title" = "Как это работает";
+"multilingual.empty.description" = "Каждый стих будет проигран последовательно во всех добавленных переводах. \n\n Например:";
+"multilingual.empty.example" = "SYNO (Русский)\nПауза 2 сек\nBSB (English)";
+"multilingual.empty.hint" = "Нажмите «+ Чтение» чтобы добавить первый перевод";
 "multilingual.read_by" = "Читать по";
 "multilingual.add_read_step" = "+ Чтение";
 "multilingual.add_pause_step" = "+ Пауза";
