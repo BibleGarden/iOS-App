@@ -4,6 +4,35 @@ var globalCurrentTranslationIndex: Int = 0
 
 var globalDebug = true
 
+// MARK: - UI Testing support
+enum TestingEnvironment {
+    static let isUITesting = CommandLine.arguments.contains("--uitesting")
+    static let forceLoadError = CommandLine.arguments.contains("--force-load-error")
+    static let forceLoadErrorOnce = CommandLine.arguments.contains("--force-load-error-once")
+    static let forceNoAudio = CommandLine.arguments.contains("--force-no-audio")
+    static let readingProgressSecondsOverride: Double? = {
+        guard let idx = CommandLine.arguments.firstIndex(of: "--reading-progress-seconds"),
+              idx + 1 < CommandLine.arguments.count,
+              let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
+        return value
+    }()
+    static let startExcerptOverride: String? = {
+        guard let idx = CommandLine.arguments.firstIndex(of: "--start-excerpt"),
+              idx + 1 < CommandLine.arguments.count else { return nil }
+        return CommandLine.arguments[idx + 1]
+    }()
+    /// One-shot: consumed after first use
+    static var loadErrorOnceConsumed = false
+    static var shouldForceLoadError: Bool {
+        if forceLoadError { return true }
+        if forceLoadErrorOnce && !loadErrorOnceConsumed {
+            loadErrorOnceConsumed = true
+            return true
+        }
+        return false
+    }
+}
+
 let globalBasePadding = 22.0
 let globalCornerRadius = 6.0
 

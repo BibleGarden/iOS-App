@@ -27,10 +27,50 @@ extension XCUIApplication {
         tapMenuItem(menuItemIdentifier)
     }
 
+    // MARK: - Reading page
+
+    /// Navigate to the classic reading page and wait for content to load
+    func navigateToReadingPage() {
+        navigateViaMenu(to: "menu-read")
+        let title = buttons["read-chapter-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 8),
+                      "Reading page chapter title should appear")
+    }
+
+    // MARK: - Text content
+
+    /// Find the reading page text content (HTMLTextView wraps WKWebView,
+    /// which shows up as `webViews` in XCUITest rather than `otherElements`)
+    func waitForTextContent(timeout: TimeInterval = 10) -> XCUIElement? {
+        let webView = webViews.firstMatch
+        if webView.waitForExistence(timeout: timeout) {
+            return webView
+        }
+        let other = otherElements["read-text-content"]
+        if other.waitForExistence(timeout: 2) {
+            return other
+        }
+        return nil
+    }
+
     // MARK: - Waits
 
     /// Wait for an element to exist with a timeout, returns Bool
     func waitForElement(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         return element.waitForExistence(timeout: timeout)
+    }
+
+    /// Wait for an element's label to change from a known value
+    func waitForLabelChange(element: XCUIElement, from oldLabel: String, timeout: TimeInterval = 10) -> Bool {
+        let predicate = NSPredicate(format: "label != %@", oldLabel)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    /// Wait for an element's label to equal a specific value
+    func waitForLabel(element: XCUIElement, toBe label: String, timeout: TimeInterval = 10) -> Bool {
+        let predicate = NSPredicate(format: "label == %@", label)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

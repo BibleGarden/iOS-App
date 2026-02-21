@@ -7,7 +7,7 @@
 | `BibleGardenUITests.swift` | App launch | ✅ Exists |
 | `MenuTests.swift` | Menu navigation | ✅ Exists (6 tests) |
 | `Helpers/XCUIApplication+Helpers.swift` | Shared helpers | ✅ Exists |
-| `SimpleReadingTests.swift` | Classic reading, audio, settings | 📝 Planned |
+| `SimpleReadingTests.swift` | Classic reading, audio, settings | ✅ 37 tests, 3 classes — all pass (1 skipped by design: #5) |
 | `MainTests.swift` | Main screen cards | 📝 Planned |
 | `ChapterSelectTests.swift` | OT/NT filter, book/chapter pick | 📝 Planned |
 | `MultiReadingTests.swift` | Multilingual setup + reading | 📝 Planned |
@@ -135,16 +135,16 @@
 
 ---
 
-### Prerequisite: реализация в приложении
+### Prerequisite: реализация в приложении ✅
 
-Перед написанием тестов необходимо реализовать в коде приложения:
+Все prerequisite реализованы:
 
-| Задача | Файл | Описание |
-|--------|------|----------|
-| Launch args обработка | `BibleGardenApp.swift` | `--uitesting` (reset UserDefaults), `--force-load-error`, `--force-load-error-once`, `--force-no-audio`, `--reading-progress-seconds N` |
-| Debug playback state label | `PageReadView.swift` | Скрытый `Text(playbackStateName).accessibilityIdentifier("read-playback-state")` (только `#if DEBUG`). Значение через computed property: `switch audiopleer.state { case .playing: "playing", case .pausing: "pausing", ... }` — НЕ через `rawValue` (это Int) |
-| `.disabled()` на prev/next chapter | `PageReadView.swift` | Добавить `.disabled(prevExcerpt.isEmpty)` и `.disabled(nextExcerpt.isEmpty)`. Кнопки play/restart/speed/verse уже имеют `.disabled(!hasAudio)` |
-| Accessibility identifiers | `PageReadView.swift`, `PageReadSettingsView.swift` | Все новые identifiers из списка ниже |
+| Задача | Файл | Статус |
+|--------|------|--------|
+| Launch args обработка | `AppDelegate.swift`, `advGlobals.swift` | ✅ `--uitesting`, `--force-load-error`, `--force-load-error-once`, `--force-no-audio`, `--reading-progress-seconds N`, `--start-excerpt` |
+| Debug playback state label | `PageReadView.swift` | ✅ `playbackStateName` computed property, `#if DEBUG` |
+| `.disabled()` на prev/next chapter | `PageReadView.swift` | ✅ `.disabled(prevExcerpt.isEmpty)` / `.disabled(nextExcerpt.isEmpty)` |
+| Accessibility identifiers | `PageReadView.swift`, `PageReadSettingsView.swift` | ✅ Все identifiers добавлены |
 
 ### Инфраструктура тестов
 
@@ -156,42 +156,23 @@
 | `--force-load-error` | Симулирует ошибку загрузки главы, все запросы (#9) |
 | `--force-load-error-once` | One-shot: первый запрос → ошибка, последующие → нормально (#10) |
 | `--force-no-audio` | Симулирует отсутствие аудио (#11) |
+| `--start-excerpt <excerpt>` | Переопределяет начальный excerpt (напр. "gen 1", "rev 22") (#18, #19) |
 | `--reading-progress-seconds N` | Переопределяет порог авто-прогресса по чтению (#32, по умолчанию до 60с) |
 
-#### Архитектура тестового класса
+#### Архитектура тестового класса ✅
 
-Два класса для разделения зависимости от API:
+Три класса для разделения зависимостей:
 
 ```swift
-// Базовый — для тестов, требующих живой API (#1-8, #12-37)
-class SimpleReadingTests: XCTestCase {
-    var app: XCUIApplication!
+// Основной — тесты с живым API (#1-8, #12-37, кроме #32)
+// API health check один раз за test run через static var
+class SimpleReadingTests: XCTestCase { ... }
 
-    override func setUp() async throws {
-        try await super.setUp()
-        app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
-        // Skip при недоступном API
-        let (_, response) = try await URLSession.shared.data(
-            from: URL(string: "https://bibleapi.space/health")!)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-            throw XCTSkip("API unavailable")
-        }
-        app.launch()
-    }
-}
+// Forced-error тесты (#9, #10, #11) — НЕ зависят от API
+class SimpleReadingErrorTests: XCTestCase { ... }
 
-// Для forced-error тестов (#9, #10, #11) — НЕ зависят от API
-class SimpleReadingErrorTests: XCTestCase {
-    var app: XCUIApplication!
-
-    override func setUp() async throws {
-        try await super.setUp()
-        app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
-        // Без health check — тесты используют launch args для симуляции ошибок
-    }
-}
+// Авто-прогресс с override launch args (#32)
+class SimpleReadingAutoProgressTests: XCTestCase { ... }
 ```
 
 #### Стабильность и ожидания
