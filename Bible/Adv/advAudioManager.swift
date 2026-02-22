@@ -335,16 +335,8 @@ class PlayerModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: indicatorWork)
     }
 
-    /// Fast seek within an already-loaded player item — reuses the same AVPlayerItem,
-    /// just updates verse boundaries and seeks to the new position.
-    ///
-    /// IMPORTANT: Does NOT set state to `.buffering` — the duration observer would
-    /// immediately transition to `.waitingForPlay` (duration is already known for the
-    /// reused item), causing `doPlayOrPause()` to call `player.play()` BEFORE the seek
-    /// completes, playing audio from the old position.
-    ///
-    /// Instead, shows `isBufferingLong` indicator directly (without state change) if
-    /// the seek takes longer than 0.3s.
+    /// Fast seek within an already-loaded player item. Skips buffering phase entirely —
+    /// just updates verse boundaries, seeks, and signals readiness to play.
     func seekToSegment(periodFrom: Double, periodTo: Double, audioVerses: [BibleAcousticalVerseFull], itemTitle: String, itemSubtitle: String) {
         if self.state == .playing {
             self.player.pause()
@@ -370,19 +362,10 @@ class PlayerModel: ObservableObject {
         self.itemSubtitle = itemSubtitle
         self.setupNowPlaying()
 
-        // Show loading indicator if seek takes >0.3s (slow network, data not yet buffered)
-        // Uses isBufferingLong directly — NOT .buffering state (see doc comment above)
-        let indicatorWork = DispatchWorkItem { [weak self] in
-            self?.isBufferingLong = true
-        }
-        self.bufferingIndicatorWork = indicatorWork
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: indicatorWork)
-
-        // Seek first, then signal readiness
+        // Seek first, then signal readiness — avoids brief .waitingToPlayAtSpecifiedRate
+        // that would trigger the stalled indicator
         self.player.seek(to: CMTimeMake(value: Int64(periodFrom * 100), timescale: 100)) { [weak self] finished in
             guard let self = self, finished else { return }
-            self.bufferingIndicatorWork?.cancel()
-            self.isBufferingLong = false
             self.currentTime = periodFrom
             self.findAndSetCurrentVerseIndex()
             self.state = .waitingForPlay

@@ -48,8 +48,12 @@ struct MultilingualStep: Identifiable, Codable, Equatable {
         return lhs.id == rhs.id &&
             lhs.type == rhs.type &&
             lhs.languageCode == rhs.languageCode &&
+            lhs.languageName == rhs.languageName &&
             lhs.translationCode == rhs.translationCode &&
+            lhs.translationName == rhs.translationName &&
             lhs.voiceCode == rhs.voiceCode &&
+            lhs.voiceName == rhs.voiceName &&
+            lhs.voiceMusic == rhs.voiceMusic &&
             lhs.pauseDuration == rhs.pauseDuration &&
             lhs.fontIncreasePercent == rhs.fontIncreasePercent &&
             lhs.playbackSpeed == rhs.playbackSpeed

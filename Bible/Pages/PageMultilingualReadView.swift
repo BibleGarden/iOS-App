@@ -247,7 +247,6 @@ struct PageMultilingualReadView: View {
             VStack(spacing: 0) {
                 // Reader info row
                 HStack(spacing: 12) {
-                    // Current translation badge (match Classic Reading style)
                     if let currentReadStep = getCurrentReadStep() {
                         HStack(spacing: 4) {
                             Image(systemName: "globe")
@@ -268,7 +267,7 @@ struct PageMultilingualReadView: View {
                             RoundedRectangle(cornerRadius: 5, style: .continuous)
                                 .stroke(Color("localAccentColor").opacity(0.25), lineWidth: 1)
                         }
-                        
+
                         // Reader name
                         VStack(alignment: .leading, spacing: 0) {
                             Text("page.read.reader".localized())
@@ -459,23 +458,6 @@ struct PageMultilingualReadView: View {
         180 + 24
     }
     
-    // Get current read step
-    private func getCurrentReadStep() -> MultilingualStep? {
-        if currentStepIndex < allSteps.count {
-            let step = allSteps[currentStepIndex]
-            if step.type == .read {
-                return step
-            }
-            // If on pause, find the previous read step
-            for i in stride(from: currentStepIndex - 1, through: 0, by: -1) {
-                if allSteps[i].type == .read {
-                    return allSteps[i]
-                }
-            }
-        }
-        return readSteps.first
-    }
-
     private var ninetyPercentThresholdVerseCount: Int {
         guard audioVerseCount > 0 else { return 0 }
         return Int(ceil(Double(audioVerseCount) * 0.9))
@@ -605,6 +587,19 @@ struct PageMultilingualReadView: View {
         }
     }
     
+    /// Returns the current (or most recent) read step for display in the audio panel.
+    private func getCurrentReadStep() -> MultilingualStep? {
+        if currentStepIndex < allSteps.count {
+            let step = allSteps[currentStepIndex]
+            if step.type == .read { return step }
+            // Walk backwards to find the last read step before the current position
+            for i in stride(from: currentStepIndex - 1, through: 0, by: -1) {
+                if allSteps[i].type == .read { return allSteps[i] }
+            }
+        }
+        return readSteps.first
+    }
+
     // MARK: Data Loading
     private func loadAllData(force: Bool = false) async {
         // Avoid reloading if data exists (preserves state on return from Settings)
@@ -673,7 +668,7 @@ struct PageMultilingualReadView: View {
         currentUnitIndex = 0
         currentStepIndex = 0
         isPlaying = false
-        
+
         isLoading = false
         
         // Setup audio completion observer
@@ -837,7 +832,7 @@ struct PageMultilingualReadView: View {
         } else {
             // Read step - play audio
             isAutopausing = false
-            
+
             // Find which read step index this is
             guard let readIndex = readSteps.firstIndex(where: { $0.id == step.id }) else {
                 print("[MultiRead] ERROR: Could not find read step index")
