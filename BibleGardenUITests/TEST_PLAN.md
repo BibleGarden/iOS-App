@@ -8,7 +8,7 @@
 | `MenuTests.swift` | Menu navigation | ✅ Exists (6 tests) |
 | `Helpers/XCUIApplication+Helpers.swift` | Shared helpers | ✅ Exists |
 | `ClassicReadingTests.swift` | Classic reading, audio, settings, pauses | ✅ 40 tests, 7 classes — all pass |
-| `MultiReadingTests.swift` | Multilingual setup + reading | 📝 Planned (52 теста, 9 классов) |
+| `MultiReadingTests.swift` | Multilingual setup + reading | 📝 Planned (49 тестов, 8 классов) |
 | `MainTests.swift` | Main screen cards | 📝 Planned |
 | `ChapterSelectTests.swift` | OT/NT filter, book/chapter pick | 📝 Planned |
 | `ProgressTests.swift` | Progress screen, stats | 📝 Planned |
@@ -258,8 +258,13 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 | Accessibility identifiers для setup view | `PageMultilingualSetupView.swift` | 🔧 Нужно добавить |
 | Accessibility identifiers для reading view | `PageMultilingualReadView.swift` | 🔧 Нужно добавить |
 | Debug playback state label | `PageMultilingualReadView.swift` | 🔧 Нужно добавить `multi-playback-state` |
+| Debug unit/step labels | `PageMultilingualReadView.swift` | 🔧 Нужно добавить `multi-current-unit`, `multi-current-step` (DEBUG-only `.accessibilityLabel`) для детерминированных проверок навигации |
 | Launch args: `--multi-template` | `AppDelegate.swift` | 🔧 Быстрый вход в мультичтение с предустановленным шаблоном |
 | Launch args: `--multi-unit` | `AppDelegate.swift` | 🔧 Переопределение режима чтения (verse/paragraph/fragment/chapter) |
+| Launch args: `--force-load-error` в мультичтении | `PageMultilingualReadView.swift` | 🔧 Сейчас обрабатывается только в PageReadView — нужно добавить аналогичную обработку |
+| Launch args: `--force-no-audio` в мультичтении | `PageMultilingualReadView.swift` | 🔧 Сейчас обрабатывается только в PageReadView — нужно добавить аналогичную обработку |
+| Launch args: `--reading-progress-seconds` в мультичтении | `PageMultilingualReadView.swift` | 🔧 Сейчас обрабатывается только в PageReadView — нужно добавить аналогичную обработку |
+| Save-alert accessibility identifiers | `PageMultilingualSetupView.swift` | 🔧 Нужно добавить id для кнопок диалога сохранения шаблона |
 
 ### Accessibility identifiers (нужно добавить) 🔧
 
@@ -276,6 +281,10 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 - `multi-pause-minus-{index}` — кнопка уменьшить паузу
 - `multi-pause-plus-{index}` — кнопка увеличить паузу
 - `multi-error-message` — inline error message (если степов нет)
+- `multi-save-alert` — overlay диалога сохранения шаблона
+- `multi-save-alert-name-field` — TextField имени шаблона
+- `multi-save-alert-save` — кнопка «Сохранить» в диалоге
+- `multi-save-alert-skip` — кнопка «Не сохранять» в диалоге
 
 #### PageMultilingualReadView.swift
 - `page-multi-reading` — фон страницы ✅ (уже есть)
@@ -296,40 +305,41 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 - `multi-chapter-progress` — кружок прогресса (mark as read toggle)
 - `multi-error-text` — текст ошибки загрузки
 - `multi-playback-state` — DEBUG-only: строковое имя state (playing/pausing/autopausing/...)
+- `multi-current-unit` — DEBUG-only: `.accessibilityLabel` = "\(currentUnitIndex)" для детерминированной проверки навигации
+- `multi-current-step` — DEBUG-only: `.accessibilityLabel` = "\(currentStepIndex)" для детерминированной проверки навигации
 - `multi-stalled-indicator` — индикатор stalled/buffering
 
 ---
 
 ### Архитектура тестовых классов
 
-9 классов для изоляции launch arguments и зависимостей:
+8 классов для изоляции launch arguments и зависимостей:
 
 ```swift
-// Основной — тесты Setup + Reading с живым API (#1-#30)
+// Основной — тесты Setup + Reading с живым API (секции A-F, I частично, N)
 class MultiReadingTests: XCTestCase { ... }
 
-// Forced-error тесты (#31-#33) — НЕ зависят от API
+// Forced-error/degradation тесты (секция K)
+// --force-load-error: НЕ зависит от API
+// --force-no-audio: зависит от API (текст грузится по сети, только аудио отключается)
 class MultiReadingErrorTests: XCTestCase { ... }
 
-// Граничные главы (#34-#35)
+// Граничные главы с --start-excerpt (секция G)
 class MultiReadingBoundaryTests: XCTestCase { ... }
 
-// Навигация стрелками без аудио (#36-#40)
-class MultiReadingNavigationTests: XCTestCase { ... }
-
-// Step-система (#41-#44)
+// Step-система с --multi-template two-langs (секция H)
 class MultiReadingStepTests: XCTestCase { ... }
 
-// Авто-прогресс по аудио (#45)
+// Авто-прогресс по аудио с --auto-progress-audio-end (секция I, #41)
 class MultiReadingAudioEndProgressTests: XCTestCase { ... }
 
-// Авто-прогресс по чтению (#46)
+// Авто-прогресс по чтению с --reading-progress-seconds (секция I, #42)
 class MultiReadingAutoProgressTests: XCTestCase { ... }
 
-// Авто-переход на следующую главу (#47-#48)
-class MultiReadingAutoNextTests: XCTestCase { ... }
+// Режимы юнитов с --multi-unit (секция M)
+class MultiReadingUnitModeTests: XCTestCase { ... }
 
-// Фоновое воспроизведение (#49-#50)
+// Фоновое воспроизведение (секция L)
 class MultiReadingBackgroundTests: XCTestCase { ... }
 ```
 
@@ -345,9 +355,16 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 Шаблоны для тестов:
 - `"default"` — один read step (русский, синодальный) → можно быстро тестировать reading view
 - `"two-langs"` — read (ru) + pause (2s) + read (en) → тестирование multi-step flow
-- `"three-steps"` — read (ru) + pause + read (en) + pause + read (uk) → тестирование сложных сценариев
 
-Существующие launch arguments (`--start-excerpt`, `--force-load-error` и т.д.) также работают для мультичтения.
+Существующие launch arguments (`--start-excerpt`, `--auto-progress-audio-end`) работают и для мультичтения.
+
+**Не применимы** к мультичтению (до реализации соответствующей фичи):
+- `--no-auto-next-chapter` — auto-next chapter в мультичтении не реализован
+
+**⚠️ Требуют доработки** — следующие launch args обрабатываются только в PageReadView, нужно добавить обработку в PageMultilingualReadView:
+- `--force-load-error` / `--force-load-error-once` — для тестов ошибок (секция K)
+- `--force-no-audio` — для тестов деградации (секция K)
+- `--reading-progress-seconds` — для тестов авто-прогресса (секция I, #42)
 
 ---
 
@@ -355,7 +372,7 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 1 | `testSetupPageLoads` | Переход через меню → `page-multi-setup` виден, заголовок «Мультичтение» |
+| 1 | `testSetupPageLoads` | Переход через меню → `page-multi-setup` виден, `multi-setup-title` exists |
 | 2 | `testEmptyStateShowsHints` | При пустых степах → текст-подсказка с примером конфигурации (empty state view) |
 | 3 | `testAddReadStepOpensConfig` | Тап `multi-add-read-step` → открывается sheet конфигурации (PageMultilingualConfigView) |
 | 4 | `testAddPauseStep` | Тап `multi-add-pause-step` → в списке появляется строка с hourglass, дефолтная длительность 2с |
@@ -363,7 +380,7 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 | 6 | `testDeleteStep` | Тап xmark на степе → степ удаляется из списка |
 | 7 | `testReadUnitPicker` | Тап на picker режима чтения → доступны все 4 варианта (verse/paragraph/fragment/chapter) |
 | 8 | `testSaveAndReadWithoutSteps` | Тап «Сохранить и читать» без степов → inline error message виден |
-| 9 | `testSaveAndReadTransitionsToReading` | Добавить read step + save → переход на `page-multi-reading` |
+| 9 | `testSaveAndReadTransitionsToReading` | Добавить read step + тап save → save-alert появляется (`multi-save-alert`) → тап «Не сохранять» (`multi-save-alert-skip`) → переход на `page-multi-reading` |
 | 10 | `testConfigButtonReturnsToSetup` | Из reading view тап шестерёнку → возврат на `page-multi-setup` |
 
 ### B. Reading View — Загрузка и отображение
@@ -381,7 +398,7 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 | # | Тест | Что проверяет |
 |---|------|---------------|
 | 16 | `testPlayAndPause` | ⚙️ `--multi-template default` → тап play → `multi-playback-state` = "playing" → тап pause → "pausing" |
-| 17 | `testPlayStartsFromHighlightedPosition` | Навигация стрелкой на 3-й юнит → тап play → аудио начинается с позиции 3-го юнита (не с начала) |
+| 17 | `testPlayStartsFromHighlightedPosition` | Навигация `multi-next-unit` 2 раза → `multi-current-unit` = "2" → тап play → `multi-playback-state` = "playing", `multi-current-unit` всё ещё "2" (не сбросился в "0") |
 | 18 | `testAudioPanelCollapseAndExpand` | Тап `multi-chevron` → кнопки play/unit не видны → тап снова → видны |
 
 ### D. Reading View — Навигация по главам
@@ -396,9 +413,9 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 22 | `testNextUnitHighlightsWithoutAudio` | ⚙️ `--multi-template default --multi-unit verse` → тап `multi-next-unit` → текст подсвечивается, `multi-playback-state` != "playing" |
-| 23 | `testPrevUnitHighlightsWithoutAudio` | После навигации вперёд → тап `multi-prev-unit` → подсветка вернулась, аудио не стартует |
-| 24 | `testUnitNavigationWhilePlaying` | Play → тап `multi-next-unit` → аудио продолжает играть с новой позиции (нет мерцания play/pause) |
+| 22 | `testNextUnitHighlightsWithoutAudio` | ⚙️ `--multi-template default --multi-unit verse` → тап `multi-next-unit` → `multi-current-unit` label = "1", `multi-playback-state` != "playing" |
+| 23 | `testPrevUnitHighlightsWithoutAudio` | После навигации вперёд → тап `multi-prev-unit` → `multi-current-unit` label вернулся к "0", аудио не стартует |
+| 24 | `testUnitNavigationWhilePlaying` | Play → тап `multi-next-unit` → `multi-playback-state` остаётся "playing" (нет мерцания), `multi-current-unit` обновился |
 | 25 | `testUnitCounterUpdates` | Навигация `multi-next-unit` несколько раз → `multi-unit-counter` обновляется (2 of N, 3 of N...) |
 | 26 | `testFirstUnitPrevDisabled` | При `currentUnitIndex == 0` → `multi-prev-unit.isEnabled == false` |
 | 27 | `testLastUnitNextDisabled` | При последнем юните → `multi-next-unit.isEnabled == false` |
@@ -407,10 +424,10 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 28 | `testNextSectionHighlightsWithoutAudio` | ⚙️ `--multi-template two-langs --multi-unit verse` → тап `multi-next-section` → подсветка перемещается, аудио не стартует |
-| 29 | `testPrevSectionHighlightsWithoutAudio` | После навигации вперёд → тап `multi-prev-section` → подсветка вернулась |
-| 30 | `testSectionNavigationCrossesUnitBoundary` | На последнем step текущего unit → тап `multi-next-section` → переход на следующий unit |
-| 31 | `testSectionNavigationWhilePlaying` | Play → тап `multi-next-section` → аудио продолжает играть с новой позиции |
+| 28 | `testNextSectionHighlightsWithoutAudio` | ⚙️ `--multi-template two-langs --multi-unit verse` → тап `multi-next-section` → `multi-current-step` label изменился, `multi-playback-state` != "playing" |
+| 29 | `testPrevSectionHighlightsWithoutAudio` | После навигации вперёд → тап `multi-prev-section` → `multi-current-step` label вернулся |
+| 30 | `testSectionNavigationCrossesUnitBoundary` | На последнем step текущего unit → тап `multi-next-section` → `multi-current-unit` увеличился |
+| 31 | `testSectionNavigationWhilePlaying` | Play → тап `multi-next-section` → `multi-playback-state` остаётся "playing", `multi-current-step` обновился |
 | 32 | `testSectionStartPrevDisabled` | На первом read step первого юнита → `multi-prev-section.isEnabled == false` |
 | 33 | `testSectionEndNextDisabled` | На последнем read step последнего юнита → `multi-next-section.isEnabled == false` |
 
@@ -436,42 +453,38 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 |---|------|---------------|
 | 40 | `testMarkChapterReadAndUnread` | ⚙️ `--multi-template default` → тап `multi-chapter-progress` → прочитано → тап снова → не прочитано |
 | 41 | `testAutoProgressOnAudioEnd` | ⚙️ `--multi-template default --auto-progress-audio-end --start-excerpt "psa 117"` → дослушать → глава отмечена |
-| 42 | `testAutoProgressByReading` | ⚙️ `--multi-template default --reading-progress-seconds 3` → доскроллить до конца → через ~3с глава отмечена |
+| 42 | `testAutoProgressByReading` | ⚙️ `--multi-template default --reading-progress-seconds 3` → доскроллить до конца → через ~3с глава отмечена. **Prerequisite:** обработка `--reading-progress-seconds` в PageMultilingualReadView |
 
 ### J. Reading View — Авто-переход на следующую главу
 
-| # | Тест | Что проверяет |
-|---|------|---------------|
-| 43 | `testAutoNextChapter` | ⚙️ `--multi-template default --start-excerpt "psa 117"` → дослушать → заголовок сменился на следующую главу |
-| 44 | `testNoAutoNextChapter` | ⚙️ `--multi-template default --no-auto-next-chapter --start-excerpt "psa 117"` → дослушать → заголовок НЕ меняется |
+> **⚠️ НЕ РЕАЛИЗОВАНО В КОДЕ.** В PageMultilingualReadView после окончания последнего юнита нет авто-перехода на следующую главу (в отличие от классического чтения). Тесты этой секции будут добавлены после реализации фичи — если она понадобится.
 
 ### K. Reading View — Ошибки и деградация
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 45 | `testErrorStateOnLoadFailure` | ⚙️ `--multi-template default --force-load-error` → `multi-error-text` виден |
-| 46 | `testNoAudioDisablesControls` | ⚙️ `--multi-template default --force-no-audio` → все navigation кнопки `isEnabled == false`, play disabled |
+| 43 | `testErrorStateOnLoadFailure` | ⚙️ `--multi-template default --force-load-error` → `multi-error-text` виден. **Prerequisite:** обработка `--force-load-error` в PageMultilingualReadView |
+| 44 | `testNoAudioDisablesControls` | ⚙️ `--multi-template default --force-no-audio` → все navigation кнопки `isEnabled == false`, play disabled. **Prerequisite:** обработка `--force-no-audio` в PageMultilingualReadView |
 
 ### L. Reading View — Фоновое воспроизведение
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 47 | `testBackgroundPlaybackContinues` | ⚙️ `--multi-template default` → play → home → 5 сек в фоне → activate → audio state != finished (время/стейт не сбросились) |
-| 48 | `testAutoNextChapterInBackground` | ⚙️ `--multi-template default --start-excerpt "psa 117"` → play → home → activate → заголовок сменился |
+| 45 | `testBackgroundPlaybackContinues` | ⚙️ `--multi-template default` → play → home → 5 сек в фоне → activate → `multi-playback-state` != "finished" (стейт не сбросился) |
 
 ### M. Reading View — Режимы юнитов
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 49 | `testVerseMode` | ⚙️ `--multi-template default --multi-unit verse` → `multi-unit-counter` показывает кол-во юнитов ≈ кол-ву стихов главы |
-| 50 | `testParagraphMode` | ⚙️ `--multi-template default --multi-unit paragraph` → кол-во юнитов < кол-ва стихов (абзацы группируют) |
-| 51 | `testChapterMode` | ⚙️ `--multi-template default --multi-unit chapter` → `multi-unit-counter` = "1 of 1" (вся глава = один юнит) |
+| 46 | `testVerseMode` | ⚙️ `--multi-template default --multi-unit verse` → `multi-unit-counter` показывает кол-во юнитов ≈ кол-ву стихов главы |
+| 47 | `testParagraphMode` | ⚙️ `--multi-template default --multi-unit paragraph` → кол-во юнитов < кол-ва стихов (абзацы группируют) |
+| 48 | `testChapterMode` | ⚙️ `--multi-template default --multi-unit chapter` → `multi-unit-counter` = "1 of 1" (вся глава = один юнит) |
 
 ### N. E2E
 
 | # | Тест | Что проверяет |
 |---|------|---------------|
-| 52 | `testFullMultiReadingJourney` | Полный путь: setup → add steps → save → reading → play → next unit → next chapter → mark read → config → return |
+| 49 | `testFullMultiReadingJourney` | Полный путь: setup → add steps → save-alert → reading → play → next unit → next chapter → mark read → config → return |
 
 ---
 
@@ -479,20 +492,18 @@ class MultiReadingBackgroundTests: XCTestCase { ... }
 
 ```swift
 extension XCUIApplication {
-    /// Navigate to multilingual reading page via menu
-    func navigateToMultiReadingPage() {
-        navigateViaMenu(to: "menu-item-multi")
-        // Wait for setup or reading page
-        let setupPage = staticTexts["page-multi-setup"]
-        let readingPage = staticTexts["page-multi-reading"]
-        _ = waitForElement(setupPage, timeout: 5) || waitForElement(readingPage, timeout: 5)
+    /// Navigate to multilingual setup page via menu
+    func navigateToMultiSetupPage() {
+        navigateViaMenu(to: "menu-multilingual")
+        let setupPage = otherElements["page-multi-setup"]
+        XCTAssertTrue(waitForElement(setupPage, timeout: 5), "Setup page did not appear")
     }
 
-    /// Navigate to multilingual reading with a pre-configured template
+    /// Wait for multilingual reading page to appear
     /// (requires --multi-template launch arg to skip setup)
     func waitForMultiReadingPage() {
         let readingPage = otherElements["page-multi-reading"]
-        _ = waitForElement(readingPage, timeout: 10)
+        XCTAssertTrue(waitForElement(readingPage, timeout: 10), "Reading page did not appear")
     }
 
     /// Wait for multilingual playback state
@@ -500,6 +511,20 @@ extension XCUIApplication {
         let stateLabel = staticTexts["multi-playback-state"]
         guard stateLabel.waitForExistence(timeout: 3) else { return false }
         return waitForLabel(element: stateLabel, toBe: state, timeout: timeout)
+    }
+
+    /// Get current unit index from debug label
+    func multiCurrentUnit() -> String? {
+        let label = staticTexts["multi-current-unit"]
+        guard label.waitForExistence(timeout: 3) else { return nil }
+        return label.label
+    }
+
+    /// Get current step index from debug label
+    func multiCurrentStep() -> String? {
+        let label = staticTexts["multi-current-step"]
+        guard label.waitForExistence(timeout: 3) else { return nil }
+        return label.label
     }
 }
 ```
@@ -510,16 +535,16 @@ extension XCUIApplication {
 
 - Все ожидания через `waitForExistence(timeout:)` и `XCTNSPredicateExpectation`, **никогда** `sleep()`
 - Таймауты: 10с загрузка контента (мультичтение грузит несколько переводов), 5с UI-переходы, 15с аудио-буферизация
-- Тесты с реальным аудио (#16-17, #24, #31, #36-39, #41, #43-44, #47-48) — потенциально flaky при медленной сети
+- Тесты с реальным аудио (#16-17, #24, #31, #36-39, #41, #45) — потенциально flaky при медленной сети
 - Проверка `isEnabled` вместо визуальных свойств (opacity/color) — менее хрупкие ассерты
 - `multi-playback-state` — debug-only индикатор для проверки audio state
 - Шаблоны `--multi-template` позволяют минуть setup view и сразу тестировать reading view
 
 ### Порядок реализации
 
-1. **Фаза 1** — Accessibility identifiers + launch args: добавить все identifier-ы в Setup/Reading views, добавить `--multi-template` / `--multi-unit` обработку
+1. **Фаза 1** — Prerequisite: accessibility identifiers, debug labels (`multi-playback-state`, `multi-current-unit`, `multi-current-step`), launch args (`--multi-template`, `--multi-unit`), save-alert id, обработка `--force-load-error` / `--force-no-audio` / `--reading-progress-seconds` в PageMultilingualReadView
 2. **Фаза 2** — Setup tests (#1-#10): тесты конфигурации степов
 3. **Фаза 3** — Core reading tests (#11-#21): загрузка, воспроизведение, навигация по главам
 4. **Фаза 4** — Navigation tests (#22-#35): юниты, секции, граничные случаи
-5. **Фаза 5** — Step/progress/background tests (#36-#51): step-система, прогресс, фон, режимы
-6. **Фаза 6** — E2E test (#52): полный путь пользователя
+5. **Фаза 5** — Step/progress/error/background tests (#36-#48): step-система, прогресс, ошибки, фон, режимы юнитов
+6. **Фаза 6** — E2E test (#49): полный путь пользователя
