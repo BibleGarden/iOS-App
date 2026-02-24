@@ -41,7 +41,8 @@ final class MultiReadingSetupTests: XCTestCase {
         app = nil
     }
 
-    // #1 — Setup page loads via menu
+    // #1 — Открываем страницу настройки мультичтения через меню.
+    // Результат: страница `page-multi-setup` отображается.
     @MainActor
     func testSetupPageLoads() {
         app.navigateToMultiSetupPage()
@@ -49,21 +50,21 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(page.exists, "Setup page should be visible")
     }
 
-    // #2 — Empty state shows hints when no steps configured
+    // #2 — При пустых степах отображается пустое состояние с подсказками.
+    // Результат: кнопки «Добавить чтение» и «Добавить паузу» видны, кнопка «Сохранить и читать» существует.
     @MainActor
     func testEmptyStateShowsHints() {
         app.navigateToMultiSetupPage()
-        // With no steps, the empty state view should show example text
         let saveButton = app.buttons["multilingual-save-and-read"]
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5), "Save button should exist")
-        // The add buttons should be visible
         let addRead = app.buttons["multi-add-read-step"]
         XCTAssertTrue(addRead.waitForExistence(timeout: 3), "Add read step button should exist")
         let addPause = app.buttons["multi-add-pause-step"]
         XCTAssertTrue(addPause.waitForExistence(timeout: 3), "Add pause step button should exist")
     }
 
-    // #3 — Add read step opens config sheet
+    // #3 — Тап «Добавить чтение» открывает sheet конфигурации степа.
+    // Результат: появляется sheet (PageMultilingualConfigView) с настройками языка/перевода/диктора.
     @MainActor
     func testAddReadStepOpensConfig() {
         app.navigateToMultiSetupPage()
@@ -71,17 +72,14 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(addRead.waitForExistence(timeout: 5))
         addRead.tap()
 
-        // Config sheet should appear (look for a dismiss/close option or known element)
-        // PageMultilingualConfigView is presented as a sheet
         Thread.sleep(forTimeInterval: 1)
-        // The sheet should be presented — verify by checking we can swipe down or find elements
         let sheetPresented = app.navigationBars.count > 0 || app.buttons.count > 3
         XCTAssertTrue(sheetPresented, "Config sheet should appear after tapping add read step")
-        // Dismiss
         app.swipeDown()
     }
 
-    // #4 — Add pause step adds a row with hourglass
+    // #4 — Тап «Добавить паузу» добавляет строку паузы в список степов.
+    // Результат: появляется строка с контролами +/− для длительности паузы (по умолчанию 2 сек).
     @MainActor
     func testAddPauseStep() {
         app.navigateToMultiSetupPage()
@@ -89,18 +87,16 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(addPause.waitForExistence(timeout: 5))
         addPause.tap()
 
-        // A step row should appear
         let stepRow = app.otherElements["multi-step-row-0"]
             .exists ? app.otherElements["multi-step-row-0"] : app.cells.firstMatch
-        // Verify hourglass image or pause text
         let pauseMinus = app.buttons["multi-pause-minus-0"]
         let pausePlus = app.buttons["multi-pause-plus-0"]
-        // At least one pause control should exist
         let hasPauseControls = pauseMinus.waitForExistence(timeout: 3) || pausePlus.waitForExistence(timeout: 1)
         XCTAssertTrue(hasPauseControls, "Pause duration controls should appear after adding pause step")
     }
 
-    // #5 — Pause duration +/- controls work
+    // #5 — Кнопки +/− меняют длительность паузы.
+    // Результат: тап + увеличивает длительность, тап − уменьшает, минимум 1 секунда.
     @MainActor
     func testPauseDurationControls() {
         app.navigateToMultiSetupPage()
@@ -113,19 +109,19 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(pausePlus.waitForExistence(timeout: 3), "Plus button should exist")
         XCTAssertTrue(pauseMinus.waitForExistence(timeout: 1), "Minus button should exist")
 
-        // Default is 2s, tap + to get 3s, then - twice to get 1s
+        // По умолчанию 2с → +1 = 3с → −1 = 2с → −1 = 1с → ещё −1 → остаётся 1с (минимум)
         pausePlus.tap()
         Thread.sleep(forTimeInterval: 0.3)
         pauseMinus.tap()
         Thread.sleep(forTimeInterval: 0.3)
         pauseMinus.tap()
         Thread.sleep(forTimeInterval: 0.3)
-        // Should be at 1s (minimum), another minus should keep at 1
         pauseMinus.tap()
-        // No crash = pass
+        // Краш не произошёл — тест пройден
     }
 
-    // #6 — Delete step removes it from list
+    // #6 — Тап на кнопку удаления (xmark) удаляет степ из списка.
+    // Результат: строка степа исчезает, кнопка удаления больше не существует.
     @MainActor
     func testDeleteStep() {
         app.navigateToMultiSetupPage()
@@ -137,25 +133,25 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(deleteBtn.waitForExistence(timeout: 3), "Delete button should exist")
         deleteBtn.tap()
 
-        // After deletion, the step row should disappear
         Thread.sleep(forTimeInterval: 0.5)
         XCTAssertFalse(app.buttons["multi-step-delete-0"].exists,
                        "Step should be deleted")
     }
 
-    // #7 — Read unit picker exists and has options
+    // #7 — Picker режима чтения (verse/paragraph/fragment/chapter) существует.
+    // Результат: элемент `multi-read-unit-picker` присутствует на странице.
     @MainActor
     func testReadUnitPicker() {
         app.navigateToMultiSetupPage()
         let picker = app.otherElements["multi-read-unit-picker"]
             .exists ? app.otherElements["multi-read-unit-picker"] : app.buttons["multi-read-unit-picker"]
-        // The picker area should exist (it's an HStack with Menu)
         let pickerExists = picker.waitForExistence(timeout: 5)
             || app.buttons.matching(identifier: "multi-read-unit-picker").count > 0
         XCTAssertTrue(pickerExists, "Read unit picker should exist")
     }
 
-    // #8 — Save and read without steps shows error
+    // #8 — Тап «Сохранить и читать» без степов показывает ошибку.
+    // Результат: появляется inline-сообщение об ошибке `multi-error-message`.
     @MainActor
     func testSaveAndReadWithoutSteps() {
         app.navigateToMultiSetupPage()
@@ -163,54 +159,43 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 5))
         saveBtn.tap()
 
-        // Error message should appear
         let errorMsg = app.otherElements["multi-error-message"]
         let errorFound = errorMsg.waitForExistence(timeout: 3)
             || app.staticTexts.matching(identifier: "multi-error-message").count > 0
         XCTAssertTrue(errorFound, "Error message should appear when saving without steps")
     }
 
-    // #9 — Save and read transitions to reading page (via save-alert skip)
+    // #9 — Добавляем read step, тапаем «Сохранить и читать» → появляется save-alert →
+    // тапаем «Не сохранять» → переход на страницу чтения `page-multi-reading`.
+    // Результат: страница чтения отображается после пропуска сохранения шаблона.
     @MainActor
     func testSaveAndReadTransitionsToReading() {
         app.navigateToMultiSetupPage()
 
-        // Add a pause step (simpler than read step which requires sheet config)
-        // First add a read step — we need at least one read step, but the config sheet makes this complex
-        // Instead, let's add a pause step to verify the flow. But save requires at least one read step.
-        // So we tap save without steps, which shows error. Let's verify the save-alert flow differently.
-
-        // Actually, for a proper test we need steps. Let's use the add-read flow:
         let addRead = app.buttons["multi-add-read-step"]
         XCTAssertTrue(addRead.waitForExistence(timeout: 5))
         addRead.tap()
 
-        // In the config sheet, we should see language/translation/voice options
-        // Wait for the sheet and try to close it with a save action
         Thread.sleep(forTimeInterval: 2)
 
-        // Look for a save/done button in the config sheet
+        // Ищем кнопку сохранения в config sheet
         let configSave = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'save' OR label CONTAINS[c] 'сохран' OR label CONTAINS[c] 'done' OR label CONTAINS[c] 'готово'")).firstMatch
         if configSave.waitForExistence(timeout: 3) {
             configSave.tap()
             Thread.sleep(forTimeInterval: 1)
         } else {
-            // Dismiss sheet and add pause step instead
             app.swipeDown()
             Thread.sleep(forTimeInterval: 1)
         }
 
-        // If we managed to add a step, save and read
         let saveBtn = app.buttons["multilingual-save-and-read"]
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 3))
         saveBtn.tap()
 
-        // Check for save alert OR reading page
         let saveAlert = app.otherElements["multi-save-alert"]
         let readingPage = app.otherElements["page-multi-reading"]
 
         if saveAlert.waitForExistence(timeout: 3) {
-            // Tap "Don't save" to proceed
             let skipBtn = app.buttons["multi-save-alert-skip"]
             XCTAssertTrue(skipBtn.waitForExistence(timeout: 3), "Skip button should exist in save alert")
             skipBtn.tap()
@@ -218,13 +203,12 @@ final class MultiReadingSetupTests: XCTestCase {
             XCTAssertTrue(readingPage.waitForExistence(timeout: 10),
                           "Should transition to reading page after skipping save")
         }
-        // If no save alert appeared, either error shown (no steps) or directly transitioned
     }
 
-    // #10 — Config button returns from reading to setup
+    // #10 — Из reading view тап по шестерёнке возвращает на setup page.
+    // Результат: страница `page-multi-setup` отображается после нажатия кнопки конфигурации.
     @MainActor
     func testConfigButtonReturnsToSetup() {
-        // We need to get to reading page first — use multi-template
         app.terminate()
         app = XCUIApplication()
         app.launchArguments = ["--uitesting", "--multi-template", "default"]
@@ -240,22 +224,23 @@ final class MultiReadingSetupTests: XCTestCase {
                       "Should return to setup page after tapping config button")
     }
 
-    // #49 — E2E: Full multilingual reading journey
+    // #49 — E2E: Полный путь пользователя — setup → добавление степов → save-alert →
+    // reading → play → навигация → отметка прочитано → возврат к конфигурации.
+    // Результат: все этапы проходят без ошибок, финальный возврат на setup page.
     @MainActor
     func testFullMultiReadingJourney() {
         app.navigateToMultiSetupPage()
 
-        // 1. Add a pause step (simplest to add without sheet interaction)
+        // 1. Добавляем pause step
         let addPause = app.buttons["multi-add-pause-step"]
         XCTAssertTrue(addPause.waitForExistence(timeout: 5))
         addPause.tap()
 
-        // 2. Add a read step (opens config sheet)
+        // 2. Добавляем read step (открывает config sheet)
         let addRead = app.buttons["multi-add-read-step"]
         addRead.tap()
         Thread.sleep(forTimeInterval: 2)
 
-        // Try to save from config sheet
         let configSave = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'save' OR label CONTAINS[c] 'сохран' OR label CONTAINS[c] 'done' OR label CONTAINS[c] 'готово'")).firstMatch
         if configSave.waitForExistence(timeout: 3) {
             configSave.tap()
@@ -265,12 +250,12 @@ final class MultiReadingSetupTests: XCTestCase {
             Thread.sleep(forTimeInterval: 1)
         }
 
-        // 3. Try save and read
+        // 3. Сохранить и читать
         let saveBtn = app.buttons["multilingual-save-and-read"]
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 3))
         saveBtn.tap()
 
-        // Handle save alert if it appears
+        // Обработка save-alert
         let saveAlert = app.otherElements["multi-save-alert"]
         if saveAlert.waitForExistence(timeout: 3) {
             let skipBtn = app.buttons["multi-save-alert-skip"]
@@ -279,24 +264,23 @@ final class MultiReadingSetupTests: XCTestCase {
             }
         }
 
-        // 4. If we reached reading page, verify basic elements
+        // 4. Проверяем reading page
         let readingPage = app.otherElements["page-multi-reading"]
         if readingPage.waitForExistence(timeout: 10) {
-            // Verify chapter title exists
             let title = app.buttons["multi-chapter-title"]
             if title.waitForExistence(timeout: 8) {
                 XCTAssertFalse(title.label.isEmpty, "Title should have text")
             }
 
-            // 5. Try play
+            // 5. Play/pause
             let playPause = app.buttons["multi-play-pause"]
             if playPause.waitForExistence(timeout: 5) && playPause.isEnabled {
                 playPause.tap()
                 Thread.sleep(forTimeInterval: 2)
-                playPause.tap() // pause
+                playPause.tap()
             }
 
-            // 6. Navigate to next chapter
+            // 6. Следующая глава
             let nextChapter = app.buttons["multi-next-chapter"]
             if nextChapter.waitForExistence(timeout: 3) && nextChapter.isEnabled {
                 let oldTitle = title.label
@@ -304,13 +288,13 @@ final class MultiReadingSetupTests: XCTestCase {
                 _ = app.waitForLabelChange(element: title, from: oldTitle, timeout: 10)
             }
 
-            // 7. Mark chapter as read
+            // 7. Отметить главу как прочитанную
             let progressBtn = app.buttons["multi-chapter-progress"]
             if progressBtn.waitForExistence(timeout: 5) {
                 progressBtn.tap()
             }
 
-            // 8. Go to config
+            // 8. Возврат к конфигурации
             let configBtn = app.buttons["multi-config-button"]
             if configBtn.waitForExistence(timeout: 3) {
                 configBtn.tap()
@@ -364,16 +348,18 @@ final class MultiReadingTests: XCTestCase {
         app = nil
     }
 
-    // MARK: - Loading & Display (#11-#15)
+    // MARK: - Загрузка и отображение (#11-#15)
 
-    // #11 — Reading page loads text via WebView
+    // #11 — Открываем reading page с шаблоном default.
+    // Результат: WebView с текстом главы загрузился.
     @MainActor
     func testReadingPageLoadsText() {
         let textContent = app.waitForMultiTextContent(timeout: 15)
         XCTAssertNotNil(textContent, "WebView with text content should load")
     }
 
-    // #12 — Chapter title is displayed in header
+    // #12 — Проверяем заголовок главы в хедере.
+    // Результат: кнопка-заголовок существует и содержит непустой текст.
     @MainActor
     func testReadingPageShowsChapterTitle() {
         let title = app.buttons["multi-chapter-title"]
@@ -381,7 +367,8 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertFalse(title.label.isEmpty, "Chapter title should have text")
     }
 
-    // #13 — All 7 audio panel controls exist
+    // #13 — Проверяем наличие всех 7 кнопок аудио-панели.
+    // Результат: prev/next chapter, prev/next unit, prev/next section, play/pause — все существуют.
     @MainActor
     func testAudioPanelShowsAllControls() {
         let controls = [
@@ -397,13 +384,13 @@ final class MultiReadingTests: XCTestCase {
         }
     }
 
-    // #14 — Translation and voice chips are visible with text
+    // #14 — Проверяем чипы перевода и диктора на аудио-панели.
+    // Результат: оба чипа существуют.
     @MainActor
     func testTranslationAndVoiceChipsVisible() {
         let translationChip = app.otherElements["multi-translation-chip"]
         let voiceChip = app.otherElements["multi-voice-chip"]
 
-        // These might render as buttons or other elements depending on SwiftUI
         let transExists = translationChip.waitForExistence(timeout: 5)
             || app.buttons["multi-translation-chip"].waitForExistence(timeout: 1)
         XCTAssertTrue(transExists, "Translation chip should exist")
@@ -413,7 +400,8 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertTrue(voiceExists, "Voice chip should exist")
     }
 
-    // #15 — Unit counter shows "1 of N" where N > 0
+    // #15 — Проверяем счётчик юнитов "X of Y".
+    // Результат: `multi-unit-counter` отображает "1 of N" (N > 0).
     @MainActor
     func testUnitCounterVisible() {
         let counter = app.staticTexts["multi-unit-counter"]
@@ -422,15 +410,15 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertTrue(label.contains("1"), "Unit counter should show current unit")
     }
 
-    // MARK: - Playback (#16-#18)
+    // MARK: - Воспроизведение (#16-#18)
 
-    // #16 — Play and pause toggle
+    // #16 — Нажимаем play, затем pause.
+    // Результат: состояние переходит в "playing", затем в "idle"/"pausing".
     @MainActor
     func testPlayAndPause() {
         let playPause = app.buttons["multi-play-pause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 5))
 
-        // Wait for audio to be ready
         _ = app.waitForMultiPlaybackState("idle", timeout: 10)
 
         // Play
@@ -439,7 +427,6 @@ final class MultiReadingTests: XCTestCase {
             || app.waitForMultiPlaybackState("buffering", timeout: 5)
         XCTAssertTrue(playing, "State should become 'playing' after tap")
 
-        // Wait a moment for stable playback
         Thread.sleep(forTimeInterval: 1)
 
         // Pause
@@ -453,10 +440,10 @@ final class MultiReadingTests: XCTestCase {
         }
     }
 
-    // #17 — Play starts from highlighted position (not resetting to unit 0)
+    // #17 — Навигация на юнит 2, затем play.
+    // Результат: воспроизведение начинается с текущей позиции (unit не сбрасывается в 0).
     @MainActor
     func testPlayStartsFromHighlightedPosition() {
-        // Navigate forward 2 units
         let nextUnit = app.buttons["multi-next-unit"]
         XCTAssertTrue(nextUnit.waitForExistence(timeout: 5))
 
@@ -473,21 +460,20 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertNotNil(currentUnit)
         let unitBefore = currentUnit ?? "0"
 
-        // Play should start from current position
         let playPause = app.buttons["multi-play-pause"]
         if playPause.isEnabled {
             playPause.tap()
             Thread.sleep(forTimeInterval: 2)
 
             let unitAfter = app.multiCurrentUnit() ?? "0"
-            // Unit should not have reset to 0
             XCTAssertEqual(unitAfter, unitBefore,
                           "Play should start from current unit, not reset. Before: \(unitBefore), after: \(unitAfter)")
-            playPause.tap() // stop
+            playPause.tap()
         }
     }
 
-    // #18 — Audio panel collapse and expand
+    // #18 — Сворачиваем аудио-панель шевроном, затем разворачиваем.
+    // Результат: кнопка play скрывается при сворачивании и появляется при разворачивании.
     @MainActor
     func testAudioPanelCollapseAndExpand() {
         let chevron = app.buttons["multi-chevron"]
@@ -496,22 +482,23 @@ final class MultiReadingTests: XCTestCase {
         let playPause = app.buttons["multi-play-pause"]
         XCTAssertTrue(playPause.exists, "Play button should be visible before collapse")
 
-        // Collapse
+        // Сворачиваем
         chevron.tap()
         Thread.sleep(forTimeInterval: 0.5)
         XCTAssertFalse(playPause.isHittable,
                        "Play button should not be hittable when panel is collapsed")
 
-        // Expand
+        // Разворачиваем
         chevron.tap()
         Thread.sleep(forTimeInterval: 0.5)
         XCTAssertTrue(playPause.isHittable,
                       "Play button should be hittable again after expanding")
     }
 
-    // MARK: - Chapter Navigation (#19-#21)
+    // MARK: - Навигация по главам (#19-#21)
 
-    // #19 — Next chapter changes title
+    // #19 — Нажимаем кнопку «следующая глава».
+    // Результат: заголовок главы меняется на другой.
     @MainActor
     func testNextChapter() {
         let title = app.buttons["multi-chapter-title"]
@@ -527,21 +514,20 @@ final class MultiReadingTests: XCTestCase {
             "Chapter title should change after tapping next")
     }
 
-    // #20 — Prev chapter changes title
+    // #20 — Переходим вперёд, затем назад кнопкой «предыдущая глава».
+    // Результат: заголовок возвращается к прежнему значению.
     @MainActor
     func testPrevChapter() {
         let title = app.buttons["multi-chapter-title"]
         XCTAssertTrue(title.waitForExistence(timeout: 8))
         let oldTitle = title.label
 
-        // Go next first
         let nextBtn = app.buttons["multi-next-chapter"]
         XCTAssertTrue(nextBtn.waitForExistence(timeout: 3))
         nextBtn.tap()
         _ = app.waitForLabelChange(element: title, from: oldTitle, timeout: 10)
         let afterNextTitle = title.label
 
-        // Go back
         let prevBtn = app.buttons["multi-prev-chapter"]
         prevBtn.tap()
         XCTAssertTrue(
@@ -549,7 +535,8 @@ final class MultiReadingTests: XCTestCase {
             "Chapter title should change after tapping prev")
     }
 
-    // #21 — Chapter select sheet opens from title tap
+    // #21 — Тап на заголовок главы открывает sheet выбора главы.
+    // Результат: sheet появляется с кнопкой закрытия, закрывается по кнопке.
     @MainActor
     func testChapterSelectFromTitle() {
         let title = app.buttons["multi-chapter-title"]
@@ -561,21 +548,21 @@ final class MultiReadingTests: XCTestCase {
                       "Chapter selection sheet should appear")
         closeBtn.tap()
 
-        // Should return to reading page
         let playPause = app.buttons["multi-play-pause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 8),
                       "Should return to reading page after closing chapter select")
     }
 
-    // MARK: - Unit Navigation (#22-#27)
+    // MARK: - Навигация по юнитам (#22-#27)
 
-    // #22 — Next unit highlights without starting audio
+    // #22 — Тап «следующий юнит» при остановленном аудио.
+    // Результат: `multi-current-unit` = "1", аудио НЕ стартует.
     @MainActor
     func testNextUnitHighlightsWithoutAudio() {
         let nextUnit = app.buttons["multi-next-unit"]
         XCTAssertTrue(nextUnit.waitForExistence(timeout: 5))
 
-        guard nextUnit.isEnabled else { return } // Skip if only 1 unit
+        guard nextUnit.isEnabled else { return }
 
         nextUnit.tap()
         Thread.sleep(forTimeInterval: 0.5)
@@ -583,7 +570,6 @@ final class MultiReadingTests: XCTestCase {
         let currentUnit = app.multiCurrentUnit()
         XCTAssertEqual(currentUnit, "1", "Current unit should be 1 after next unit tap")
 
-        // Should NOT be playing
         let stateLabel = app.staticTexts["multi-playback-state"]
         if stateLabel.exists {
             XCTAssertNotEqual(stateLabel.label, "playing",
@@ -591,7 +577,8 @@ final class MultiReadingTests: XCTestCase {
         }
     }
 
-    // #23 — Prev unit after forward navigation returns to previous
+    // #23 — После навигации вперёд тап «предыдущий юнит» возвращает назад.
+    // Результат: `multi-current-unit` возвращается к "0", аудио не стартует.
     @MainActor
     func testPrevUnitHighlightsWithoutAudio() {
         let nextUnit = app.buttons["multi-next-unit"]
@@ -610,7 +597,8 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertEqual(currentUnit, "0", "Current unit should return to 0 after prev unit tap")
     }
 
-    // #24 — Unit navigation while playing keeps playback active
+    // #24 — Во время воспроизведения тап «следующий юнит».
+    // Результат: плеер остаётся в состоянии playing, `multi-current-unit` обновляется.
     @MainActor
     func testUnitNavigationWhilePlaying() {
         let playPause = app.buttons["multi-play-pause"]
@@ -629,7 +617,6 @@ final class MultiReadingTests: XCTestCase {
         nextUnit.tap()
         Thread.sleep(forTimeInterval: 1)
 
-        // Should still be playing
         let stateLabel = app.staticTexts["multi-playback-state"]
         if stateLabel.exists {
             let state = stateLabel.label
@@ -641,10 +628,11 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertEqual(currentUnit, "1",
                       "Unit should update during playback navigation")
 
-        playPause.tap() // stop
+        playPause.tap()
     }
 
-    // #25 — Unit counter updates with navigation
+    // #25 — Навигация «следующий юнит» несколько раз.
+    // Результат: `multi-unit-counter` обновляется (2 of N, 3 of N...).
     @MainActor
     func testUnitCounterUpdates() {
         let counter = app.staticTexts["multi-unit-counter"]
@@ -660,7 +648,8 @@ final class MultiReadingTests: XCTestCase {
             "Unit counter should update after navigation")
     }
 
-    // #26 — First unit: prev disabled
+    // #26 — При `currentUnitIndex == 0` кнопка «предыдущий юнит» заблокирована.
+    // Результат: `multi-prev-unit.isEnabled == false`.
     @MainActor
     func testFirstUnitPrevDisabled() {
         let prevUnit = app.buttons["multi-prev-unit"]
@@ -669,13 +658,14 @@ final class MultiReadingTests: XCTestCase {
                        "Previous unit should be disabled at first unit")
     }
 
-    // #27 — Last unit: next disabled
+    // #27 — При последнем юните кнопка «следующий юнит» заблокирована.
+    // Результат: `multi-next-unit.isEnabled == false` на последнем юните.
     @MainActor
     func testLastUnitNextDisabled() {
         let nextUnit = app.buttons["multi-next-unit"]
         XCTAssertTrue(nextUnit.waitForExistence(timeout: 5))
 
-        // Navigate to last unit
+        // Навигация до последнего юнита
         while nextUnit.isEnabled {
             nextUnit.tap()
             Thread.sleep(forTimeInterval: 0.3)
@@ -685,20 +675,19 @@ final class MultiReadingTests: XCTestCase {
                        "Next unit should be disabled at last unit")
     }
 
-    // MARK: - Progress (#40)
+    // MARK: - Прогресс (#40)
 
-    // #40 — Mark chapter read and unread toggle
+    // #40 — Тапаем кнопку прогресса дважды: прочитано → не прочитано.
+    // Результат: кнопка переключается и остаётся на месте.
     @MainActor
     func testMarkChapterReadAndUnread() {
         let progressBtn = app.buttons["multi-chapter-progress"]
         XCTAssertTrue(progressBtn.waitForExistence(timeout: 8),
                       "Chapter progress button should exist")
 
-        // Mark as read
         progressBtn.tap()
         Thread.sleep(forTimeInterval: 0.5)
 
-        // Toggle back to unread
         progressBtn.tap()
         Thread.sleep(forTimeInterval: 0.5)
 
@@ -749,7 +738,8 @@ final class MultiReadingSectionTests: XCTestCase {
         app = nil
     }
 
-    // #28 — Next section changes step without audio
+    // #28 — Тап «следующая секция» при остановленном аудио (шаблон two-langs).
+    // Результат: `multi-current-step` изменился, аудио НЕ стартует.
     @MainActor
     func testNextSectionHighlightsWithoutAudio() {
         let nextSection = app.buttons["multi-next-section"]
@@ -772,7 +762,8 @@ final class MultiReadingSectionTests: XCTestCase {
         }
     }
 
-    // #29 — Prev section returns to previous step
+    // #29 — После навигации вперёд тап «предыдущая секция» возвращает степ.
+    // Результат: `multi-current-step` возвращается к предыдущему значению.
     @MainActor
     func testPrevSectionHighlightsWithoutAudio() {
         let nextSection = app.buttons["multi-next-section"]
@@ -792,7 +783,8 @@ final class MultiReadingSectionTests: XCTestCase {
                          "Step should change after prev section tap")
     }
 
-    // #30 — Section navigation crosses unit boundary
+    // #30 — Навигация по секциям пересекает границу юнита.
+    // Результат: `multi-current-unit` увеличивается при переходе через все степы текущего юнита.
     @MainActor
     func testSectionNavigationCrossesUnitBoundary() {
         let nextSection = app.buttons["multi-next-section"]
@@ -800,8 +792,8 @@ final class MultiReadingSectionTests: XCTestCase {
 
         let unitBefore = app.multiCurrentUnit() ?? "0"
 
-        // Navigate through all steps in current unit to reach next unit
-        // With two-langs template: read(0) -> pause(1) -> read(2) -> crosses to unit 1
+        // Проходим через все степы текущего юнита до границы следующего
+        // Шаблон two-langs: read(0) → pause(1) → read(2) → переход на unit 1
         var maxTaps = 5
         while nextSection.isEnabled && maxTaps > 0 {
             let currentUnit = app.multiCurrentUnit() ?? "0"
@@ -809,17 +801,16 @@ final class MultiReadingSectionTests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.5)
             let newUnit = app.multiCurrentUnit() ?? "0"
             if newUnit != currentUnit {
-                // Crossed unit boundary
                 XCTAssertNotEqual(unitBefore, newUnit,
                                  "Unit should change when section crosses boundary")
                 return
             }
             maxTaps -= 1
         }
-        // If we couldn't cross a boundary (only 1 unit), that's ok
     }
 
-    // #31 — Section navigation while playing keeps playback
+    // #31 — Во время воспроизведения тап «следующая секция».
+    // Результат: плеер остаётся в playing, `multi-current-step` обновляется.
     @MainActor
     func testSectionNavigationWhilePlaying() {
         let playPause = app.buttons["multi-play-pause"]
@@ -850,10 +841,11 @@ final class MultiReadingSectionTests: XCTestCase {
                           "Should remain playing after section navigation. Got: \(state)")
         }
 
-        playPause.tap() // stop
+        playPause.tap()
     }
 
-    // #32 — First step of first unit: prev section disabled
+    // #32 — На первом read step первого юнита кнопка «предыдущая секция» заблокирована.
+    // Результат: `multi-prev-section.isEnabled == false`.
     @MainActor
     func testSectionStartPrevDisabled() {
         let prevSection = app.buttons["multi-prev-section"]
@@ -862,20 +854,21 @@ final class MultiReadingSectionTests: XCTestCase {
                        "Prev section should be disabled at first step of first unit")
     }
 
-    // #33 — Last step of last unit: next section disabled
+    // #33 — На последнем read step последнего юнита кнопка «следующая секция» заблокирована.
+    // Результат: `multi-next-section.isEnabled == false`.
     @MainActor
     func testSectionEndNextDisabled() {
         let nextSection = app.buttons["multi-next-section"]
         let nextUnit = app.buttons["multi-next-unit"]
         XCTAssertTrue(nextSection.waitForExistence(timeout: 5))
 
-        // Navigate to last unit
+        // Навигация до последнего юнита
         while nextUnit.isEnabled {
             nextUnit.tap()
             Thread.sleep(forTimeInterval: 0.3)
         }
 
-        // Navigate to last section within last unit
+        // Навигация до последней секции
         while nextSection.isEnabled {
             nextSection.tap()
             Thread.sleep(forTimeInterval: 0.3)
@@ -896,7 +889,8 @@ final class MultiReadingBoundaryTests: XCTestCase {
         app = nil
     }
 
-    // #34 — First chapter: prev chapter disabled
+    // #34 — Запускаем на Бытие 1 (первая глава Библии).
+    // Результат: кнопка «предыдущая глава» заблокирована, «следующая» активна.
     @MainActor
     func testFirstChapterPrevDisabled() {
         app = XCUIApplication()
@@ -914,7 +908,8 @@ final class MultiReadingBoundaryTests: XCTestCase {
                       "Next chapter should be enabled at Genesis 1")
     }
 
-    // #35 — Last chapter: next chapter disabled
+    // #35 — Запускаем на Откровение 22 (последняя глава Библии).
+    // Результат: кнопка «следующая глава» заблокирована, «предыдущая» активна.
     @MainActor
     func testLastChapterNextDisabled() {
         app = XCUIApplication()
@@ -975,7 +970,8 @@ final class MultiReadingStepTests: XCTestCase {
         app = nil
     }
 
-    // #36 — Multi-step playthrough: read → pause → read → unit advance
+    // #36 — Запускаем воспроизведение с шаблоном two-langs (read + pause + read).
+    // Результат: step-система продвигается — `multi-current-step` меняется с "0" на другое значение.
     @MainActor
     func testMultiStepPlaythrough() {
         let playPause = app.buttons["multi-play-pause"]
@@ -988,24 +984,22 @@ final class MultiReadingStepTests: XCTestCase {
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
-        // Wait for the step system to advance through read → pause → read
-        // This could take a while depending on verse length
         let stateLabel = app.staticTexts["multi-playback-state"]
         let stepLabel = app.staticTexts["multi-current-step"]
 
-        // Wait for step to change (pause or next read step)
+        // Ждём пока step сменится (переход через паузу к следующему read step)
         if stepLabel.exists {
             let stepChanged = app.waitForLabelChange(element: stepLabel, from: "0", timeout: 60)
             if stepChanged {
-                // Step system is working — it advanced beyond step 0
                 XCTAssertTrue(true, "Step system advanced from step 0")
             }
         }
 
-        playPause.tap() // stop
+        playPause.tap()
     }
 
-    // #37 — Pause step shows hourglass icon
+    // #37 — Во время pause step кнопка play/pause показывает иконку hourglass.
+    // Результат: при достижении паузы состояние переходит в "autopausing", кнопка существует.
     @MainActor
     func testPauseStepShowsHourglass() {
         let playPause = app.buttons["multi-play-pause"]
@@ -1015,17 +1009,17 @@ final class MultiReadingStepTests: XCTestCase {
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
-        // Wait for autopausing state (happens when pause step is reached)
+        // Ждём autopausing (наступает при переходе к pause step)
         let gotAutopausing = app.waitForMultiPlaybackState("autopausing", timeout: 60)
         if gotAutopausing {
-            // During autopausing, the play button should show hourglass icon
             XCTAssertTrue(playPause.exists, "Play/pause button should exist during autopausing")
         }
 
-        playPause.tap() // stop/skip
+        playPause.tap()
     }
 
-    // #38 — Manual skip of pause step
+    // #38 — Во время pause step тап play пропускает паузу.
+    // Результат: после тапа состояние переходит из "autopausing" к следующему read step.
     @MainActor
     func testManualSkipPauseStep() {
         let playPause = app.buttons["multi-play-pause"]
@@ -1035,14 +1029,13 @@ final class MultiReadingStepTests: XCTestCase {
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
-        // Wait for autopausing (pause step)
+        // Ждём autopausing (pause step)
         let gotAutopausing = app.waitForMultiPlaybackState("autopausing", timeout: 60)
         if gotAutopausing {
-            // Tap play to skip the pause
+            // Тапаем play чтобы пропустить паузу
             playPause.tap()
             Thread.sleep(forTimeInterval: 1)
 
-            // Should move to next read step (not autopausing anymore)
             let stateLabel = app.staticTexts["multi-playback-state"]
             if stateLabel.exists {
                 XCTAssertNotEqual(stateLabel.label, "autopausing",
@@ -1050,16 +1043,15 @@ final class MultiReadingStepTests: XCTestCase {
             }
         }
 
-        // Stop playback
         if app.waitForMultiPlaybackState("playing", timeout: 3) {
             playPause.tap()
         }
     }
 
-    // #39 — Translation chip updates per step
+    // #39 — С шаблоном two-langs чип перевода обновляется при смене read step.
+    // Результат: `multi-translation-chip` показывает один перевод, после смены степа — другой.
     @MainActor
     func testTranslationChipUpdatesPerStep() {
-        // With two-langs: first step is primary language, second read step is alternate
         let translationChip = app.otherElements["multi-translation-chip"]
         let translationBtn = app.buttons["multi-translation-chip"]
         let chipElement = translationChip.exists ? translationChip : translationBtn
@@ -1073,15 +1065,14 @@ final class MultiReadingStepTests: XCTestCase {
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
-        // Wait for step to advance past the pause to the second read step
-        // The translation chip should eventually change
+        // Ждём пока чип перевода сменится (при переходе ко второму read step)
         let chipChanged = app.waitForLabelChange(element: chipElement, from: initialTranslation, timeout: 60)
         if chipChanged {
             XCTAssertNotEqual(chipElement.label, initialTranslation,
                               "Translation chip should update when step changes")
         }
 
-        playPause.tap() // stop
+        playPause.tap()
     }
 }
 
@@ -1095,7 +1086,9 @@ final class MultiReadingAudioEndProgressTests: XCTestCase {
         app = nil
     }
 
-    // #41 — Auto-progress when audio ends (short psalm)
+    // #41 — Включаем autoProgressAudioEnd, открываем короткий Псалом 117,
+    // дослушиваем до конца.
+    // Результат: глава автоматически отмечается как прочитанная после окончания аудио.
     @MainActor
     func testAutoProgressOnAudioEnd() throws {
         app = XCUIApplication()
@@ -1118,20 +1111,19 @@ final class MultiReadingAudioEndProgressTests: XCTestCase {
         XCTAssertEqual(progressBtn.value as? String, "unread",
                        "Chapter should be unread before audio finishes")
 
-        // Start playing
         let playPause = app.buttons["multi-play-pause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 5))
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
-        // Navigate through units quickly (Psalm 117 has 2 verses)
+        // Псалом 117 — 2 стиха, пропускаем на последний юнит
         let nextUnit = app.buttons["multi-next-unit"]
         if nextUnit.waitForExistence(timeout: 3) && nextUnit.isEnabled {
             Thread.sleep(forTimeInterval: 1)
             nextUnit.tap()
         }
 
-        // Wait for audio to finish
+        // Ждём завершения аудио
         let finishedPredicate = NSPredicate(format: "label == %@ OR label == %@",
                                             "finished", "segmentFinished")
         let finishExp = XCTNSPredicateExpectation(predicate: finishedPredicate, object: stateLabel)
@@ -1154,7 +1146,8 @@ final class MultiReadingAutoProgressTests: XCTestCase {
         app = nil
     }
 
-    // #42 — Auto-progress by reading with short timer override
+    // #42 — Скроллим текст до конца с порогом 3 сек (--reading-progress-seconds 3).
+    // Результат: глава переходит из "unread" в "read" после прокрутки и ожидания.
     @MainActor
     func testAutoProgressByReadingWithOverride() throws {
         app = XCUIApplication()
@@ -1175,14 +1168,14 @@ final class MultiReadingAutoProgressTests: XCTestCase {
         XCTAssertEqual(progressBtn.value as? String, "unread",
                        "Chapter should be unread before scrolling")
 
-        // Scroll to bottom
+        // Скроллим до конца текста
         for _ in 0..<25 {
             let start = textContent.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
             let end = textContent.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
 
-        // Wait for override threshold (3 seconds) + buffer
+        // Ждём порог (3 секунды) + запас
         Thread.sleep(forTimeInterval: 5)
 
         XCTAssertEqual(progressBtn.value as? String, "read",
@@ -1200,7 +1193,8 @@ final class MultiReadingErrorTests: XCTestCase {
         app = nil
     }
 
-    // #43 — Force load error shows error text
+    // #43 — Запускаем с --force-load-error (ошибка загрузки главы).
+    // Результат: отображается текст ошибки `multi-error-text`.
     @MainActor
     func testErrorStateOnLoadFailure() {
         app = XCUIApplication()
@@ -1214,7 +1208,8 @@ final class MultiReadingErrorTests: XCTestCase {
                       "Error text should appear when load fails")
     }
 
-    // #44 — No audio disables controls
+    // #44 — Запускаем с --force-no-audio (нет аудио-файла).
+    // Результат: кнопки play, prev/next unit, prev/next section заблокированы (isEnabled == false).
     @MainActor
     func testNoAudioDisablesControls() throws {
         app = XCUIApplication()
@@ -1223,13 +1218,11 @@ final class MultiReadingErrorTests: XCTestCase {
 
         app.navigateViaMenu(to: "menu-multilingual")
 
-        // Wait for page to load (text should load, just no audio)
         let readingPage = app.otherElements["page-multi-reading"]
         guard readingPage.waitForExistence(timeout: 10) else {
             throw XCTSkip("Reading page did not appear")
         }
 
-        // Wait for content to load
         Thread.sleep(forTimeInterval: 3)
 
         let disabledControls = [
@@ -1289,7 +1282,8 @@ final class MultiReadingBackgroundTests: XCTestCase {
         app = nil
     }
 
-    // #45 — Background playback continues
+    // #45 — Запускаем воспроизведение, отправляем приложение в фон, возвращаем.
+    // Результат: после возврата состояние не сбросилось — аудио продолжало играть в фоне.
     @MainActor
     func testBackgroundPlaybackContinues() {
         let playPause = app.buttons["multi-play-pause"]
@@ -1301,15 +1295,15 @@ final class MultiReadingBackgroundTests: XCTestCase {
 
         Thread.sleep(forTimeInterval: 2)
 
-        // Go to background
+        // Отправляем в фон
         XCUIDevice.shared.press(.home)
         Thread.sleep(forTimeInterval: 5)
 
-        // Return to foreground
+        // Возвращаем
         app.activate()
         Thread.sleep(forTimeInterval: 1)
 
-        // State should not have reset to idle/finished
+        // Состояние не должно сброситься
         let stateLabel = app.staticTexts["multi-playback-state"]
         if stateLabel.exists {
             let state = stateLabel.label
@@ -1317,7 +1311,7 @@ final class MultiReadingBackgroundTests: XCTestCase {
                           "Playback state should not reset after background. Got: \(state)")
         }
 
-        playPause.tap() // stop
+        playPause.tap()
     }
 }
 
@@ -1341,12 +1335,13 @@ final class MultiReadingUnitModeTests: XCTestCase {
     private func getUnitCount() -> Int? {
         let counter = app.staticTexts["multi-unit-counter"]
         guard counter.waitForExistence(timeout: 10) else { return nil }
-        // Label format: "1 of N" — extract N
+        // Формат: "1 of N" — извлекаем N
         let parts = counter.label.components(separatedBy: " ")
         return parts.last.flatMap { Int($0) }
     }
 
-    // #46 — Verse mode: unit count ≈ verse count
+    // #46 — Режим verse: количество юнитов ≈ количеству стихов главы.
+    // Результат: `multi-unit-counter` показывает "1 of N", где N > 1.
     @MainActor
     func testVerseMode() {
         launchWithUnit("verse")
@@ -1357,7 +1352,8 @@ final class MultiReadingUnitModeTests: XCTestCase {
         }
     }
 
-    // #47 — Paragraph mode: fewer units than verse mode
+    // #47 — Режим paragraph: юнитов меньше чем стихов (абзацы группируют стихи).
+    // Результат: `multi-unit-counter` показывает N ≥ 1.
     @MainActor
     func testParagraphMode() {
         launchWithUnit("paragraph")
@@ -1368,7 +1364,8 @@ final class MultiReadingUnitModeTests: XCTestCase {
         }
     }
 
-    // #48 — Chapter mode: exactly 1 unit
+    // #48 — Режим chapter: вся глава = один юнит.
+    // Результат: `multi-unit-counter` = "1 of 1".
     @MainActor
     func testChapterMode() {
         launchWithUnit("chapter")
