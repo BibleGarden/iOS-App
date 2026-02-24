@@ -1114,23 +1114,16 @@ struct PageMultilingualReadView: View {
 
     private func moveToPreviousUnit() {
         guard currentUnitIndex > 0 else { return }
-        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
         isPlaying = false
 
         currentUnitIndex -= 1
         currentStepIndex = 0
-
-        if wasActive {
-            playCurrentStep(skipPause: true)
-        } else {
-            highlightCurrentPosition()
-        }
+        playCurrentStep()
     }
 
     private func moveToNextUnit() {
-        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
         isPlaying = false
@@ -1138,12 +1131,7 @@ struct PageMultilingualReadView: View {
         if currentUnitIndex < unitRanges.count - 1 {
             currentUnitIndex += 1
             currentStepIndex = 0
-
-            if wasActive {
-                playCurrentStep(skipPause: true)
-            } else {
-                highlightCurrentPosition()
-            }
+            playCurrentStep()
         }
     }
 
