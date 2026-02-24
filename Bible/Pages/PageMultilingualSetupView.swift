@@ -413,6 +413,7 @@ struct PageMultilingualSetupView: View {
                             .frame(width: 30, height: 30)
                             .contentShape(Rectangle())
                     }
+                    .buttonStyle(PlainButtonStyle())
                     .accessibilityIdentifier("multi-pause-minus-\(index)")
 
                     Divider().frame(height: 20).background(Color.white.opacity(0.3))
@@ -424,11 +425,11 @@ struct PageMultilingualSetupView: View {
                             .frame(width: 30, height: 30)
                             .contentShape(Rectangle())
                     }
+                    .buttonStyle(PlainButtonStyle())
                     .accessibilityIdentifier("multi-pause-plus-\(index)")
                 }
                 .background(Color.white.opacity(0.1))
                 .cornerRadius(5)
-                .buttonStyle(PlainButtonStyle())
                 .foregroundColor(.white)
             }
             
