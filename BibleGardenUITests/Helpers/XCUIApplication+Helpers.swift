@@ -114,3 +114,31 @@ extension XCUIApplication {
         return label.label
     }
 }
+
+// MARK: - Shared API Health Check
+
+/// Проверяет доступность API с повторными попытками (до 3 раз).
+/// URL берётся из TestConfig.baseURL (xcconfig → Info.plist).
+/// Возвращает true, если сервер ответил HTTP-статусом.
+func checkAPIAvailability(maxAttempts: Int = 3) -> Bool {
+    let urlString = "\(TestConfig.baseURL)/api/languages"
+    guard let url = URL(string: urlString) else { return false }
+    for attempt in 1...maxAttempts {
+        let semaphore = DispatchSemaphore(value: 0)
+        var success = false
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.httpMethod = "GET"
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let http = response as? HTTPURLResponse {
+                success = (200...499).contains(http.statusCode)
+            }
+            semaphore.signal()
+        }.resume()
+        _ = semaphore.wait(timeout: .now() + 15)
+        if success { return true }
+        if attempt < maxAttempts {
+            Thread.sleep(forTimeInterval: 2)
+        }
+    }
+    return false
+}

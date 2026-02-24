@@ -11,24 +11,10 @@ final class ClassicReadingTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
 
-        // One-time API health check per test run
+        // One-time API health check per test run (with retries)
         if !Self.apiChecked {
             Self.apiChecked = true
-            let semaphore = DispatchSemaphore(value: 0)
-            var request = URLRequest(
-                url: URL(string: "https://bibleapi.space/api/languages")!,
-                timeoutInterval: 10
-            )
-            request.httpMethod = "GET"
-            URLSession.shared.dataTask(with: request) { _, response, _ in
-                if let http = response as? HTTPURLResponse {
-                    Self.apiAvailable = (200...499).contains(http.statusCode)
-                } else {
-                    Self.apiAvailable = false
-                }
-                semaphore.signal()
-            }.resume()
-            _ = semaphore.wait(timeout: .now() + 15)
+            Self.apiAvailable = checkAPIAvailability()
         }
 
         try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping reading tests")
