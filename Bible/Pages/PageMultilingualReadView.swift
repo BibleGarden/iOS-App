@@ -1009,10 +1009,10 @@ struct PageMultilingualReadView: View {
     
     // Manual navigation to next content (no audio start — just highlight for reading)
     private func moveToNextSection() {
-        let wasPlaying = isPlaying
+        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
-        if !wasPlaying { isPlaying = false }
+        isPlaying = false
 
         // Find next read step in current unit
         if let nextIndex = allSteps.indices.first(where: { $0 > currentStepIndex && allSteps[$0].type == .read }) {
@@ -1022,7 +1022,7 @@ struct PageMultilingualReadView: View {
             currentStepIndex = 0
         }
 
-        if wasPlaying {
+        if wasActive {
             playCurrentStep(skipPause: true)
         } else {
             highlightCurrentPosition()
@@ -1030,10 +1030,10 @@ struct PageMultilingualReadView: View {
     }
 
     private func moveToPreviousSection() {
-        let wasPlaying = isPlaying
+        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
-        if !wasPlaying { isPlaying = false }
+        isPlaying = false
 
         // Find previous read step in current unit
         if let prevIndex = allSteps.indices.last(where: { $0 < currentStepIndex && allSteps[$0].type == .read }) {
@@ -1047,7 +1047,7 @@ struct PageMultilingualReadView: View {
             }
         }
 
-        if wasPlaying {
+        if wasActive {
             playCurrentStep(skipPause: true)
         } else {
             highlightCurrentPosition()
@@ -1079,15 +1079,15 @@ struct PageMultilingualReadView: View {
     /// Navigate to previous unit; resume playback only if audio was already playing.
     private func navigateToPreviousUnit() {
         guard currentUnitIndex > 0 else { return }
-        let wasPlaying = isPlaying
+        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
-        if !wasPlaying { isPlaying = false }
+        isPlaying = false
 
         currentUnitIndex -= 1
         currentStepIndex = 0
 
-        if wasPlaying {
+        if wasActive {
             playCurrentStep(skipPause: true)
         } else {
             highlightCurrentPosition()
@@ -1097,15 +1097,15 @@ struct PageMultilingualReadView: View {
     /// Navigate to next unit; resume playback only if audio was already playing.
     private func navigateToNextUnit() {
         guard currentUnitIndex < unitRanges.count - 1 else { return }
-        let wasPlaying = isPlaying
+        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
-        if !wasPlaying { isPlaying = false }
+        isPlaying = false
 
         currentUnitIndex += 1
         currentStepIndex = 0
 
-        if wasPlaying {
+        if wasActive {
             playCurrentStep(skipPause: true)
         } else {
             highlightCurrentPosition()
@@ -1114,26 +1114,37 @@ struct PageMultilingualReadView: View {
 
     private func moveToPreviousUnit() {
         guard currentUnitIndex > 0 else { return }
+        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
         isPlaying = false
-        
+
         currentUnitIndex -= 1
         currentStepIndex = 0
-        playCurrentStep()
+
+        if wasActive {
+            playCurrentStep(skipPause: true)
+        } else {
+            highlightCurrentPosition()
+        }
     }
 
     private func moveToNextUnit() {
+        let wasActive = isPlaying || isAutopausing
         stopAudioMonitoring()
         isAutopausing = false
         isPlaying = false
-        
+
         if currentUnitIndex < unitRanges.count - 1 {
             currentUnitIndex += 1
             currentStepIndex = 0
-            playCurrentStep()
+
+            if wasActive {
+                playCurrentStep(skipPause: true)
+            } else {
+                highlightCurrentPosition()
+            }
         }
-        // If at end, do nothing (button disabled) OR could trigger next chapter if desired.
     }
 
     

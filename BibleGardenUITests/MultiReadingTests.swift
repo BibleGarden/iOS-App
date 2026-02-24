@@ -768,7 +768,7 @@ final class MultiReadingSectionTests: XCTestCase {
     }
 
     // #31 — Во время воспроизведения тап «следующая секция».
-    // Результат: плеер остаётся в playing, `multi-current-step` обновляется.
+    // Результат: воспроизведение продолжается на новом шаге, `multi-current-step` обновляется.
     @MainActor
     func testSectionNavigationWhilePlaying() {
         let playPause = app.buttons["multi-play-pause"]
@@ -786,20 +786,53 @@ final class MultiReadingSectionTests: XCTestCase {
 
         let stepBefore = app.multiCurrentStep() ?? "0"
         nextSection.tap()
-        Thread.sleep(forTimeInterval: 1)
+
+        // Ждём что плеер запустил воспроизведение нового шага
+        let reachedPlaying = app.waitForMultiPlaybackState("playing", timeout: 10)
 
         let stepAfter = app.multiCurrentStep() ?? "0"
         XCTAssertNotEqual(stepBefore, stepAfter,
                          "Step should update during playback section navigation")
 
+        // Для короткого стиха (unit=verse) аудио может закончиться до проверки —
+        // главное что playing было достигнуто
+        XCTAssertTrue(reachedPlaying, "Playback should resume after section navigation")
+
         let stateLabel = app.staticTexts["multi-playback-state"]
-        if stateLabel.exists {
-            let state = stateLabel.label
-            XCTAssertTrue(state == "playing" || state == "buffering",
-                          "Should remain playing after section navigation. Got: \(state)")
+        if stateLabel.exists && stateLabel.label == "playing" {
+            playPause.tap()
         }
+    }
+
+    // #31b — Во время воспроизведения тап стрелкой юнита.
+    // Результат: воспроизведение продолжается на следующем юните.
+    @MainActor
+    func testUnitNavigationWhilePlaying() {
+        let playPause = app.buttons["multi-play-pause"]
+        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
+        guard playPause.isEnabled else { return }
+
+        let unitBefore = app.multiCurrentUnit() ?? "-1"
 
         playPause.tap()
+        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 15), "Should start playing")
+
+        let nextUnit = app.buttons["multi-next-unit"]
+        XCTAssertTrue(nextUnit.waitForExistence(timeout: 3))
+        guard nextUnit.isEnabled else { return }
+        nextUnit.tap()
+
+        // Ждём что воспроизведение запустилось на новом юните
+        let resumedPlaying = app.waitForMultiPlaybackState("playing", timeout: 15)
+        XCTAssertTrue(resumedPlaying, "Playback should resume on next unit")
+
+        let unitAfter = app.multiCurrentUnit() ?? "-1"
+        XCTAssertNotEqual(unitBefore, unitAfter, "Unit should have changed")
+
+        let stateLabel = app.staticTexts["multi-playback-state"]
+        if stateLabel.exists && stateLabel.label == "playing" {
+            playPause.tap()
+        }
     }
 
     // #32 — На первом read step первого юнита кнопка «предыдущая секция» заблокирована.
