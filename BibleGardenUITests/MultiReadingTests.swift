@@ -1037,25 +1037,31 @@ final class MultiReadingStepTests: XCTestCase {
     // Результат: `multi-translation-chip` показывает один перевод, после смены степа — другой.
     @MainActor
     func testTranslationChipUpdatesPerStep() {
-        let translationChip = app.otherElements["multi-translation-chip"]
-        let translationBtn = app.buttons["multi-translation-chip"]
-        let chipElement = translationChip.exists ? translationChip : translationBtn
-
-        guard chipElement.waitForExistence(timeout: 5) else { return }
-        let initialTranslation = chipElement.label
+        // Identifier пропагируется на дочерние элементы — берём StaticText с названием перевода
+        let chipText = app.staticTexts["multi-translation-chip"]
+        XCTAssertTrue(chipText.waitForExistence(timeout: 8), "Translation chip text should exist")
+        let initialTranslation = chipText.label
 
         let playPause = app.buttons["multi-play-pause"]
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(playPause.isEnabled, "Play button should be enabled")
 
+        // Играем первый read step
         playPause.tap()
-        _ = app.waitForMultiPlaybackState("playing", timeout: 15)
+        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 15), "Should start playing")
 
-        // Ждём пока чип перевода сменится (при переходе ко второму read step)
-        let chipChanged = app.waitForLabelChange(element: chipElement, from: initialTranslation, timeout: 60)
-        if chipChanged {
-            XCTAssertNotEqual(chipElement.label, initialTranslation,
-                              "Translation chip should update when step changes")
-        }
+        // Ждём autopausing (30-секундная пауза между read steps)
+        let gotPause = app.waitForMultiPlaybackState("autopausing", timeout: 60)
+        XCTAssertTrue(gotPause, "Should reach pause step between read steps")
+
+        // Пропускаем паузу тапом play → переход ко второму read step
+        playPause.tap()
+        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 15),
+                      "Should resume playing on second read step after skipping pause")
+
+        // Чип перевода должен показывать другой перевод
+        let newTranslation = chipText.label
+        XCTAssertNotEqual(initialTranslation, newTranslation,
+                          "Translation chip should update when step changes. Was: \(initialTranslation), Now: \(newTranslation)")
 
         playPause.tap()
     }
