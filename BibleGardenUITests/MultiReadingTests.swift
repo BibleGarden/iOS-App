@@ -608,15 +608,23 @@ final class MultiReadingTests: XCTestCase {
     func testUnitCounterUpdates() {
         let counter = app.staticTexts["multi-unit-counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 8))
-        let initialLabel = counter.label
 
         let nextUnit = app.buttons["multi-next-unit"]
-        guard nextUnit.isEnabled else { return }
+        XCTAssertTrue(nextUnit.isEnabled, "Next unit should be enabled")
 
-        nextUnit.tap()
-        XCTAssertTrue(
-            app.waitForLabelChange(element: counter, from: initialLabel, timeout: 5),
-            "Unit counter should update after navigation")
+        // Тапаем 3 раза и проверяем что счётчик обновляется каждый раз
+        var previousLabel = counter.label
+        for i in 1...3 {
+            guard nextUnit.isEnabled else { break }
+            nextUnit.tap()
+            let changed = app.waitForLabelChange(element: counter, from: previousLabel, timeout: 5)
+            XCTAssertTrue(changed,
+                          "Unit counter should update after tap #\(i). Stuck on: \(previousLabel)")
+            let newLabel = counter.label
+            XCTAssertTrue(newLabel.contains("\(i + 1)"),
+                          "Counter should show unit \(i + 1) after \(i) taps. Got: \(newLabel)")
+            previousLabel = newLabel
+        }
     }
 
     // #26 — При `currentUnitIndex == 0` кнопка «предыдущий юнит» заблокирована.
