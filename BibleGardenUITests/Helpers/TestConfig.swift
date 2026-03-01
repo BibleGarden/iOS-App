@@ -14,7 +14,7 @@ enum TestConfig {
             .appendingPathComponent("Debug.xcconfig")
 
         guard let contents = try? String(contentsOf: xcconfigURL, encoding: .utf8) else {
-            return "https://bibleapi.space"
+            return "https://domain.com"
         }
 
         for line in contents.components(separatedBy: .newlines) {
@@ -27,6 +27,6 @@ enum TestConfig {
             return raw.replacingOccurrences(of: "$()", with: "")
         }
 
-        return "https://bibleapi.space"
+        return "https://domain.com"
     }
 }

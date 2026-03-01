@@ -1,5 +1,5 @@
 // Debug configuration — test API
 // Copy this file to Debug.xcconfig and fill in your values
 
-API_BASE_URL = https:/$()/test-bibleapi.space
+API_BASE_URL = https:/$()/test-bible.garden
 API_KEY = your-api-key-here

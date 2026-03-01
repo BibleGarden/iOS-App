@@ -39,7 +39,7 @@
 
 ## ClassicReadingTests.swift
 
-Тесты требуют работающий API (bibleapi.space) и сеть. Ряд тестов требует поддержки launch arguments в приложении (см. "Инфраструктура" ниже). Все тесты должны проходить — если что-то падает, чиним.
+Тесты требуют работающий API и сеть. Ряд тестов требует поддержки launch arguments в приложении (см. "Инфраструктура" ниже). Все тесты должны проходить — если что-то падает, чиним.
 
 ### Загрузка и отображение
 
@@ -249,7 +249,7 @@ class ClassicReadingPauseTests: XCTestCase { ... }
 1. **PageMultilingualSetupView** — настройка степов (read/pause), шаблонов, режимов чтения
 2. **PageMultilingualReadView** — само чтение с аудио, навигация по юнитам/секциям/главам
 
-Тесты требуют работающий API (bibleapi.space) и сеть. Используют ту же инфраструктуру launch arguments что и ClassicReadingTests.
+Тесты требуют работающий API и сеть. Используют ту же инфраструктуру launch arguments что и ClassicReadingTests.
 
 ### Prerequisite: реализация в приложении ✅
 

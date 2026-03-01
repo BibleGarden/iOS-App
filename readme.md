@@ -27,7 +27,7 @@ API keys and URLs are set via xcconfig files, which are in `.gitignore`:
 ### xcconfig Structure
 
 - `Bible/Debug.xcconfig` — URL and key for the test API
-- `Bible/Release.xcconfig` — URL and key for the production API (`https://bibleapi.space`)
+- `Bible/Release.xcconfig` — URL and key for the production API
 
 Values are injected via `Info.plist` → `Config.swift` (`Config.baseURL`, `Config.apiKey`).
 

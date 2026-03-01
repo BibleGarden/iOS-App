@@ -89,4 +89,4 @@ Uses a custom `LocalizationManager` singleton (not Apple's standard localization
 
 ### API Layer
 
-All API calls go through the generated OpenAPI client on `SettingsManager.client`. The API key is sent as `X-API-Key` header. Audio URLs require an `api_key` query parameter (handled by `SettingsManager.audioURL(...)` helpers). The backend is at `bibleapi.space`.
+All API calls go through the generated OpenAPI client on `SettingsManager.client`. The API key is sent as `X-API-Key` header. Audio URLs require an `api_key` query parameter (handled by `SettingsManager.audioURL(...)` helpers). 
