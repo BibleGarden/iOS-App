@@ -59,14 +59,16 @@ struct PageAboutView: View {
 
                         viewGroupHeader(text: "contacts.about".localized)
 
-                        if let data = aboutData {
-                            Text(localizedText(data.about_text))
-                        } else {
-                            Text("contacts.about.text".localized)
+                        Group {
+                            if let data = aboutData {
+                                Text(localizedText(data.about_text))
+                            } else {
+                                Text("contacts.about.text".localized)
+                            }
                         }
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.horizontal, globalBasePadding)
                     .padding(.vertical, 10)
