@@ -73,18 +73,7 @@ struct PageReadSettingsView: View {
                         .foregroundColor(.white)
 
                     HStack {
-                        if showFromRead {
-                            Button {
-                                showFromRead = false
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.title3.weight(.light))
-                                    .frame(width: 32, height: 32)
-                            }
-                            .foregroundColor(Color.white.opacity(0.7))
-                            .accessibilityIdentifier("settings-close")
-                        }
-                        else {
+                        if !showFromRead {
                             MenuButtonView()
                                 .environmentObject(settingsManager)
                                 .frame(width: 32, height: 32)
@@ -92,8 +81,16 @@ struct PageReadSettingsView: View {
 
                         Spacer()
 
-                        Color.clear
-                            .frame(width: 32, height: 32)
+                        if showFromRead {
+                            Button {
+                                showFromRead = false
+                            } label: {
+                                Text("settings.save_choice".localized)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(Color("Mustard"))
+                            }
+                            .accessibilityIdentifier("settings-close")
+                        }
                     }
                 }
                 .padding(.horizontal, globalBasePadding)
