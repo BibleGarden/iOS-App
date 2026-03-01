@@ -1579,22 +1579,19 @@ struct PageMultilingualReadView: View {
                                 let verse = verses[i]
                                 let uniqueId = stepIdx * 10000 + verse.number
                                 
-                                // Display headers (titles/subtitles) if in Fragment mode
-                                if settingsManager.multilingualReadUnit == .fragment {
-                                    // Regular titles
-                                    let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
-                                    for title in regularTitles {
-                                        htmlString += "<p class=\"title\">\(title.text)</p>"
-                                        if let reference = title.reference, !reference.isEmpty {
-                                            htmlString += "<p class=\"reference\">\(reference)</p>"
-                                        }
+                                // Display headers (titles/subtitles)
+                                let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
+                                for title in regularTitles {
+                                    htmlString += "<p class=\"title\">\(title.text)</p>"
+                                    if let reference = title.reference, !reference.isEmpty {
+                                        htmlString += "<p class=\"reference\">\(reference)</p>"
                                     }
-                                    
-                                    // Subtitles at start
-                                    let startSubtitles = verse.beforeTitles.filter { $0.subtitle && ($0.positionHtml ?? 0) == 0 }
-                                    for sub in startSubtitles {
-                                        htmlString += "<p class=\"subtitle\">\(sub.text)</p>"
-                                    }
+                                }
+
+                                // Subtitles at start
+                                let startSubtitles = verse.beforeTitles.filter { $0.subtitle && ($0.positionHtml ?? 0) == 0 }
+                                for sub in startSubtitles {
+                                    htmlString += "<p class=\"subtitle\">\(sub.text)</p>"
                                 }
                                 
                                 htmlString += """
