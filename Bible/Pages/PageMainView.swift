@@ -20,10 +20,11 @@ struct PageMainView: View {
                 HStack {
                     MenuButtonView()
                         .environmentObject(settingsManager)
-                        .padding(.bottom, 50)
                     Spacer()
                 }
-                .padding(.top, 40)
+                .padding(.vertical, 16)
+
+                Spacer().frame(height: 28)
                 // Localized title
                 Text("page.main.header".localized)
                     .font(.system(size: 50, weight: .black, design: .rounded))
@@ -60,7 +61,8 @@ struct PageMainView: View {
                 // Push remaining content upward
                 Spacer()
             }
-            .padding(20)
+            .padding(.horizontal, globalBasePadding)
+            .padding(.vertical, 20)
             
             // Reading progress card near bottom
             progressCardView()

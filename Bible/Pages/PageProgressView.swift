@@ -31,8 +31,8 @@ struct PageProgressView: View {
                                 .font(.system(size: 26))
                         }
                     }
-                    .padding(.bottom, 10)
-                    
+                    .padding(.vertical, 12)
+
                     if isLoading {
                         Spacer()
                         ProgressView()
