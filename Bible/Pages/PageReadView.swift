@@ -152,7 +152,8 @@ struct PageReadView: View {
                                 endPoint: .init(x: 0.5, y: 1.0)  // Gradient ends at very bottom
                             )
                         )
-                        .padding(12)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                         .accessibilityIdentifier("read-text-content")
                     }
                     }

@@ -25,7 +25,7 @@ extension View {
         let extra: CGFloat = topInset > 40 ? extraTop : extraTopSmall
         return self
             .padding(.top, basePadding + extra)
-            .padding(.bottom, 12)
+            .padding(.bottom, 4)
     }
 
     @ViewBuilder
