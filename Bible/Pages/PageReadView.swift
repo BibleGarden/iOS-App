@@ -147,9 +147,14 @@ struct PageReadView: View {
                             }
                         )
                             .mask(LinearGradient(
-                                gradient: Gradient(colors: [Color.black, Color.black, Color.black.opacity(0)]),
-                                startPoint: .init(x: 0.5, y: 0.9), // Gradient starts at 90% height
-                                endPoint: .init(x: 0.5, y: 1.0)  // Gradient ends at very bottom
+                                gradient: Gradient(stops: [
+                                    .init(color: Color.black.opacity(0), location: 0.0),
+                                    .init(color: Color.black, location: 0.03),
+                                    .init(color: Color.black, location: 0.9),
+                                    .init(color: Color.black.opacity(0), location: 1.0)
+                                ]),
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
                         )
                         .padding(.horizontal, 12)
