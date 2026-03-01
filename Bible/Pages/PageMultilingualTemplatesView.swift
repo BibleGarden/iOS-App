@@ -144,10 +144,12 @@ struct PageMultilingualTemplatesView: View {
                         
                         Spacer()
                         
-                        Button("multilingual.rename.action".localized) {
+                        Button {
                             performRename()
+                        } label: {
+                            Text("multilingual.rename.action".localized)
+                                .fontWeight(.bold)
                         }
-                        .fontWeight(.bold)
                         .foregroundColor(Color("Mustard"))
                         .disabled(newName.isEmpty)
                         .padding(.vertical, 10)

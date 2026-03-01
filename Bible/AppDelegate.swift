@@ -40,7 +40,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             }
             // Setup multilingual template if specified
             if let templateName = TestingEnvironment.multiTemplateOverride {
-                let lang = Locale.current.language.languageCode?.identifier ?? "en"
+                let lang = Locale.current.languageCode ?? "en"
                 var steps: [MultilingualStep] = []
 
                 var primaryStep = MultilingualStep(type: .read)

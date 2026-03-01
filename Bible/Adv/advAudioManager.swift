@@ -648,15 +648,19 @@ class PlayerModel: ObservableObject {
             currentSpeed += 0.2
         }
         
-        player.defaultRate = currentSpeed
+        if #available(iOS 16.0, *) {
+            player.defaultRate = currentSpeed
+        }
         if state == .playing {
             player.rate = currentSpeed
         }
     }
-    
+
     func setSpeed(speed: Float) {
         currentSpeed = speed
-        player.defaultRate = speed
+        if #available(iOS 16.0, *) {
+            player.defaultRate = speed
+        }
     }
     
     

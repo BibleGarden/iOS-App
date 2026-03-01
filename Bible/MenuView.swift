@@ -39,8 +39,7 @@ struct MenuView: View {
                     }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.title)
-                        .fontWeight(.light)
+                        .font(.title.weight(.light))
                 }
                 .foregroundColor(Color.white.opacity(0.5))
 
@@ -223,8 +222,7 @@ struct MenuView: View {
         }
         .sheet(isPresented: $showInterfaceLanguageSheet) {
             InterfaceLanguageSheetView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .sheetFullScreen()
         }
         .ignoresSafeArea()
     }
@@ -312,8 +310,7 @@ private struct InterfaceLanguageSheetView: View {
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.title3)
-                                .fontWeight(.light)
+                                .font(.title3.weight(.light))
                                 .frame(width: 32, height: 32)
                         }
                         .foregroundColor(.white.opacity(0.7))

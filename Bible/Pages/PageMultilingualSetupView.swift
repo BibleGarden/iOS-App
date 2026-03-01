@@ -135,7 +135,7 @@ struct PageMultilingualSetupView: View {
                     }
                     .listStyle(.plain)
                     .environment(\.editMode, .constant(.active))
-                    .scrollContentBackground(.hidden)
+                    .hideScrollContentBackground()
                     .environment(\.colorScheme, .dark)
                 }
                 

@@ -78,8 +78,7 @@ struct PageReadSettingsView: View {
                                 showFromRead = false
                             } label: {
                                 Image(systemName: "xmark")
-                                    .font(.title3)
-                                    .fontWeight(.light)
+                                    .font(.title3.weight(.light))
                                     .frame(width: 32, height: 32)
                             }
                             .foregroundColor(Color.white.opacity(0.7))
@@ -101,12 +100,7 @@ struct PageReadSettingsView: View {
                 .padding(.vertical, 12)
                 .background(Color("DarkGreen").brightness(0.05))
                 .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: showFromRead ? 22 : 0,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: showFromRead ? 22 : 0
-                    )
+                    TopRoundedRectangle(radius: showFromRead ? 22 : 0)
                 )
                 
                 ScrollViewReader { proxy in

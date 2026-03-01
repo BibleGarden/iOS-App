@@ -36,8 +36,7 @@ struct PageSelectView: View {
                                     showFromRead = false
                                 } label: {
                                     Image(systemName: "xmark")
-                                        .font(.title3)
-                                        .fontWeight(.light)
+                                        .font(.title3.weight(.light))
                                         .frame(width: 32, height: 32)
                                 }
                                 .foregroundColor(Color.white.opacity(0.7))
@@ -161,7 +160,9 @@ struct PageSelectView: View {
                     
                 }) {
                     ZStack {
-                        Text("\(chapter_number)").frame(maxWidth: .infinity)
+                        Text("\(chapter_number)")
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .foregroundColor(.white)
                             .background(isCurrentChapter ? .white.opacity(0.3) : .clear)
@@ -170,7 +171,6 @@ struct PageSelectView: View {
                                 RoundedRectangle(cornerRadius: 5)
                                     .stroke(Color.white, lineWidth: 1)
                             )
-                            .fontWeight(.bold)
                         
                         // No-audio badge (top-left)
                         if hasNoAudio {
@@ -294,12 +294,7 @@ struct PageSelectView: View {
                                                                     if progressPercent > 0.98 {
                                                                         RoundedRectangle(cornerRadius: 6)
                                                                     } else {
-                                                                        UnevenRoundedRectangle(
-                                                                            topLeadingRadius: 6,
-                                                                            bottomLeadingRadius: 6,
-                                                                            bottomTrailingRadius: 0,
-                                                                            topTrailingRadius: 0
-                                                                        )
+                                                                        LeftRoundedRectangle(radius: 6)
                                                                     }
                                                                 }
                                                                 .frame(width: progressWidth, height: 20)

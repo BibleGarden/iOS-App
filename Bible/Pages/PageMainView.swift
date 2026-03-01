@@ -109,13 +109,14 @@ struct PageMainView: View {
                                         
                                         Spacer(minLength: 0)
                                     }
-                                    .clipShape(
-                                        UnevenRoundedRectangle(
-                                            topLeadingRadius: 6,
-                                            bottomLeadingRadius: 6,
-                                            bottomTrailingRadius: progressPercent > 0.98 ? 6 : 0,
-                                            topTrailingRadius: progressPercent > 0.98 ? 6 : 0
-                                        )
+                                    .mask(
+                                        Group {
+                                            if progressPercent > 0.98 {
+                                                RoundedRectangle(cornerRadius: 6)
+                                            } else {
+                                                LeftRoundedRectangle(radius: 6)
+                                            }
+                                        }
                                     )
                                 }
                                 .frame(height: 24)
@@ -193,7 +194,7 @@ struct MainMenuCard: View {
                 // Text Content
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.system(.body, weight: .bold))
+                        .font(.body.bold())
                         .foregroundColor(.white)
                     
                     Text(subtitle)

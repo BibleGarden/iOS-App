@@ -219,8 +219,7 @@ struct PageReadView: View {
             {
                 PageSelectView(showFromRead: $showSelection)
                     .environmentObject(settingsManager)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                    .sheetFullScreen()
             }
 
             .sheet(isPresented: $showSetup, onDismiss: {
@@ -233,8 +232,7 @@ struct PageReadView: View {
             {
                 PageReadSettingsView(showFromRead: $showSetup)
                     .environmentObject(settingsManager)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                    .sheetFullScreen()
             }
 
             .edgesIgnoringSafeArea(.bottom)
@@ -738,14 +736,7 @@ struct PageReadView: View {
         .background(Color("DarkGreen-light"))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("audio-panel")
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 25,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 25
-            )
-        )
+        .clipShape(TopRoundedRectangle(radius: 25))
         .gesture(DragGesture(minimumDistance: 20, coordinateSpace: .local)
             .onEnded { value in
                 if value.translation.height > 50 {

@@ -450,14 +450,7 @@ struct PageMultilingualReadView: View {
         .frame(maxWidth: .infinity)
         .frame(height: showAudioPanel ? audioPanelHeight : 45)
         .background(Color("DarkGreen-light"))
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 25,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 25
-            )
-        )
+        .clipShape(TopRoundedRectangle(radius: 25))
         .edgesIgnoringSafeArea(.bottom)
         .gesture(DragGesture(minimumDistance: 20, coordinateSpace: .local)
             .onEnded { value in

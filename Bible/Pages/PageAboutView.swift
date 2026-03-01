@@ -21,8 +21,7 @@ struct PageAboutView: View {
                             showFromRead = false
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.title)
-                                .fontWeight(.light)
+                                .font(.title.weight(.light))
                         }
                         .foregroundColor(Color.white.opacity(0.5))
                     }

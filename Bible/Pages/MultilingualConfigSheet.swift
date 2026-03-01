@@ -65,10 +65,12 @@ struct MultilingualConfigSheet: View {
                     
                     Spacer()
                     
-                    Button("settings.save_choice".localized) {
+                    Button {
                         saveStep()
+                    } label: {
+                        Text("settings.save_choice".localized)
+                            .fontWeight(.bold)
                     }
-                    .fontWeight(.bold)
                     .foregroundColor(canSave ? Color("Mustard") : Color.gray)
                     .disabled(!canSave)
                 }

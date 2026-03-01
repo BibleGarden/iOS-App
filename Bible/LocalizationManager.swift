@@ -37,7 +37,7 @@ class LocalizationManager: ObservableObject {
             self.currentLanguage = language
         } else {
             // Detect system language
-            let systemLanguage = Locale.current.language.languageCode?.identifier ?? "en"
+            let systemLanguage = Locale.current.languageCode ?? "en"
             switch systemLanguage {
             case "ru":
                 self.currentLanguage = .russian

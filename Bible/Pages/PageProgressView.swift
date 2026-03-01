@@ -72,13 +72,14 @@ struct PageProgressView: View {
                                                 
                                                 Spacer(minLength: 0)
                                             }
-                                            .clipShape(
-                                                UnevenRoundedRectangle(
-                                                    topLeadingRadius: 6,
-                                                    bottomLeadingRadius: 6,
-                                                    bottomTrailingRadius: progressPercent > 0.98 ? 6 : 0,
-                                                    topTrailingRadius: progressPercent > 0.98 ? 6 : 0
-                                                )
+                                            .mask(
+                                                Group {
+                                                    if progressPercent > 0.98 {
+                                                        RoundedRectangle(cornerRadius: 6)
+                                                    } else {
+                                                        LeftRoundedRectangle(radius: 6)
+                                                    }
+                                                }
                                             )
                                         }
                                         .frame(height: 24)
@@ -168,8 +169,7 @@ struct PageProgressView: View {
         .sheet(isPresented: $showSettingsSheet) {
             ProgressSettingsSheet(showResetConfirmation: $showResetConfirmation)
                 .environmentObject(settingsManager)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .sheetFullScreen()
         }
         .onAppear {
             loadBooks()
@@ -329,8 +329,7 @@ private struct ProgressSettingsSheet: View {
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.title3)
-                                .fontWeight(.light)
+                                .font(.title3.weight(.light))
                                 .frame(width: 32, height: 32)
                         }
                         .foregroundColor(.white.opacity(0.7))

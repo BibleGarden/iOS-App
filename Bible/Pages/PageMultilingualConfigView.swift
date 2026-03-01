@@ -77,18 +77,19 @@ struct PageMultilingualConfigView: View {
                             presentationMode.wrappedValue.dismiss()
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.title3)
-                                .fontWeight(.light)
+                                .font(.title3.weight(.light))
                                 .frame(width: 32, height: 32)
                         }
                         .foregroundColor(Color.white.opacity(0.7))
 
                         Spacer()
 
-                        Button(saveButtonTitle) {
+                        Button {
                             saveStep()
+                        } label: {
+                            Text(saveButtonTitle)
+                                .fontWeight(.bold)
                         }
-                        .fontWeight(.bold)
                         .foregroundColor(canSave ? Color("Mustard") : Color.gray)
                         .disabled(!canSave)
                         .accessibilityIdentifier("multi-config-save")

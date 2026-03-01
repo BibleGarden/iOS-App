@@ -10,7 +10,7 @@ struct ReadProgress: Codable {
 // MARK: LanguageDefaults
 private enum LanguageDefaults {
     static let systemLanguage: String = {
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let lang = Locale.current.languageCode ?? "en"
         switch lang {
         case "ru": return "ru"
         case "uk": return "uk"
