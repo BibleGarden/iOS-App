@@ -18,7 +18,7 @@ extension View {
     func headerPadding() -> some View {
         let topInset = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?
             .windows.first?.safeAreaInsets.top ?? 0
-        let topPadding: CGFloat = topInset > 30 ? 0 : 10
+        let topPadding: CGFloat = topInset > 40 ? 0 : 10
         return self
             .padding(.top, topPadding)
             .padding(.bottom, 12)
