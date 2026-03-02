@@ -7,7 +7,7 @@ An iOS app (SwiftUI) for listening to the Bible with configurable pauses between
 ### Requirements
 
 - Xcode (Swift 5, SwiftUI)
-- iOS (iPhone + iPad)
+- iOS 15+ (iPhone + iPad)
 - Dependencies are fetched automatically via Xcode SPM
 
 ### API Configuration (required before building)
