@@ -212,7 +212,7 @@
 			children = (
 				04DED7652F48B78600D0B620 /* BibleGarden.xctestplan */,
 				0458F53C2CCE0AA20016C65F /* LaunchScreen.storyboard */,
-				4C7691222BECEA1300C66FDC /* Bible */,
+				4C7691222BECEA1300C66FDC /* BibleGarden */,
 				0497A9592C6AC3EC008A5D7F /* .gitignore */,
 				4CFC91F02C59A844005AFAA5 /* readme.md */,
 				04DED7532F48328500D0B620 /* BibleGardenUITests */,
@@ -229,7 +229,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		4C7691222BECEA1300C66FDC /* Bible */ = {
+		4C7691222BECEA1300C66FDC /* BibleGarden */ = {
 			isa = PBXGroup;
 			children = (
 				04DB3CC62ECB9A60004AF6BC /* uk.lproj */,
@@ -256,7 +256,7 @@
 				4C7691272BECEA1800C66FDC /* Assets.xcassets */,
 				4C7691292BECEA1800C66FDC /* Preview Content */,
 			);
-			path = Bible;
+			path = BibleGarden;
 			sourceTree = "<group>";
 		};
 		4C7691292BECEA1800C66FDC /* Preview Content */ = {
@@ -642,11 +642,11 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 0;
-				DEVELOPMENT_ASSET_PATHS = "\"Bible/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"BibleGarden/Preview Content\"";
 				DEVELOPMENT_TEAM = 4SC2JCE37N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Bible/Info.plist;
+				INFOPLIST_FILE = BibleGarden/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Bible Garden";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -679,11 +679,11 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 0;
-				DEVELOPMENT_ASSET_PATHS = "\"Bible/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"BibleGarden/Preview Content\"";
 				DEVELOPMENT_TEAM = 4SC2JCE37N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Bible/Info.plist;
+				INFOPLIST_FILE = BibleGarden/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Bible Garden";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
