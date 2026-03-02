@@ -128,7 +128,7 @@ struct PageMultilingualReadView: View {
                     .accessibilityIdentifier("multi-config-button")
                 }
                 .padding(.horizontal, globalBasePadding)
-                .padding(.vertical, 12)
+                .headerPadding()
                 
                 // MARK: Content
                 if isLoading {
@@ -156,8 +156,13 @@ struct PageMultilingualReadView: View {
                     .accessibilityIdentifier("multi-text-content")
                     .mask(
                         LinearGradient(
-                            gradient: Gradient(colors: [Color.black, Color.black, Color.black.opacity(0)]),
-                            startPoint: .init(x: 0.5, y: 0.95),
+                            gradient: Gradient(stops: [
+                                .init(color: Color.black.opacity(0), location: 0.0),
+                                .init(color: Color.black, location: 0.03),
+                                .init(color: Color.black, location: 0.9),
+                                .init(color: Color.black.opacity(0), location: 1.0)
+                            ]),
+                            startPoint: .top,
                             endPoint: .bottom
                         )
                     )

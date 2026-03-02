@@ -22,7 +22,7 @@ struct PageMainView: View {
                         .environmentObject(settingsManager)
                     Spacer()
                 }
-                .padding(.vertical, 16)
+                .headerPadding(extraTop: 30, extraTopSmall: 10)
 
                 Spacer().frame(height: 28)
                 // Localized title

@@ -55,7 +55,7 @@ struct PageSelectView: View {
                         }
                     }
                     .padding(.horizontal, globalBasePadding)
-                    .padding(.vertical, 12)
+                    .headerPadding()
                     .background(Color("DarkGreen").brightness(0.05))
                     .padding(.bottom, 10)
                     

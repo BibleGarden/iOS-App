@@ -39,7 +39,7 @@ struct PageAboutView: View {
                     Spacer()
                 }
                 .padding(.horizontal, globalBasePadding)
-                .padding(.vertical, 12)
+                .headerPadding()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -55,30 +55,20 @@ struct PageAboutView: View {
                                     accessibilityId: "contacts-\(contact.id)"
                                 )
                             }
-                        } else {
-                            contactButton(
-                                icon: "paperplane.fill",
-                                label: "contacts.telegram".localized,
-                                subtitle: "@Mandarinka4",
-                                urlString: "https://t.me/Mandarinka4",
-                                accessibilityId: "contacts-telegram"
-                            )
-
-                            contactButton(
-                                icon: "globe",
-                                label: "contacts.website".localized,
-                                subtitle: "bibleapi.space",
-                                urlString: "https://bibleapi.space",
-                                accessibilityId: "contacts-website"
-                            )
                         }
 
                         viewGroupHeader(text: "contacts.about".localized)
 
-                        Text(aboutData != nil ? localizedText(aboutData!.about_text) : "contacts.about.text".localized)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Group {
+                            if let data = aboutData {
+                                Text(localizedText(data.about_text))
+                            } else {
+                                Text("contacts.about.text".localized)
+                            }
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.horizontal, globalBasePadding)
                     .padding(.vertical, 10)

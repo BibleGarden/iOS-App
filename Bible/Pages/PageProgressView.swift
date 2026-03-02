@@ -31,7 +31,7 @@ struct PageProgressView: View {
                                 .font(.system(size: 26))
                         }
                     }
-                    .padding(.vertical, 12)
+                    .headerPadding()
 
                     if isLoading {
                         Spacer()

@@ -62,7 +62,7 @@ struct PageMultilingualView: View {
                     }
                 }
                 .padding(.horizontal, globalBasePadding)
-                .padding(.vertical, 12)
+                .headerPadding()
                 
                 // MARK: Read By Picker
                 HStack {

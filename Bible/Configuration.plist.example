@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>BaseURL</key>
-	<string>https://bibleapi.space</string>
+	<string>https://bible.garden</string>
 	<key>APIKey</key>
 	<string>your-api-key-here</string>
 </dict>

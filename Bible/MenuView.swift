@@ -188,7 +188,7 @@ struct MenuView: View {
             .padding(.trailing, 120)
             .padding()
             .padding(.leading, 6)
-            .padding(.top, getSafeArea().top)
+            .padding(.top, getSafeArea().top > 40 ? max(getSafeArea().top - 16, 0) : max(getSafeArea().top - 0, 0))
             .padding(.bottom, getSafeArea().bottom)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }

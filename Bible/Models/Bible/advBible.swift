@@ -26,6 +26,7 @@ func getExcerptTextualVersesOnline(excerpts: String, client: APIProtocol, transl
         for part in parts {
             if resFirstUrl == "" { resFirstUrl = part.audio_link }
             resPart = part
+
             for verse in part.verses {
                 var verseFull = BibleTextualVerseFull(
                     number: verse.number,

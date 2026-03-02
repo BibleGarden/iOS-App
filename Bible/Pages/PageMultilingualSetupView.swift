@@ -68,7 +68,7 @@ struct PageMultilingualSetupView: View {
                     .accessibilityIdentifier("multi-templates-button")
                 }
                 .padding(.horizontal, globalBasePadding)
-                .padding(.vertical, 12)
+                .headerPadding()
                 
                 // MARK: Read By Picker
                 HStack {

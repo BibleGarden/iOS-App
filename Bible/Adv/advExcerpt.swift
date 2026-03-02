@@ -223,9 +223,25 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
 
         // Regular titles (displayed before the verse)
         for title in regularTitles {
+            var titleHTML = title.text
+            let hasMetadata = title.metadata != nil && !title.metadata!.isEmpty
+
+            // If title has notes but no metadata, insert note icons at the end of the title text
+            if !title.notes.isEmpty && !hasMetadata {
+                for note in title.notes {
+                    let noteHTML = """
+                        <span class="note">
+                            <span class="note-icon" onClick="document.getElementById('note\(note.id)').classList.toggle('off');"></span>
+                            <span class="note-text off" id="note\(note.id)">\(note.text)</span>
+                        </span>
+                    """
+                    titleHTML += noteHTML
+                }
+            }
+
             htmlString += """
                 <div id="top"></div>
-                <p id="title-\(title.id)" class="title">\(title.text)</p>
+                <p id="title-\(title.id)" class="title">\(titleHTML)</p>
             """
 
             // reference
@@ -236,9 +252,9 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
             }
 
             // Subtitle metadata
-            if let metadata = title.metadata, !metadata.isEmpty {
+            if hasMetadata {
                 // Insert notes into metadata
-                var metadataHTML = metadata
+                var metadataHTML = title.metadata!
                 var prevNotesOffset = 0
                 // Sort notes by position_html for proper insertion
                 let sortedNotes = title.notes.sorted { $0.positionHtml < $1.positionHtml }
@@ -261,8 +277,19 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
 
         // Subtitles at position 0 - display before verse text
         for subtitle in subtitlesAtStart {
+            var subtitleHTML = subtitle.text
+            if !subtitle.notes.isEmpty {
+                for note in subtitle.notes {
+                    subtitleHTML += """
+                        <span class="note">
+                            <span class="note-icon" onClick="document.getElementById('note\(note.id)').classList.toggle('off');"></span>
+                            <span class="note-text off" id="note\(note.id)">\(note.text)</span>
+                        </span>
+                    """
+                }
+            }
             htmlString += """
-                <span class="subtitle">\(subtitle.text)</span>
+                <span class="subtitle">\(subtitleHTML)</span>
             """
         }
 
