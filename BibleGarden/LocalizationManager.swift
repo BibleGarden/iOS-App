@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 
 enum AppLanguage: String, CaseIterable, Identifiable, Hashable, DisplayNameProvider {
-    case russian = "ru"
     case english = "en"
+    case russian = "ru"
     case ukrainian = "uk"
     
     var id: String { self.rawValue }
