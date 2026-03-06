@@ -119,7 +119,9 @@ struct PageMultilingualReadView: View {
                     // Back to config
                     Button {
                         settingsManager.isMultilingualReadingActive = false
-                        settingsManager.selectedMenuItem = .multilingual
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            settingsManager.selectedMenuItem = .multilingual
+                        }
                     } label: {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 26))

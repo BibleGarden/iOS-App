@@ -417,41 +417,49 @@ struct SkeletonView: View {
             if settingsManager.selectedMenuItem == .main {
                 PageMainView()
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .read {
                 PageReadView()
                     .environmentObject(settingsManager)
+                    .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .select {
                 PageSelectView(showFromRead: $showAsPartOfRead)
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .progress {
                 PageProgressView()
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .setup {
                 PageReadSettingsView(showFromRead: $showAsPartOfRead)
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .contacts {
                 PageAboutView()
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .multilingual {
                 PageMultilingualSetupView()
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
-            
+
             else if settingsManager.selectedMenuItem == .multilingualRead {
                 PageMultilingualReadView()
                 .environmentObject(settingsManager)
+                .transition(.opacity)
             }
             
             /// menu overlay: tap outside to close

@@ -285,7 +285,9 @@ struct PageProgressView: View {
         settingsManager.currentExcerptSubtitle = "chapter.title".localized(nextChapter)
         
         // Switch to the reading page
-        settingsManager.selectedMenuItem = .read
+        withAnimation(.easeInOut(duration: 0.25)) {
+            settingsManager.selectedMenuItem = .read
+        }
     }
 }
 

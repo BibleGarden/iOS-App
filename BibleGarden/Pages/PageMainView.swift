@@ -42,7 +42,9 @@ struct PageMainView: View {
                         icon: "translate", // Headphones for audio/study
                         color: Color("ForestGreen")
                     ) {
-                        settingsManager.selectedMenuItem = .multilingual
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            settingsManager.selectedMenuItem = .multilingual
+                        }
                     }
                     .accessibilityIdentifier("card-multilingual")
 
@@ -53,7 +55,9 @@ struct PageMainView: View {
                         icon: "book.fill", // Classic book icon
                         color: Color("ForestGreen")
                     ) {
-                        settingsManager.selectedMenuItem = .read
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            settingsManager.selectedMenuItem = .read
+                        }
                     }
                     .accessibilityIdentifier("card-classic-reading")
                 }
@@ -82,7 +86,9 @@ struct PageMainView: View {
                     Spacer()
                     
                     Button {
-                        settingsManager.selectedMenuItem = .progress
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            settingsManager.selectedMenuItem = .progress
+                        }
                     } label: {
                         VStack(spacing: 10) {
                             Text("page.main.reading_progress".localized)

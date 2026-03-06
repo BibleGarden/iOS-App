@@ -455,7 +455,9 @@ struct PageMultilingualView: View {
     
     func proceedToRead() {
         settingsManager.saveMultilingualSteps()
-        settingsManager.selectedMenuItem = .multilingualRead
+        withAnimation(.easeInOut(duration: 0.25)) {
+            settingsManager.selectedMenuItem = .multilingualRead
+        }
         settingsManager.showMenu = false
     }
 }
