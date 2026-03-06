@@ -126,7 +126,7 @@ struct PageMultilingualSetupView: View {
                     List {
                         ForEach(Array(settingsManager.multilingualSteps.enumerated()), id: \.element.id) { index, step in
                             stepRow(index: index, step: step)
-                                .listRowBackground(Color.clear)
+                                .listRowBackground(Color("DarkGreen"))
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 5, leading: globalBasePadding, bottom: 5, trailing: 16))
                         }
