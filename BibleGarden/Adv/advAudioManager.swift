@@ -2,6 +2,84 @@ import AVFoundation
 import Combine
 import MediaPlayer
 
+#if DEBUG
+enum DebugPlaybackOwner: String {
+    case classicRead
+    case multilingualRead
+    case other
+}
+
+final class DebugPlaybackRegistry {
+    static let shared = DebugPlaybackRegistry()
+
+    private let defaults = UserDefaults.standard
+    private let lock = NSLock()
+    private var registeredPlayers: [UUID: DebugPlaybackOwner] = [:]
+    private var activePlayers: [UUID: DebugPlaybackOwner] = [:]
+
+    private init() {
+        persistCounts()
+    }
+
+    func registerPlayer(id: UUID, owner: DebugPlaybackOwner) {
+        lock.lock()
+        registeredPlayers[id] = owner
+        persistCountsLocked()
+        lock.unlock()
+    }
+
+    func setPlayerOwner(id: UUID, owner: DebugPlaybackOwner) {
+        lock.lock()
+        if registeredPlayers[id] != nil {
+            registeredPlayers[id] = owner
+        }
+        if activePlayers[id] != nil {
+            activePlayers[id] = owner
+        }
+        persistCountsLocked()
+        lock.unlock()
+    }
+
+    func setPlayerActive(id: UUID, owner: DebugPlaybackOwner, isActive: Bool) {
+        lock.lock()
+        if isActive {
+            activePlayers[id] = owner
+        } else {
+            activePlayers.removeValue(forKey: id)
+        }
+        persistCountsLocked()
+        lock.unlock()
+    }
+
+    func unregisterPlayer(id: UUID) {
+        lock.lock()
+        registeredPlayers.removeValue(forKey: id)
+        activePlayers.removeValue(forKey: id)
+        persistCountsLocked()
+        lock.unlock()
+    }
+
+    private func persistCounts() {
+        lock.lock()
+        persistCountsLocked()
+        lock.unlock()
+    }
+
+    private func persistCountsLocked() {
+        let liveClassicCount = registeredPlayers.values.filter { $0 == .classicRead }.count
+        let liveMultilingualCount = registeredPlayers.values.filter { $0 == .multilingualRead }.count
+        let classicCount = activePlayers.values.filter { $0 == .classicRead }.count
+        let multilingualCount = activePlayers.values.filter { $0 == .multilingualRead }.count
+        defaults.set(registeredPlayers.count, forKey: "debugPlaybackLiveTotalCount")
+        defaults.set(liveClassicCount, forKey: "debugPlaybackLiveClassicCount")
+        defaults.set(liveMultilingualCount, forKey: "debugPlaybackLiveMultilingualCount")
+        defaults.set(activePlayers.count, forKey: "debugPlaybackTotalCount")
+        defaults.set(classicCount, forKey: "debugPlaybackClassicCount")
+        defaults.set(multilingualCount, forKey: "debugPlaybackMultilingualCount")
+    }
+}
+#endif
+
 // MARK: PlayerTimeObserver
 
 class PlayerTimeObserver {
@@ -84,7 +162,13 @@ class PlayerModel: ObservableObject {
     private var endPlayingObserver: Any?
     private var cancellables = Set<AnyCancellable>()
     
-    @Published var state = PlaybackState.waitingForSelection
+    @Published var state = PlaybackState.waitingForSelection {
+        didSet {
+            #if DEBUG
+            updateDebugPlaybackActivity()
+            #endif
+        }
+    }
     @Published var periodFrom: Double = 0
     @Published var periodTo: Double = 0
     @Published var currentDuration: TimeInterval = 0
@@ -111,6 +195,16 @@ class PlayerModel: ObservableObject {
 
     private var itemTitle: String = ""
     private var itemSubtitle: String = ""
+
+    #if DEBUG
+    let debugPlayerID = UUID()
+    var debugOwner: DebugPlaybackOwner = .other {
+        didSet {
+            DebugPlaybackRegistry.shared.setPlayerOwner(id: debugPlayerID, owner: debugOwner)
+            updateDebugPlaybackActivity()
+        }
+    }
+    #endif
     
     // MARK: init
     init() {
@@ -121,6 +215,9 @@ class PlayerModel: ObservableObject {
         self.player = AVPlayer()
         self.durationObserver = PlayerDurationObserver(player: self.player)
         self.timeObserver = PlayerTimeObserver(player: self.player)
+        #if DEBUG
+        DebugPlaybackRegistry.shared.registerPlayer(id: debugPlayerID, owner: debugOwner)
+        #endif
         
         self.setupNowPlaying()
         self.setupRemoteTransportControls()
@@ -223,6 +320,9 @@ class PlayerModel: ObservableObject {
             NotificationCenter.default.removeObserver(endPlayingObserver)
         }
         bufferingTimeoutWork?.cancel()
+        #if DEBUG
+        DebugPlaybackRegistry.shared.unregisterPlayer(id: debugPlayerID)
+        #endif
     }
     
     @objc private func handleInterruption(notification: Notification) {
@@ -468,7 +568,11 @@ class PlayerModel: ObservableObject {
     /// Immediately stop playback (used before chapter switch to prevent old audio leaking)
     func stop() {
         player.pause()
-        if state == .playing || state == .buffering || state == .autopausing {
+        if state == .playing
+            || state == .buffering
+            || state == .autopausing
+            || state == .waitingForPlay
+            || state == .waitingForPause {
             state = .pausing
         }
         isStalled = false
@@ -477,6 +581,35 @@ class PlayerModel: ObservableObject {
         bufferingIndicatorWork?.cancel()
         stalledSetWork?.cancel()
     }
+
+    func shutdown() {
+        stop()
+        pauseTimer?.invalidate()
+        pauseTimer = nil
+        player.replaceCurrentItem(with: nil)
+        currentItemURL = nil
+        audioVerses = []
+        currentVerseIndex = -1
+        currentDuration = 0
+        currentTime = 0
+        periodFrom = 0
+        periodTo = 0
+        errorMessage = nil
+        oldState = .waitingForSelection
+        state = .waitingForSelection
+    }
+
+    #if DEBUG
+    private func updateDebugPlaybackActivity() {
+        let isActive = state == .playing
+            || state == .autopausing
+        DebugPlaybackRegistry.shared.setPlayerActive(
+            id: debugPlayerID,
+            owner: debugOwner,
+            isActive: isActive
+        )
+    }
+    #endif
 
     // MARK: Play/Pause handling
     func doPlayOrPause() {

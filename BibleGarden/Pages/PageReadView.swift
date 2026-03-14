@@ -12,6 +12,9 @@ struct PageReadView: View {
     
     // Observer for tracking audio completion
     @State private var audioStateObserver: AnyCancellable?
+    @State private var pageSetupTask: Task<Void, Never>?
+    @State private var playbackPipelineSessionID: UUID = UUID()
+    @State private var pageLifecycleSessionID: UUID = UUID()
     @State private var isUpdatingExcerpt: Bool = false
     @State private var hasStartedPlaybackInSession: Bool = false
     @State private var completionHandledForSession: Bool = true
@@ -38,8 +41,6 @@ struct PageReadView: View {
     @State private var nextExcerpt: String = ""
 
     @State private var showAudioPanel = true
-
-    @State private var scrollViewProxy: ScrollViewProxy? = nil
 
     @State private var isTextLoading: Bool = true
     @State private var hasAudio: Bool = true
@@ -244,14 +245,24 @@ struct PageReadView: View {
 
             .onAppear {
                 UIRefreshControl.appearance().tintColor = UIColor(Color("localAccentColor"))
+                #if DEBUG
+                audiopleer.debugOwner = .classicRead
+                #endif
 
-                Task {
-                    audiopleer.onEndVerse = onEndVerse
-                    audiopleer.onStartVerse = onStartVerse
-                    audiopleer.smoothPauseLength = settingsManager.voiceMusic ? 0.3 : 0
+                let pageSessionID = UUID()
+                pageLifecycleSessionID = pageSessionID
+                pageSetupTask?.cancel()
+
+                pageSetupTask = Task {
                     await updateExcerpt(proxy: proxy)
+                    guard !Task.isCancelled else { return }
+                    guard self.pageLifecycleSessionID == pageSessionID else { return }
+                    guard self.settingsManager.selectedMenuItem == .read else { return }
+
+                    self.audiopleer.onEndVerse = onEndVerse
+                    self.audiopleer.onStartVerse = onStartVerse
+                    self.audiopleer.smoothPauseLength = settingsManager.voiceMusic ? 0.3 : 0
                     audiopleer.setSpeed(speed: Float(self.settingsManager.currentSpeed))
-                    self.scrollViewProxy = proxy
                     
                     // Setup observer for finishing audio to auto-switch chapters
                     setupAudioCompletionObserver(proxy: proxy)
@@ -260,10 +271,13 @@ struct PageReadView: View {
                 scrollToVerseId = nil
             }
             .onDisappear {
-                // Cleanup observer to avoid memory leaks
-                audioStateObserver?.cancel()
-                audioStateObserver = nil
+                shutdownPlaybackPipeline()
                 invalidateTextReadingTracking()
+            }
+            .onChange(of: settingsManager.selectedMenuItem) { newValue in
+                if newValue != .read {
+                    shutdownPlaybackPipeline()
+                }
             }
             .onChange(of: settingsManager.autoProgressByReading) { _ in
                 evaluateTextReadingAutoProgress()
@@ -274,6 +288,7 @@ struct PageReadView: View {
     // MARK: After selection
     func updateExcerpt(proxy: ScrollViewProxy) async {
         isUpdatingExcerpt = true
+        playbackPipelineSessionID = UUID()
         invalidateAudioCompletionTracking()
         invalidateTextReadingTracking()
         defer { isUpdatingExcerpt = false }
@@ -293,6 +308,7 @@ struct PageReadView: View {
             }
 
             let (thisTextVerses, audioVerses, firstUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(excerpts: settingsManager.currentExcerpt, client: settingsManager.client, translation: settingsManager.translation, voice: settingsManager.voice)
+            guard !Task.isCancelled else { return }
 
             // UI Testing: simulate no audio
             let effectiveFirstUrl = TestingEnvironment.forceNoAudio ? "" : firstUrl
@@ -401,6 +417,7 @@ struct PageReadView: View {
 
     // MARK: Verse change handlers
     func onStartVerse(_ cur: Int) {
+        let pipelineSessionID = playbackPipelineSessionID
         currentAudioVerseIndex = cur
         activeVerseIndex = cur
         if skipOnePause {
@@ -419,6 +436,7 @@ struct PageReadView: View {
                 {
                     audiopleer.breakForSeconds(settingsManager.pauseLength)
                     DispatchQueue.main.asyncAfter(deadline: .now() + settingsManager.pauseLength) {
+                        guard self.playbackPipelineSessionID == pipelineSessionID else { return }
                         self.currentVerseNumber = textVerses[cur].number
                     }
                     return
@@ -461,6 +479,7 @@ struct PageReadView: View {
         audioStateObserver = audiopleer.$state
             .receive(on: DispatchQueue.main)
             .sink { newState in
+                let pipelineSessionID = self.playbackPipelineSessionID
                 if newState == .playing {
                     self.hasStartedPlaybackInSession = true
                 }
@@ -487,6 +506,7 @@ struct PageReadView: View {
                     if self.settingsManager.autoNextChapter && !self.nextExcerpt.isEmpty {
                         // Small delay for better UX
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            guard self.playbackPipelineSessionID == pipelineSessionID else { return }
                             Task {
                                 self.settingsManager.currentExcerpt = self.nextExcerpt
                                 await self.updateExcerpt(proxy: proxy)
@@ -502,6 +522,7 @@ struct PageReadView: View {
                                 // Auto-start playback once pause ends (if required)
                                 if shouldAutoPlay {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + pauseDelay) {
+                                        guard self.playbackPipelineSessionID == pipelineSessionID else { return }
                                         self.audiopleer.doPlayOrPause()
                                     }
                                 }
@@ -569,6 +590,23 @@ struct PageReadView: View {
         chapterReadingActiveStartTime = nil
         chapterReachedTextBottom = false
         readingAutoProgressHandledForSession = true
+    }
+
+    private func shutdownPlaybackPipeline() {
+        pageLifecycleSessionID = UUID()
+        pageSetupTask?.cancel()
+        pageSetupTask = nil
+        playbackPipelineSessionID = UUID()
+        audioStateObserver?.cancel()
+        audioStateObserver = nil
+        audiopleer.onStartVerse = nil
+        audiopleer.onEndVerse = nil
+        audiopleer.shutdown()
+        #if DEBUG
+        audiopleer.debugOwner = .other
+        #endif
+        invalidateAudioCompletionTracking()
+        skipOnePause = false
     }
 
     private func isAudioActiveForTextReadingTimer(_ state: PlayerModel.PlaybackState) -> Bool {

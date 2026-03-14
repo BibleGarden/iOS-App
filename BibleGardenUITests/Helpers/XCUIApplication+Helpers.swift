@@ -37,6 +37,12 @@ extension XCUIApplication {
                       "Reading page chapter title should appear")
     }
 
+    func waitForReadPlaybackState(_ state: String, timeout: TimeInterval = 10) -> Bool {
+        let stateLabel = staticTexts["read-playback-state"]
+        guard stateLabel.waitForExistence(timeout: 3) else { return false }
+        return waitForLabel(element: stateLabel, toBe: state, timeout: timeout)
+    }
+
     // MARK: - Text content
 
     /// Find the reading page text content (HTMLTextView wraps WKWebView,
@@ -112,6 +118,36 @@ extension XCUIApplication {
         let label = staticTexts["multi-current-step"]
         guard label.waitForExistence(timeout: 3) else { return nil }
         return label.label
+    }
+
+    func waitForDebugPlaybackCount(identifier: String, value: String, timeout: TimeInterval = 10) -> Bool {
+        let label = staticTexts[identifier]
+        guard label.waitForExistence(timeout: 3) else { return false }
+        return waitForLabel(element: label, toBe: value, timeout: timeout)
+    }
+
+    func debugPlaybackCount(_ identifier: String) -> String? {
+        let label = staticTexts[identifier]
+        guard label.waitForExistence(timeout: 3) else { return nil }
+        return label.label
+    }
+
+    func debugPlaybackCountExceeds(
+        identifier: String,
+        threshold: Int,
+        duration: TimeInterval,
+        pollInterval: TimeInterval = 0.1
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(duration)
+        while Date() < deadline {
+            if let rawValue = debugPlaybackCount(identifier),
+               let count = Int(rawValue),
+               count > threshold {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+        }
+        return false
     }
 }
 

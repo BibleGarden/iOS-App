@@ -59,6 +59,11 @@ struct HTMLTextView: UIViewRepresentable {
         return webView
     }
 
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.navigationDelegate = nil
+        webView.scrollView.delegate = nil
+        coordinator.detach()
+    }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.parent = self
@@ -79,7 +84,7 @@ struct HTMLTextView: UIViewRepresentable {
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, UIScrollViewDelegate {
-        var parent: HTMLTextView
+        var parent: HTMLTextView?
         var webViewLoaded = false
         weak var webView: WKWebView?
         private var lastSentProgress: Double = -1
@@ -89,7 +94,14 @@ struct HTMLTextView: UIViewRepresentable {
             self.parent = parent
         }
 
+        func detach() {
+            parent = nil
+            webView = nil
+            webViewLoaded = false
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard let parent = parent else { return }
             webViewLoaded = true
 
             // If scrollToVerse is set, execute JavaScript to scroll
@@ -97,17 +109,19 @@ struct HTMLTextView: UIViewRepresentable {
                 webView.evaluateJavaScript(parent.jsTemplate.replacingOccurrences(of: "{verse}", with: "\(verse)"), completionHandler: nil)
 
                 DispatchQueue.main.async {
-                    self.parent.scrollToVerse = nil
+                    self.parent?.scrollToVerse = nil
                 }
             }
 
             // Send initial scroll metrics even if user does not scroll.
             // This is important for short chapters that fully fit on screen.
             sendScrollMetrics(from: webView.scrollView, force: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak webView] in
+                guard let self = self, let webView = webView, self.parent != nil else { return }
                 self.sendScrollMetrics(from: webView.scrollView, force: true)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self, weak webView] in
+                guard let self = self, let webView = webView, self.parent != nil else { return }
                 self.sendScrollMetrics(from: webView.scrollView, force: true)
             }
         }
@@ -117,6 +131,7 @@ struct HTMLTextView: UIViewRepresentable {
         }
 
         private func sendScrollMetrics(from scrollView: UIScrollView, force: Bool) {
+            guard let parent = parent else { return }
             guard parent.isScrollEnabled else { return }
 
             let contentHeight = scrollView.contentSize.height

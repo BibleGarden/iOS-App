@@ -39,6 +39,7 @@ struct PageMultilingualReadView: View {
     @StateObject private var audiopleer = PlayerModel()
     @State private var audioStateObserver: AnyCancellable?
     @State private var playbackSessionID: UUID = UUID()
+    @State private var pipelineSessionID: UUID = UUID()
     @State private var isUpdatingExcerpt: Bool = false
     @State private var chapterVerseNumbers: Set<Int> = []
     @State private var listenedVerseNumbers: Set<Int> = []
@@ -237,19 +238,22 @@ struct PageMultilingualReadView: View {
         }
         .onAppear {
             settingsManager.isMultilingualReadingActive = true
+            #if DEBUG
+            audiopleer.debugOwner = .multilingualRead
+            #endif
             Task {
                 await loadAllData()
             }
         }
         .onDisappear {
-            // Only pause if actually playing
-            if audiopleer.state == .playing {
-                audiopleer.doPlayOrPause()
-            }
-            audioStateObserver?.cancel()
-            audioStateObserver = nil
+            shutdownPlaybackPipeline()
             invalidateAudioProgressTracking()
             invalidateTextReadingTracking()
+        }
+        .onChange(of: settingsManager.selectedMenuItem) { newValue in
+            if newValue != .multilingualRead {
+                shutdownPlaybackPipeline()
+            }
         }
         .onChange(of: settingsManager.autoProgressByReading) { _ in
             evaluateTextReadingAutoProgress()
@@ -665,9 +669,7 @@ struct PageMultilingualReadView: View {
         // Avoid reloading if data exists (preserves state on return from Settings)
         if !force && !stepTextVerses.isEmpty { return }
         isUpdatingExcerpt = true
-        audiopleer.stop()  // Immediately stop old audio before loading new data
-        stopAudioMonitoring()
-        isPlaying = false
+        shutdownPlaybackPipeline()  // Immediately stop old audio before loading new data
         invalidateAudioProgressTracking()
         invalidateTextReadingTracking()
         defer { isUpdatingExcerpt = false }
@@ -872,6 +874,7 @@ struct PageMultilingualReadView: View {
         retryCount = 0
 
         let step = allSteps[currentStepIndex]
+        let pipelineSessionID = self.pipelineSessionID
         print("[MultiRead] Playing step \(currentStepIndex): \(step.type == .read ? step.translationName : "pause")")
 
         if step.type == .pause {
@@ -891,6 +894,7 @@ struct PageMultilingualReadView: View {
             self.highlightVerseNumber = currentStepIndex * 10000 + 5000 + currentUnitIndex
             
             DispatchQueue.main.asyncAfter(deadline: .now() + step.pauseDuration) {
+                guard self.pipelineSessionID == pipelineSessionID else { return }
                 if self.isAutopausing {
                     print("[MultiRead] Pause ended, moving to next step")
                     self.isAutopausing = false
@@ -965,6 +969,7 @@ struct PageMultilingualReadView: View {
 
             // Set callbacks BEFORE setItem — seekToSegment() may trigger playback immediately
             audiopleer.onStartVerse = { verseIdx in
+                guard self.pipelineSessionID == pipelineSessionID else { return }
                 guard self.verseTrackingSessionID == trackingSessionID else { return }
                 if verseIdx >= 0 && verseIdx < unitAudioVerses.count {
                     let verseNumber = unitAudioVerses[verseIdx].number
@@ -973,6 +978,7 @@ struct PageMultilingualReadView: View {
                 }
             }
             audiopleer.onEndVerse = {
+                guard self.pipelineSessionID == pipelineSessionID else { return }
                 guard self.verseTrackingSessionID == trackingSessionID else { return }
                 self.recordListenedVerse(self.currentAudioVerseNumber)
             }
@@ -1145,6 +1151,20 @@ struct PageMultilingualReadView: View {
         print("[MultiRead] Stopping audio monitoring")
         audioStateObserver?.cancel()
         audioStateObserver = nil
+    }
+
+    private func shutdownPlaybackPipeline() {
+        pipelineSessionID = UUID()
+        playbackSessionID = UUID()
+        verseTrackingSessionID = UUID()
+        retryCount = 0
+        isAutopausing = false
+        isPlaying = false
+        currentAudioVerseNumber = -1
+        audiopleer.onStartVerse = nil
+        audiopleer.onEndVerse = nil
+        audiopleer.stop()
+        stopAudioMonitoring()
     }
     
     private func startAudioMonitoring() {

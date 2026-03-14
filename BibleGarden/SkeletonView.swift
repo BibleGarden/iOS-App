@@ -403,6 +403,12 @@ struct SkeletonView: View {
     
     @StateObject private var settingsManager = SettingsManager()
     @ObservedObject private var localizationManager = LocalizationManager.shared
+    @AppStorage("debugPlaybackTotalCount") private var debugPlaybackTotalCount: Int = 0
+    @AppStorage("debugPlaybackClassicCount") private var debugPlaybackClassicCount: Int = 0
+    @AppStorage("debugPlaybackMultilingualCount") private var debugPlaybackMultilingualCount: Int = 0
+    @AppStorage("debugPlaybackLiveTotalCount") private var debugPlaybackLiveTotalCount: Int = 0
+    @AppStorage("debugPlaybackLiveClassicCount") private var debugPlaybackLiveClassicCount: Int = 0
+    @AppStorage("debugPlaybackLiveMultilingualCount") private var debugPlaybackLiveMultilingualCount: Int = 0
     
     // Not relevant here
     @State private var showAsPartOfRead: Bool = false
@@ -511,6 +517,25 @@ struct SkeletonView: View {
                     Spacer()
                 }
             }
+
+            #if DEBUG
+            VStack(spacing: 0) {
+                Text("\(debugPlaybackTotalCount)")
+                    .accessibilityIdentifier("debug-playback-total-count")
+                Text("\(debugPlaybackClassicCount)")
+                    .accessibilityIdentifier("debug-playback-classic-count")
+                Text("\(debugPlaybackMultilingualCount)")
+                    .accessibilityIdentifier("debug-playback-multilingual-count")
+                Text("\(debugPlaybackLiveTotalCount)")
+                    .accessibilityIdentifier("debug-playback-live-total-count")
+                Text("\(debugPlaybackLiveClassicCount)")
+                    .accessibilityIdentifier("debug-playback-live-classic-count")
+                Text("\(debugPlaybackLiveMultilingualCount)")
+                    .accessibilityIdentifier("debug-playback-live-multilingual-count")
+            }
+            .font(.system(size: 1))
+            .foregroundStyle(.clear)
+            #endif
         }
         .onAppear {
             checkAppVersion()
