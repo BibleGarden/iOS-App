@@ -951,7 +951,11 @@ struct PageMultilingualReadView: View {
 
             // Reuse pre-created player item for this translation (loaded once, seeked for each unit)
             let playerItem = stepPlayerItems[readIndex] ?? AVPlayerItem(url: url)
-            let from = unitAudioVerses.first!.begin
+            // Start playback slightly earlier to catch the beginning of the verse,
+            // but never before the previous verse's end (or 0 for the first verse in the file).
+            let rawBegin = unitAudioVerses.first!.begin
+            let earliestAllowed: Double = startIdx > 0 ? audioVerses[startIdx - 1].end : 0.0
+            let from = max(rawBegin - globalVerseEarlyStartSeconds, earliestAllowed)
             let to = unitAudioVerses.last!.end
             let trackingSessionID = UUID()
             verseTrackingSessionID = trackingSessionID

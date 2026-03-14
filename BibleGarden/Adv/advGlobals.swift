@@ -57,6 +57,8 @@ enum TestingEnvironment {
 
 let globalBasePadding = 22.0
 let globalCornerRadius = 6.0
+/// How many seconds earlier to start verse playback (clamped to previous verse end)
+let globalVerseEarlyStartSeconds = 0.2
 
 var bibleParts: [String] {
     [

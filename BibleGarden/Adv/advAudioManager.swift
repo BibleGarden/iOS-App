@@ -406,8 +406,9 @@ class PlayerModel: ObservableObject {
         var timesBegin: [NSValue] = []
         var timesEnd: [NSValue] = []
         
-        for verse in audioVerses {
-            let verseBeginTime = CMTime(seconds: verse.begin, preferredTimescale: 10)
+        for (index, verse) in audioVerses.enumerated() {
+            let beginSeconds = adjustedVerseBegin(at: index)
+            let verseBeginTime = CMTime(seconds: beginSeconds, preferredTimescale: 10)
             timesBegin.append(NSValue(time: verseBeginTime))
             let verseEndTime = CMTime(seconds: verse.end, preferredTimescale: 10)
             timesEnd.append(NSValue(time: verseEndTime))
@@ -433,11 +434,21 @@ class PlayerModel: ObservableObject {
         }
     }
     
+    /// Returns verse begin shifted 0.1s earlier, but never before the previous verse's end.
+    private func adjustedVerseBegin(at index: Int) -> Double {
+        let verse = audioVerses[index]
+        let earliestAllowed = index > 0 ? audioVerses[index - 1].end : 0.0
+        return max(verse.begin - globalVerseEarlyStartSeconds, earliestAllowed)
+    }
+
     // Find verse that matches current position
     private func findAndSetCurrentVerseIndex() {
         for (index, verse) in audioVerses.enumerated() {
+            // For the first verse, extend detection range to adjustedVerseBegin
+            // so the verse is found when playback starts slightly before verse.begin
+            let effectiveBegin = index == 0 ? adjustedVerseBegin(at: 0) : verse.begin
             // +0.1 because positioning is not exact and may trigger earlier
-            if currentTime + 0.1 >= verse.begin && currentTime + 0.1 <= verse.end {
+            if currentTime + 0.1 >= effectiveBegin && currentTime + 0.1 <= verse.end {
                 if index != currentVerseIndex {
                 }
                 
@@ -595,7 +606,7 @@ class PlayerModel: ObservableObject {
     func seekToVerseIndex(_ index: Int) {
         guard index >= 0 && index < audioVerses.count else { return }
         setCurrentVerseIndex(index)
-        let begin = audioVerses[currentVerseIndex].begin
+        let begin = adjustedVerseBegin(at: currentVerseIndex)
         timeObserver.pause(true)
         currentTime = begin
         let targetTime = CMTime(seconds: begin, preferredTimescale: 600)
@@ -608,8 +619,8 @@ class PlayerModel: ObservableObject {
         let navigableStates: [PlaybackState] = [.playing, .pausing, .autopausing, .buffering, .error]
         if navigableStates.contains(state) && currentVerseIndex > 0 {
             setCurrentVerseIndex(currentVerseIndex - 1)
-            
-            let begin = audioVerses[currentVerseIndex].begin
+
+            let begin = adjustedVerseBegin(at: currentVerseIndex)
             // Pause periodic updates during the seek to avoid UI "jumping back".
             timeObserver.pause(true)
             currentTime = begin
@@ -624,15 +635,11 @@ class PlayerModel: ObservableObject {
         let navigableStates: [PlaybackState] = [.playing, .pausing, .autopausing, .buffering, .error]
         if navigableStates.contains(state) && currentVerseIndex+1 < audioVerses.count {
             setCurrentVerseIndex(currentVerseIndex + 1)
-            let begin = audioVerses[currentVerseIndex].begin
-            // Step slightly back to make the transition smoother
-            let minus = currentVerseIndex >= 1 ? min(abs((audioVerses[currentVerseIndex-1].end - begin) / 2), 0.1) : 0
-            let target = max(0, begin - minus)
+            let begin = adjustedVerseBegin(at: currentVerseIndex)
             // Pause periodic updates during the seek to avoid UI "jumping back".
             timeObserver.pause(true)
-            // Keep UI in sync with the actual seek target to avoid a visible "jump back".
-            currentTime = target
-            let targetTime = CMTime(seconds: target, preferredTimescale: 600)
+            currentTime = begin
+            let targetTime = CMTime(seconds: begin, preferredTimescale: 600)
             player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
                 self?.timeObserver.pause(false)
             }
