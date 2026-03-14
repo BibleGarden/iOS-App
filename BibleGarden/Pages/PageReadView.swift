@@ -246,10 +246,10 @@ struct PageReadView: View {
                 UIRefreshControl.appearance().tintColor = UIColor(Color("localAccentColor"))
 
                 Task {
-                    await updateExcerpt(proxy: proxy)
                     audiopleer.onEndVerse = onEndVerse
                     audiopleer.onStartVerse = onStartVerse
                     audiopleer.smoothPauseLength = settingsManager.voiceMusic ? 0.3 : 0
+                    await updateExcerpt(proxy: proxy)
                     audiopleer.setSpeed(speed: Float(self.settingsManager.currentSpeed))
                     self.scrollViewProxy = proxy
                     

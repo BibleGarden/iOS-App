@@ -434,7 +434,7 @@ class PlayerModel: ObservableObject {
         }
     }
     
-    /// Returns verse begin shifted 0.1s earlier, but never before the previous verse's end.
+    /// Returns verse begin shifted earlier by globalVerseEarlyStartSeconds, but never before the previous verse's end.
     private func adjustedVerseBegin(at index: Int) -> Double {
         let verse = audioVerses[index]
         let earliestAllowed = index > 0 ? audioVerses[index - 1].end : 0.0
