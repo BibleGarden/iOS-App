@@ -92,10 +92,7 @@ struct PageReadSettingsView: View {
                         HeaderPlaceholder()
                     }
                 }
-                .background(Color("DarkGreen").brightness(0.05))
-                .clipShape(
-                    TopRoundedRectangle(radius: showFromRead ? 22 : 0)
-                )
+                .appHeaderBackground(isEmbedded: showFromRead, cornerRadius: AppHeaderMetrics.embeddedCornerRadius)
                 
                 ScrollViewReader { proxy in
                     ScrollView() {

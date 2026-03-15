@@ -5,6 +5,9 @@ import SwiftUI
 enum AppHeaderMetrics {
     static let controlSize: CGFloat = 32
     static let bottomPadding: CGFloat = 6
+    static let embeddedTopInset: CGFloat = 8
+    static let embeddedBottomInset: CGFloat = 2
+    static let embeddedCornerRadius: CGFloat = 18
 }
 
 func appWindowTopInset() -> CGFloat {
@@ -46,6 +49,20 @@ extension View {
             self.scrollContentBackground(.hidden)
         } else {
             self
+        }
+    }
+
+    @ViewBuilder
+    func appHeaderBackground(isEmbedded: Bool = false, cornerRadius: CGFloat = AppHeaderMetrics.embeddedCornerRadius) -> some View {
+        if isEmbedded {
+            self
+                .padding(.top, AppHeaderMetrics.embeddedTopInset)
+                .padding(.bottom, AppHeaderMetrics.embeddedBottomInset)
+                .background(Color("DarkGreen").brightness(0.05))
+                .clipShape(TopRoundedRectangle(radius: cornerRadius))
+        } else {
+            self
+                .background(Color("DarkGreen").brightness(0.05))
         }
     }
 }

@@ -14,25 +14,22 @@ struct PageMultilingualTemplatesView: View {
             
             VStack(spacing: 0) {
                 // Header
-                HStack {
-                    Spacer()
-                    
+                AppHeaderBar {
+                    HeaderPlaceholder()
+                } center: {
                     Text("multilingual.library.title".localized)
                         .font(.headline)
                         .foregroundColor(.white)
-                    
-                    Spacer()
-                    
+                } trailing: {
                     Button {
                         presentationMode.wrappedValue.dismiss()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.6))
+                        Image(systemName: "xmark")
+                            .font(.title.weight(.light))
+                            .foregroundColor(.white.opacity(0.7))
                     }
                 }
-                .padding()
-                .background(Color("DarkGreen").brightness(0.05))
+                .appHeaderBackground(isEmbedded: true)
                 
                 // List
                 if settingsManager.multilingualTemplates.isEmpty {

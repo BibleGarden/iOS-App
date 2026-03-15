@@ -42,7 +42,7 @@ struct PageSelectView: View {
                     } trailing: {
                         HeaderPlaceholder()
                     }
-                    .background(Color("DarkGreen").brightness(0.05))
+                    .appHeaderBackground(isEmbedded: showFromRead, cornerRadius: AppHeaderMetrics.embeddedCornerRadius)
                     .padding(.bottom, 10)
                     
                     if isLoading {

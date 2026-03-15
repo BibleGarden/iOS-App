@@ -86,7 +86,7 @@ struct PageMultilingualConfigView: View {
                     .disabled(!canSave)
                     .accessibilityIdentifier("multi-config-save")
                 }
-                .background(Color("DarkGreen").brightness(0.05))
+                .appHeaderBackground(isEmbedded: true)
                 
                 ScrollView {
                     VStack(spacing: 0) {

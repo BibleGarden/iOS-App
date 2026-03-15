@@ -315,7 +315,7 @@ private struct InterfaceLanguageSheetView: View {
                 } trailing: {
                     HeaderPlaceholder()
                 }
-                .background(Color("DarkGreen").brightness(0.05))
+                .appHeaderBackground(isEmbedded: true)
 
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(AppLanguage.allCases) { language in

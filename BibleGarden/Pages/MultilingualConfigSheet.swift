@@ -51,20 +51,16 @@ struct MultilingualConfigSheet: View {
             
             VStack(spacing: 0) {
                 // Header
-                HStack {
+                AppHeaderBar(trailingWidth: 64, leadingWidth: 64) {
                     Button("settings.cancel_choice".localized) {
                         presentationMode.wrappedValue.dismiss()
                     }
                     .foregroundColor(.white)
-                    
-                    Spacer()
-                    
+                } center: {
                     Text("multilingual.config.title".localized) // Localized
                         .font(.headline)
                         .foregroundColor(.white)
-                    
-                    Spacer()
-                    
+                } trailing: {
                     Button {
                         saveStep()
                     } label: {
@@ -74,8 +70,7 @@ struct MultilingualConfigSheet: View {
                     .foregroundColor(canSave ? Color("Mustard") : Color.gray)
                     .disabled(!canSave)
                 }
-                .padding()
-                .background(Color("DarkGreen").brightness(0.05))
+                .appHeaderBackground(isEmbedded: true)
                 
                 ScrollView {
                     VStack(spacing: 20) {
