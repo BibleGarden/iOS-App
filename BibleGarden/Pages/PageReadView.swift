@@ -152,7 +152,7 @@ struct PageReadView: View {
                                 gradient: Gradient(stops: [
                                     .init(color: Color.black.opacity(0), location: 0.0),
                                     .init(color: Color.black, location: 0.03),
-                                    .init(color: Color.black, location: 0.9),
+                                    .init(color: Color.black, location: 0.95),
                                     .init(color: Color.black.opacity(0), location: 1.0)
                                 ]),
                                 startPoint: .top,
