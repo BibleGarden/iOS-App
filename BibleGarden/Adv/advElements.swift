@@ -54,6 +54,8 @@ struct AppHeaderBar<Leading: View, Center: View, Trailing: View>: View {
         ZStack {
             center()
                 .frame(maxWidth: .infinity)
+                .padding(.leading, leadingWidth + 8)
+                .padding(.trailing, trailingWidth + 8)
 
             HStack(spacing: 0) {
                 leading()

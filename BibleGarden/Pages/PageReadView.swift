@@ -76,6 +76,8 @@ struct PageReadView: View {
                             VStack(spacing: 0) {
                                 Text(settingsManager.currentExcerptTitle)
                                     .fontWeight(.bold)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                                 Text(settingsManager.currentExcerptSubtitle.uppercased())
                                     .foregroundColor(Color("Mustard"))
                                     .font(.footnote)
