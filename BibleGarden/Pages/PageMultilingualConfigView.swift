@@ -231,12 +231,14 @@ struct PageMultilingualConfigView: View {
                             .frame(width: 50, height: 40)
                             .disabled(step.playbackSpeed <= 0.5)
                             .opacity(step.playbackSpeed <= 0.5 ? 0.3 : 1.0)
+                            .accessibilityIdentifier("config-speed-minus")
 
                             Divider().background(Color.white)
 
                             Text(String(format: "%.1fx", step.playbackSpeed))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity, maxHeight: 40)
+                                .accessibilityIdentifier("config-speed-value")
 
                             Divider().background(Color.white)
 
@@ -254,6 +256,7 @@ struct PageMultilingualConfigView: View {
                             .frame(width: 50, height: 40)
                             .disabled(step.playbackSpeed >= 2.5)
                             .opacity(step.playbackSpeed >= 2.5 ? 0.3 : 1.0)
+                            .accessibilityIdentifier("config-speed-plus")
                         }
                         .background(
                             RoundedRectangle(cornerRadius: 5)
@@ -267,6 +270,7 @@ struct PageMultilingualConfigView: View {
                             Text("\(Int(step.fontIncreasePercent))%")
                                 .foregroundColor(.white)
                                 .frame(width: 70)
+                                .accessibilityIdentifier("config-font-value")
                             
                             Spacer()
                             
@@ -284,6 +288,7 @@ struct PageMultilingualConfigView: View {
                                 }
                                 .disabled(step.fontIncreasePercent <= 10)
                                 .opacity(step.fontIncreasePercent <= 10 ? 0.3 : 1.0)
+                                .accessibilityIdentifier("config-font-minus")
 
                                 Divider() // Divider between buttons
                                     .background(Color.white)
@@ -301,6 +306,7 @@ struct PageMultilingualConfigView: View {
                                 }
                                 .disabled(step.fontIncreasePercent >= 500)
                                 .opacity(step.fontIncreasePercent >= 500 ? 0.3 : 1.0)
+                                .accessibilityIdentifier("config-font-plus")
                             }
                             .background(
                                 RoundedRectangle(cornerRadius: 5)
@@ -570,6 +576,7 @@ struct PageMultilingualConfigView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("config-section-\(sectionIdentifier(section))")
 
             if isExpanded {
                 Rectangle()
@@ -658,22 +665,31 @@ struct PageMultilingualConfigView: View {
                 let description = index < descriptions.count ? descriptions[index] : ""
 
                 HStack(alignment: .top, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(text)
-                            .foregroundColor(selectedKey.wrappedValue == key ? Color("Mustard") : .white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .lineLimit(1)
-                        if !description.isEmpty {
-                            Text(description)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.6))
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        selectedKey.wrappedValue = key
+                        onSelect(index)
+                    } label: {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(text)
+                                    .foregroundColor(selectedKey.wrappedValue == key ? Color("Mustard") : .white)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(1)
+                                if !description.isEmpty {
+                                    Text(description)
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.6))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                            Image(systemName: "checkmark")
+                                .foregroundColor(Color("Mustard"))
+                                .frame(width: 16)
+                                .opacity(selectedKey.wrappedValue == key ? 1 : 0)
                         }
+                        .contentShape(Rectangle())
                     }
-                    Image(systemName: "checkmark")
-                        .foregroundColor(Color("Mustard"))
-                        .frame(width: 16)
-                        .opacity(selectedKey.wrappedValue == key ? 1 : 0)
+                    .buttonStyle(.plain)
                     Button {
                         onPreview(index)
                     } label: {
@@ -682,11 +698,6 @@ struct PageMultilingualConfigView: View {
                             .font(.system(size: 24))
                     }
                     .buttonStyle(.plain)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedKey.wrappedValue = key
-                    onSelect(index)
                 }
                 .padding(.vertical, 10)
 
@@ -737,6 +748,14 @@ struct PageMultilingualConfigView: View {
             return "settings.select_reader".localized
         }
         return voiceTexts[index]
+    }
+
+    private func sectionIdentifier(_ section: SelectionAccordionSection) -> String {
+        switch section {
+        case .language: return "language"
+        case .translation: return "translation"
+        case .voice: return "voice"
+        }
     }
 
     private func toggleSelectionSection(_ section: SelectionAccordionSection) {

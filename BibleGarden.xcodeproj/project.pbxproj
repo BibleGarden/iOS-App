@@ -45,6 +45,7 @@
 		4CFC91FB2C59AAB1005AFAA5 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = 4CFC91FA2C59AAB1005AFAA5 /* OpenAPIURLSession */; };
 		4CFC92002C59AB7B005AFAA5 /* openapi.yaml in Resources */ = {isa = PBXBuildFile; fileRef = 4CFC91FF2C59AB75005AFAA5 /* openapi.yaml */; };
 		4CFC921B2C5E9ED0005AFAA5 /* openapi-generator-config.yml in Resources */ = {isa = PBXBuildFile; fileRef = 4CFC91FE2C59AB26005AFAA5 /* openapi-generator-config.yml */; };
+		B15E47DD3DA8F375BD1C5C94 /* advTapIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE371D17EEC686877EBE46D6 /* advTapIndicator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -104,6 +105,7 @@
 		4CFC91F02C59A844005AFAA5 /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
 		4CFC91FE2C59AB26005AFAA5 /* openapi-generator-config.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "openapi-generator-config.yml"; sourceTree = "<group>"; };
 		4CFC91FF2C59AB75005AFAA5 /* openapi.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = openapi.yaml; sourceTree = "<group>"; };
+		BE371D17EEC686877EBE46D6 /* advTapIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = advTapIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -166,6 +168,7 @@
 				4C99F3752C023FD400879594 /* advUtility.swift */,
 				4C749E062C1A133800CF4234 /* advExtensions.swift */,
 				4C749E0C2C1F690100CF4234 /* advSettings.swift */,
+				BE371D17EEC686877EBE46D6 /* advTapIndicator.swift */,
 			);
 			path = Adv;
 			sourceTree = "<group>";
@@ -417,6 +420,7 @@
 				046B5DBB2EF8970E00653FA8 /* PageMultilingualConfigView.swift in Sources */,
 				046B5DBC2EF8970E00653FA8 /* PageMultilingualSetupView.swift in Sources */,
 				047B3BC72BEEBADD009DEC11 /* PageReadView.swift in Sources */,
+				B15E47DD3DA8F375BD1C5C94 /* advTapIndicator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
