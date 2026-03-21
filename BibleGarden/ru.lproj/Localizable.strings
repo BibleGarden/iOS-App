@@ -161,6 +161,7 @@
 "multilingual.add_pause_step" = "+ Пауза";
 "multilingual.save_and_read" = "Сохранить и читать";
 "multilingual.error.no_steps" = "Добавьте хотя бы один шаг перед чтением.";
+"multilingual.error.no_read_steps" = "Добавьте хотя бы один шаг чтения. Одних пауз недостаточно.";
 "multilingual.select_translation" = "Выберите перевод";
 "multilingual.pause" = "Пауза";
 "multilingual.seconds" = "сек.";

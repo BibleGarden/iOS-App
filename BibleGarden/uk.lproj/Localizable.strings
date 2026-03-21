@@ -159,6 +159,7 @@
 "multilingual.add_pause_step" = "+ Пауза";
 "multilingual.save_and_read" = "Зберегти і читати";
 "multilingual.error.no_steps" = "Додайте хоча б один крок перед читанням.";
+"multilingual.error.no_read_steps" = "Додайте хоча б один крок читання. Самих пауз недостатньо.";
 "multilingual.select_translation" = "Оберіть переклад";
 "multilingual.pause" = "Пауза";
 "multilingual.seconds" = "сек.";

@@ -161,6 +161,7 @@
 "multilingual.add_pause_step" = "+ Pause";
 "multilingual.save_and_read" = "Save & Read";
 "multilingual.error.no_steps" = "Add at least one step before reading.";
+"multilingual.error.no_read_steps" = "Add at least one read step. Pauses alone are not enough.";
 "multilingual.select_translation" = "Select Translation";
 "multilingual.pause" = "Pause";
 "multilingual.seconds" = "sec.";

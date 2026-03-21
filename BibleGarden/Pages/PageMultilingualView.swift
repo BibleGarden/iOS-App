@@ -421,6 +421,10 @@ struct PageMultilingualView: View {
             inlineErrorMessage = "multilingual.error.no_steps".localized
             return
         }
+        if !settingsManager.multilingualSteps.contains(where: { $0.type == .read }) {
+            inlineErrorMessage = "multilingual.error.no_read_steps".localized
+            return
+        }
         inlineErrorMessage = ""
         
         if settingsManager.currentTemplateId != nil {
