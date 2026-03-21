@@ -9,6 +9,13 @@ struct BibleGardenApp: App {
     var body: some Scene {
         WindowGroup {
             SkeletonView()
+                .overlay {
+                    if TestingEnvironment.isDemoRecording {
+                        TapIndicatorOverlay()
+                            .allowsHitTesting(false)
+                            .ignoresSafeArea()
+                    }
+                }
         }
     }
 }
