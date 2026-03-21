@@ -43,6 +43,7 @@ enum TestingEnvironment {
               idx + 1 < CommandLine.arguments.count else { return nil }
         return CommandLine.arguments[idx + 1]
     }()
+    static let multiSaveTemplate = CommandLine.arguments.contains("--multi-save-template")
     /// One-shot: consumed after first use
     static var loadErrorOnceConsumed = false
     static var shouldForceLoadError: Bool {

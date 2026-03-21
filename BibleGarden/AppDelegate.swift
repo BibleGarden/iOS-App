@@ -88,7 +88,21 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
                 if !steps.isEmpty, let data = try? JSONEncoder().encode(steps) {
                     UserDefaults.standard.set(data, forKey: "multilingualStepsData")
-                    UserDefaults.standard.set(true, forKey: "isMultilingualReadingActive")
+
+                    // Also persist as a saved template if requested
+                    if TestingEnvironment.multiSaveTemplate {
+                        let unit = TestingEnvironment.multiUnitOverride ?? "verse"
+                        let readUnit = MultilingualReadUnit(rawValue: unit) ?? .verse
+                        let template = MultilingualTemplate(name: "Test Template", steps: steps, unit: readUnit)
+                        if let templatesData = try? JSONEncoder().encode([template]) {
+                            UserDefaults.standard.set(templatesData, forKey: "multilingualTemplatesData")
+                            UserDefaults.standard.set(template.id.uuidString, forKey: "currentTemplateId")
+                        }
+                        // Stay on setup page for CRUD testing
+                        UserDefaults.standard.set(false, forKey: "isMultilingualReadingActive")
+                    } else {
+                        UserDefaults.standard.set(true, forKey: "isMultilingualReadingActive")
+                    }
                 }
             }
         }

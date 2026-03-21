@@ -13,7 +13,7 @@ BibleGarden (display name "Bible Garden") is an iOS SwiftUI app for listening to
 - **Platform**: iOS (iPhone + iPad), Swift 5, SwiftUI
 - **Dependencies**: Managed via Xcode SPM (not standalone Package.swift)
   - `swift-openapi-runtime`, `swift-openapi-urlsession`, `swift-openapi-generator`
-- **No test target exists** — there are no unit or UI tests
+- **UI tests**: `BibleGardenUITests` target (XCUITest). Tests require API availability and use `--uitesting` launch argument to reset UserDefaults. Pre-configured multilingual templates via `--multi-template` and `--multi-save-template` flags. No unit tests.
 
 ### Configuration (required before building)
 

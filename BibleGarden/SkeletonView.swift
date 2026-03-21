@@ -394,6 +394,12 @@ class SettingsManager: ObservableObject {
     }
     
     func deleteTemplate(at indexSet: IndexSet) {
+        for index in indexSet {
+            if multilingualTemplates[index].id == currentTemplateId {
+                currentTemplateId = nil
+                saveMultilingualSteps()
+            }
+        }
         multilingualTemplates.remove(atOffsets: indexSet)
         saveMultilingualTemplates()
     }

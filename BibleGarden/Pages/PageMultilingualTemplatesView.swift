@@ -28,6 +28,7 @@ struct PageMultilingualTemplatesView: View {
                             .font(.title.weight(.light))
                             .foregroundColor(.white.opacity(0.7))
                     }
+                    .accessibilityIdentifier("templates-close-button")
                 }
                 .appHeaderBackground(isEmbedded: true)
                 
@@ -44,7 +45,7 @@ struct PageMultilingualTemplatesView: View {
                     }
                 } else {
                     List {
-                        ForEach(settingsManager.multilingualTemplates) { template in
+                        ForEach(Array(settingsManager.multilingualTemplates.enumerated()), id: \.element.id) { index, template in
                             Button {
                                 loadTemplate(template)
                             } label: {
@@ -53,14 +54,15 @@ struct PageMultilingualTemplatesView: View {
                                         Text(template.name)
                                             .font(.headline)
                                             .foregroundColor(.white)
-                                        
+
                                         if settingsManager.currentTemplateId == template.id {
                                             Spacer()
                                             Image(systemName: "checkmark.circle.fill")
                                                 .foregroundColor(Color("Mustard"))
+                                                .accessibilityIdentifier("template-checkmark-\(index)")
                                         }
                                     }
-                                    
+
                                     // Composition preview
                                     Text(compositionDescription(for: template))
                                         .font(.caption)
@@ -69,6 +71,7 @@ struct PageMultilingualTemplatesView: View {
                                 }
                                 .padding(.vertical, 5)
                             }
+                            .accessibilityIdentifier("template-row-\(index)")
                             .listRowBackground(Color.clear)
                             .listRowSeparatorTint(.white.opacity(0.1))
                             .swipeActions(edge: .leading) {
@@ -79,9 +82,17 @@ struct PageMultilingualTemplatesView: View {
                                 }
                                 .tint(.blue)
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    settingsManager.deleteTemplate(at: IndexSet(integer: index))
+                                } label: {
+                                    Label("settings.delete_choice".localized, systemImage: "trash")
+                                }
+                                .accessibilityIdentifier("template-delete-\(index)")
+                            }
                         }
-                        .onDelete(perform: settingsManager.deleteTemplate)
                     }
+                    .accessibilityIdentifier("templates-list")
                     .listStyle(.plain)
                 }
                 
@@ -102,6 +113,7 @@ struct PageMultilingualTemplatesView: View {
                         .background(Color("Mustard").opacity(0.2))
                         .cornerRadius(10)
                     }
+                    .accessibilityIdentifier("templates-new-button")
                     .padding()
                 }
                 .background(Color("DarkGreen"))

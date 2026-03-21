@@ -36,6 +36,7 @@ struct PageMultilingualSetupView: View {
             Color("DarkGreen")
                 .edgesIgnoringSafeArea(.all)
                 .accessibilityIdentifier("page-multi-setup")
+                .accessibilityValue(settingsManager.currentTemplateId == nil ? "no-template" : "has-template:\(settingsManager.currentTemplateId!.uuidString.prefix(8))")
 
             VStack(spacing: 0) {
                 // MARK: Header
@@ -402,6 +403,7 @@ struct PageMultilingualSetupView: View {
                     Button {
                         if settingsManager.multilingualSteps[index].pauseDuration > 1 {
                             settingsManager.multilingualSteps[index].pauseDuration -= 1
+                            settingsManager.saveMultilingualSteps()
                         }
                     } label: {
                         Image(systemName: "minus")
@@ -418,6 +420,7 @@ struct PageMultilingualSetupView: View {
                     Button {
                         if settingsManager.multilingualSteps[index].pauseDuration < 60 {
                             settingsManager.multilingualSteps[index].pauseDuration += 1
+                            settingsManager.saveMultilingualSteps()
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -456,6 +459,7 @@ struct PageMultilingualSetupView: View {
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
         .accessibilityIdentifier("multi-step-row-\(index)")
+        .accessibilityValue(step.type == .pause ? String(format: "%0.0f", step.pauseDuration) : "")
         .contentShape(Rectangle())
         .onTapGesture {
             if step.type == .read {
@@ -556,6 +560,7 @@ struct PageMultilingualSetupView: View {
         settingsManager.multilingualTemplates.append(newTemplate)
         settingsManager.currentTemplateId = newTemplate.id
         settingsManager.saveMultilingualTemplates()
+        settingsManager.saveMultilingualSteps()
     }
     
     func updateCurrentTemplate() {

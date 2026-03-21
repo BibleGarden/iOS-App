@@ -1298,6 +1298,218 @@ final class MultiReadingBackgroundTests: XCTestCase {
     }
 }
 
+// MARK: - MultiReadingTemplateCRUDTests (#50-#53)
+
+final class MultiReadingTemplateCRUDTests: XCTestCase {
+
+    private var app: XCUIApplication!
+    private static var apiChecked = false
+    private static var apiAvailable = true
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+
+        if !Self.apiChecked {
+            Self.apiChecked = true
+            Self.apiAvailable = checkAPIAvailability()
+        }
+    }
+
+    override func tearDownWithError() throws {
+        app = nil
+    }
+
+    /// Launch with a pre-saved template so the template library has one entry
+    /// and currentTemplateId is set.
+    private func launchWithSavedTemplate() {
+        app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--multi-template", "default", "--multi-save-template"]
+        app.launch()
+    }
+
+    // #50 — Удаление активного шаблона очищает currentTemplateId.
+    // После удаления шаблона из библиотеки, accessibilityValue страницы показывает "no-template".
+    // Результат: currentTemplateId сброшен, подтверждая фикс бага #1.
+    @MainActor
+    func testDeleteActiveTemplateClearsTemplateId() throws {
+        try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping")
+        launchWithSavedTemplate()
+        app.navigateToMultiSetupPage()
+
+        // Verify currentTemplateId is set before deletion
+        let setupPage = app.otherElements["page-multi-setup"]
+        XCTAssertTrue(setupPage.waitForExistence(timeout: 5))
+        let stateBefore = setupPage.value as? String ?? "unknown"
+        XCTAssertTrue(stateBefore.hasPrefix("has-template"),
+                      "currentTemplateId should be set before deletion. Got: \(stateBefore)")
+
+        // Open template library
+        let templatesBtn = app.buttons["multi-templates-button"]
+        XCTAssertTrue(templatesBtn.waitForExistence(timeout: 5))
+        templatesBtn.tap()
+
+        // Verify template exists and has checkmark (is active)
+        let templateRow = app.buttons["template-row-0"]
+        XCTAssertTrue(templateRow.waitForExistence(timeout: 5),
+                      "Saved template should appear in the library")
+        let checkmark = app.images["template-checkmark-0"]
+        XCTAssertTrue(checkmark.waitForExistence(timeout: 3),
+                      "Template should show checkmark (is active)")
+
+        // Delete via swipe action
+        templateRow.swipeLeft()
+        let deleteBtn = app.buttons["template-delete-0"]
+        XCTAssertTrue(deleteBtn.waitForExistence(timeout: 3),
+                      "Delete button should appear after swipe")
+        deleteBtn.tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        // Close template library
+        let closeBtn = app.buttons["templates-close-button"]
+        XCTAssertTrue(closeBtn.waitForExistence(timeout: 3))
+        closeBtn.tap()
+
+        // Verify currentTemplateId was cleared after deletion
+        XCTAssertTrue(setupPage.waitForExistence(timeout: 5))
+        let stateAfter = setupPage.value as? String ?? "unknown"
+        XCTAssertEqual(stateAfter, "no-template",
+                       "currentTemplateId should be nil after deleting active template. Got: \(stateAfter)")
+    }
+
+    // #51 — Изменение длительности паузы сохраняется после перезапуска приложения.
+    // Результат: после relaunch длительность паузы соответствует изменённому значению.
+    @MainActor
+    func testPauseDurationPersistsAfterRelaunch() throws {
+        try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping")
+        launchWithSavedTemplate()
+        app.navigateToMultiSetupPage()
+
+        // Add a pause step (default 2s); pause appears at index 1 after the read step.
+        let addPause = app.buttons["multi-add-pause-step"]
+        XCTAssertTrue(addPause.waitForExistence(timeout: 5))
+        addPause.tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        // Find the pause row via accessibilityValue (set to duration for pause steps).
+        // Row may resolve as button/otherElement/cell depending on SwiftUI/List context,
+        // so search across all element types.
+        // Pause is at index 1 (read=0, pause=1).
+        let pauseRowId = "multi-step-row-1"
+        var pauseRow = app.descendants(matching: .any).matching(identifier: pauseRowId).firstMatch
+        if !pauseRow.waitForExistence(timeout: 3) {
+            // Fallback: may be at index 0
+            pauseRow = app.descendants(matching: .any).matching(identifier: "multi-step-row-0").firstMatch
+        }
+        XCTAssertTrue(pauseRow.waitForExistence(timeout: 3), "Pause row should exist")
+        XCTAssertEqual(pauseRow.value as? String, "2",
+                       "Initial pause duration should be 2. Got: \(pauseRow.value ?? "nil")")
+
+        // Tap the plus button 3 times to change duration from 2 → 5.
+        // Use label-based search within the row (proven approach from existing test #5).
+        let rowPred = NSPredicate(format: "identifier == %@", pauseRow.identifier)
+        let pausePlus = app.buttons.matching(rowPred)
+            .matching(NSPredicate(format: "label == 'Add'")).firstMatch
+        XCTAssertTrue(pausePlus.waitForExistence(timeout: 3), "Plus button should exist")
+
+        pausePlus.tap()
+        Thread.sleep(forTimeInterval: 0.3)
+        pausePlus.tap()
+        Thread.sleep(forTimeInterval: 0.3)
+        pausePlus.tap()
+        Thread.sleep(forTimeInterval: 0.5)
+
+        // Verify the row's accessibilityValue updated to "5" before relaunch.
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "5", timeout: 3),
+                      "Duration should be 5 after 3 taps. Got: \(pauseRow.value ?? "nil")")
+
+        // Terminate and relaunch WITHOUT --uitesting to preserve UserDefaults
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = []
+        app.launch()
+        app.navigateToMultiSetupPage()
+
+        // Verify persisted duration via the row's accessibilityValue.
+        var persistedRow = app.descendants(matching: .any).matching(identifier: pauseRowId).firstMatch
+        if !persistedRow.waitForExistence(timeout: 5) {
+            persistedRow = app.descendants(matching: .any).matching(identifier: "multi-step-row-0").firstMatch
+        }
+        XCTAssertTrue(persistedRow.waitForExistence(timeout: 5),
+                      "Pause row should exist after relaunch")
+        XCTAssertEqual(persistedRow.value as? String, "5",
+                       "Pause duration should persist as 5 after relaunch. Got: \(persistedRow.value ?? "nil")")
+    }
+
+    // #52 — Сохранённый шаблон остаётся выбранным после перезапуска.
+    // Результат: после relaunch шаблон отображается как текущий (checkmark в библиотеке).
+    @MainActor
+    func testSavedTemplateSelectedAfterRelaunch() throws {
+        try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping")
+        launchWithSavedTemplate()
+
+        // Terminate and relaunch WITHOUT --uitesting to preserve UserDefaults
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = []
+        app.launch()
+        app.navigateToMultiSetupPage()
+
+        // Open template library
+        let templatesBtn = app.buttons["multi-templates-button"]
+        XCTAssertTrue(templatesBtn.waitForExistence(timeout: 5))
+        templatesBtn.tap()
+
+        // Template should exist and have checkmark (be selected)
+        let templateRow = app.buttons["template-row-0"]
+        XCTAssertTrue(templateRow.waitForExistence(timeout: 5),
+                      "Template should persist after relaunch")
+
+        let checkmark = app.images["template-checkmark-0"]
+        XCTAssertTrue(checkmark.waitForExistence(timeout: 3),
+                      "Template should still be selected (checkmark visible) after relaunch")
+    }
+
+    // #53 — Кнопка «Новый шаблон» сбрасывает currentTemplateId.
+    // После нажатия «Новый шаблон» шаблон перестаёт быть выбранным (нет чекмарка).
+    // Результат: в библиотеке шаблон существует, но чекмарк отсутствует.
+    @MainActor
+    func testNewTemplateButtonClearsState() throws {
+        try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping")
+        launchWithSavedTemplate()
+        app.navigateToMultiSetupPage()
+
+        // Open template library and verify checkmark exists
+        let templatesBtn = app.buttons["multi-templates-button"]
+        XCTAssertTrue(templatesBtn.waitForExistence(timeout: 5))
+        templatesBtn.tap()
+
+        let checkmark = app.images["template-checkmark-0"]
+        XCTAssertTrue(checkmark.waitForExistence(timeout: 3),
+                      "Template should be selected initially")
+
+        // Tap "New Template" — this clears steps and currentTemplateId
+        let newBtn = app.buttons["templates-new-button"]
+        XCTAssertTrue(newBtn.waitForExistence(timeout: 5))
+        newBtn.tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        // Reopen template library
+        let templatesBtn2 = app.buttons["multi-templates-button"]
+        XCTAssertTrue(templatesBtn2.waitForExistence(timeout: 5))
+        templatesBtn2.tap()
+        Thread.sleep(forTimeInterval: 1)
+
+        // Template should still exist but NO checkmark (not selected)
+        let templateRow = app.buttons["template-row-0"]
+        XCTAssertTrue(templateRow.waitForExistence(timeout: 5),
+                      "Template should still exist in library")
+
+        let checkmarkAfter = app.images["template-checkmark-0"]
+        XCTAssertFalse(checkmarkAfter.exists,
+                       "Template should NOT be selected after New Template")
+    }
+}
+
 // MARK: - MultiReadingUnitModeTests (#46-#48)
 
 final class MultiReadingUnitModeTests: XCTestCase {
