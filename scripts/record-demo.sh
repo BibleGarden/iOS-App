@@ -25,7 +25,7 @@ SIMULATOR="iPhone 16 Pro Max"
 TARGET_W=886
 TARGET_H=1920
 # Seconds to trim from the beginning (simulator boot + app launch)
-TRIM_START=11.8
+TRIM_START=12.5
 # Speed ramp: speed up a segment (times after trimming, e.g. 6-15s of final video)
 SPEED_START=6     # start of sped-up segment (seconds in trimmed video)
 SPEED_END=15      # end of sped-up segment
@@ -146,7 +146,7 @@ process() {
         [0:v]trim=start=0:end=${SPEED_START},setpts=PTS-STARTPTS,${SCALE}[part1];
         [0:v]trim=start=${SPEED_START}:end=${SPEED_END},setpts=${PTS_FACTOR}*(PTS-STARTPTS),${SCALE}[part2];
         [0:v]trim=start=${SPEED_END},setpts=PTS-STARTPTS,${SCALE}[part3];
-        [part1][part2][part3]concat=n=3:v=1:a=0[out]
+        [part1][part2][part3]concat=n=3:v=1:a=0,fps=30[out]
     "
 
     echo "🔄 [$LANG_CODE] Processing..."
