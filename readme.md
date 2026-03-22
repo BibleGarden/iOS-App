@@ -37,22 +37,23 @@ Automated UI test scenario for recording App Store preview videos. Uses `--demo-
 
 ```bash
 # 1. Boot the simulator
-xcrun simctl boot "iPhone 16 Pro"
+xcrun simctl boot "iPhone 17 Pro"
 
 # 2. Start screen recording
 xcrun simctl io booted recordVideo ~/Desktop/demo.mp4
 
 # 3. In another terminal, run the demo test
-cd ~/Desktop/Dev/BiblePause
+cd ~/Desktop/Dev/BiblePause/BiblePause
 xcodebuild test \
+  -project BibleGarden.xcodeproj \
   -scheme BibleGarden \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' \
   -only-testing:BibleGardenUITests/DemoRecordingTests/testAppStoreDemo
 
 # 4. Stop recording (Ctrl+C in the first terminal)
 ```
 
-Timings are in `BibleGardenUITests/DemoRecordingTests.swift` — adjust `pause()` values to control pacing.
+Timings are in `BibleGardenUITests/DemoRecordingTests.swift` — adjust `pause()` values to control pacing. The test runs in ~30 seconds.
 
 ## OpenAPI Generation
 
