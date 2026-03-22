@@ -31,6 +31,29 @@ API keys and URLs are set via xcconfig files, which are in `.gitignore`:
 
 Values are injected via `Info.plist` → `Config.swift` (`Config.baseURL`, `Config.apiKey`).
 
+## App Store Demo Video Recording
+
+Automated UI test scenario for recording App Store preview videos. Uses `--demo-recording` flag which enables a tap indicator overlay — animated circles appear at touch points before each action.
+
+```bash
+# 1. Boot the simulator
+xcrun simctl boot "iPhone 16 Pro"
+
+# 2. Start screen recording
+xcrun simctl io booted recordVideo ~/Desktop/demo.mp4
+
+# 3. In another terminal, run the demo test
+cd ~/Desktop/Dev/BiblePause
+xcodebuild test \
+  -scheme BibleGarden \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+  -only-testing:BibleGardenUITests/DemoRecordingTests/testAppStoreDemo
+
+# 4. Stop recording (Ctrl+C in the first terminal)
+```
+
+Timings are in `BibleGardenUITests/DemoRecordingTests.swift` — adjust `pause()` values to control pacing.
+
 ## OpenAPI Generation
 
 The API client is auto-generated at build time from `Bible/openapi.yaml` using the Apple Swift OpenAPI Generator plugin (config: `Bible/openapi-generator-config.yml`).
