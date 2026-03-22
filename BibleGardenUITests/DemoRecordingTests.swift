@@ -29,9 +29,12 @@ final class DemoRecordingTests: XCTestCase {
         Thread.sleep(forTimeInterval: seconds)
     }
 
+    /// Двойной тап: 1-й показывает индикатор (поглощается), 2-й выполняет действие.
     private func demoTap(_ element: XCUIElement, prePause: TimeInterval = 0.15, postPause: TimeInterval = 0.3) {
         pause(prePause)
-        element.tap()
+        element.tap()          // preview — показывает кружок, поглощается overlay
+        pause(0.45)            // зритель видит индикатор
+        element.tap()          // action — проходит насквозь к кнопке
         pause(postPause)
     }
 
@@ -40,9 +43,17 @@ final class DemoRecordingTests: XCTestCase {
         demoTap(element, postPause: postPause)
     }
 
+    /// Множественные тапы (для +/- кнопок) — без preview, прямые.
     private func demoTapMultiple(_ element: XCUIElement, times: Int, interval: TimeInterval = 0.2) {
-        for _ in 0..<times {
-            element.tap()
+        // Первый тап с preview
+        element.tap()          // preview
+        pause(0.35)
+        element.tap()          // action
+        pause(interval)
+        // Остальные — без preview (быстро)
+        for _ in 1..<times {
+            element.tap()      // preview
+            element.tap()      // action
             pause(interval)
         }
     }
@@ -57,7 +68,10 @@ final class DemoRecordingTests: XCTestCase {
             for i in 0..<matches.count {
                 let element = matches.element(boundBy: i)
                 if element.exists && element.isHittable {
-                    demoTap(element, postPause: postPause)
+                    element.tap()      // preview
+                    pause(0.45)
+                    element.tap()      // action
+                    pause(postPause)
                     return true
                 }
             }

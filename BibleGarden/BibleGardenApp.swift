@@ -9,11 +9,9 @@ struct BibleGardenApp: App {
     var body: some Scene {
         WindowGroup {
             SkeletonView()
-                .overlay {
+                .onAppear {
                     if TestingEnvironment.isDemoRecording {
-                        TapIndicatorOverlay()
-                            .allowsHitTesting(false)
-                            .ignoresSafeArea()
+                        TapInterceptView.installOnKeyWindow()
                     }
                 }
         }
