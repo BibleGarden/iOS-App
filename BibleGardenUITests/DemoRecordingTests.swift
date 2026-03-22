@@ -1,7 +1,7 @@
 import XCTest
 
 // MARK: - Demo Recording Test
-// Скриптованный сценарий для записи App Store preview видео.
+// Скриптованный сценарий для записи App Store preview видео (~30 сек).
 // Запуск: xcodebuild test -scheme BibleGarden -destination '...' -only-testing:BibleGardenUITests/DemoRecordingTests/testAppStoreDemo
 //
 // Параллельно запишите экран:
@@ -25,31 +25,29 @@ final class DemoRecordingTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func pause(_ seconds: TimeInterval = 1.0) {
+    private func pause(_ seconds: TimeInterval = 0.3) {
         Thread.sleep(forTimeInterval: seconds)
     }
 
-    private func demoTap(_ element: XCUIElement, prePause: TimeInterval = 0.4, postPause: TimeInterval = 0.8) {
+    private func demoTap(_ element: XCUIElement, prePause: TimeInterval = 0.15, postPause: TimeInterval = 0.3) {
         pause(prePause)
         element.tap()
         pause(postPause)
     }
 
-    private func waitAndTap(_ element: XCUIElement, timeout: TimeInterval = 10, postPause: TimeInterval = 0.8) {
+    private func waitAndTap(_ element: XCUIElement, timeout: TimeInterval = 10, postPause: TimeInterval = 0.3) {
         guard element.waitForExistence(timeout: timeout) else { return }
         demoTap(element, postPause: postPause)
     }
 
-    private func demoTapMultiple(_ element: XCUIElement, times: Int, interval: TimeInterval = 0.3) {
+    private func demoTapMultiple(_ element: XCUIElement, times: Int, interval: TimeInterval = 0.2) {
         for _ in 0..<times {
             element.tap()
             pause(interval)
         }
     }
 
-    /// Найти и тапнуть hittable текст по подстроке.
-    /// Ищет только элементы на экране (isHittable), чтобы не попасть на off-screen элементы.
-    private func tapHittableText(containing keywords: [String], timeout: TimeInterval = 8, postPause: TimeInterval = 1.0) -> Bool {
+    private func tapHittableText(containing keywords: [String], timeout: TimeInterval = 8, postPause: TimeInterval = 0.4) -> Bool {
         let conditions = keywords.map { "label CONTAINS[c] '\($0)'" }.joined(separator: " OR ")
         let predicate = NSPredicate(format: conditions)
         let matches = app.staticTexts.matching(predicate)
@@ -63,7 +61,7 @@ final class DemoRecordingTests: XCTestCase {
                     return true
                 }
             }
-            Thread.sleep(forTimeInterval: 0.3)
+            Thread.sleep(forTimeInterval: 0.2)
         }
         return false
     }
@@ -73,181 +71,140 @@ final class DemoRecordingTests: XCTestCase {
     @MainActor
     func testAppStoreDemo() {
 
-        // ============================================================
         // Сцена 1: Главная → Мультиязычное чтение
-        // ============================================================
-        pause(2.0)
+        pause(0.8)
 
         let multiCard = app.buttons["card-multilingual"]
-        waitAndTap(multiCard, postPause: 1.5)
+        waitAndTap(multiCard, postPause: 0.5)
 
         let setupPage = app.otherElements["page-multi-setup"]
         guard setupPage.waitForExistence(timeout: 8) else { return }
-        pause(1.0)
+        pause(0.3)
 
-        // ============================================================
-        // Сцена 2: Добавляем первый перевод (read step)
-        // ============================================================
+        // Сцена 2: Добавляем первый перевод
         let addReadBtn = app.buttons["multi-add-read-step"]
-        waitAndTap(addReadBtn, postPause: 2.5)
+        waitAndTap(addReadBtn, postPause: 0.8)
 
-        // Config sheet — первый степ предзаполнен дефолтами, сразу сохраняем
         let configSave = app.buttons["multi-config-save"]
-        waitAndTap(configSave, timeout: 8, postPause: 1.5)
+        waitAndTap(configSave, timeout: 8, postPause: 0.5)
 
-        // ============================================================
         // Сцена 3: Добавляем паузу
-        // ============================================================
         let addPauseBtn = app.buttons["multi-add-pause-step"]
-        waitAndTap(addPauseBtn, postPause: 1.0)
+        waitAndTap(addPauseBtn, postPause: 0.3)
 
-        // Увеличиваем паузу (2 → 3 сек)
         let pausePlus = app.buttons["multi-pause-plus-1"]
         if pausePlus.waitForExistence(timeout: 3) {
-            demoTap(pausePlus, postPause: 0.8)
+            demoTap(pausePlus, postPause: 0.3)
         }
-        pause(0.5)
 
-        // ============================================================
         // Сцена 4: Добавляем второй перевод
-        // ============================================================
-        waitAndTap(addReadBtn, postPause: 2.0)
+        waitAndTap(addReadBtn, postPause: 0.5)
 
-        // Ждём полного появления config sheet
         let langSection = app.buttons["config-section-language"]
         guard langSection.waitForExistence(timeout: 10) else { return }
-        pause(1.0)
+        pause(0.3)
 
-        // 4a. Раскрываем секцию языка
-        demoTap(langSection, postPause: 2.0)
-
-        // 4b. Выбираем English (только hittable, чтобы не тапнуть off-screen элемент)
-        let foundEnglish = tapHittableText(containing: ["English"], timeout: 8, postPause: 2.0)
+        // Язык
+        demoTap(langSection, postPause: 0.8)
+        let foundEnglish = tapHittableText(containing: ["English"], timeout: 8, postPause: 0.6)
         if !foundEnglish {
-            // Fallback: если English не нашли, пробуем Eng
-            _ = tapHittableText(containing: ["Eng"], timeout: 3, postPause: 2.0)
+            _ = tapHittableText(containing: ["Eng"], timeout: 3, postPause: 0.6)
         }
 
-        // 4c. Секция перевода авто-раскрылась — выбираем перевод
+        // Перевод
         let foundTranslation = tapHittableText(
             containing: ["BSB", "KJV", "ESV", "NIV", "NASB", "NLT", "WEB", "NKJV"],
-            timeout: 10, postPause: 2.0
+            timeout: 10, postPause: 0.6
         )
         if !foundTranslation {
-            // Попробуем раскрыть секцию переводов вручную
             let transSection = app.buttons["config-section-translation"]
             if transSection.waitForExistence(timeout: 3) {
-                demoTap(transSection, postPause: 2.0)
-                _ = tapHittableText(
-                    containing: ["BSB", "KJV", "ESV", "NIV"],
-                    timeout: 5, postPause: 2.0
-                )
+                demoTap(transSection, postPause: 0.8)
+                _ = tapHittableText(containing: ["BSB", "KJV", "ESV", "NIV"], timeout: 5, postPause: 0.6)
             }
         }
 
-        // 4d. Секция голоса авто-раскрылась — выбираем голос
+        // Голос
         let foundVoice = tapHittableText(
             containing: ["Souer", "Bob", "David", "James", "John", "Michael", "Mark"],
-            timeout: 10, postPause: 1.0
+            timeout: 10, postPause: 0.4
         )
         if !foundVoice {
             let voiceSection = app.buttons["config-section-voice"]
             if voiceSection.waitForExistence(timeout: 3) {
-                demoTap(voiceSection, postPause: 2.0)
-                _ = tapHittableText(
-                    containing: ["Souer", "Bob"],
-                    timeout: 5, postPause: 1.0
-                )
+                demoTap(voiceSection, postPause: 0.8)
+                _ = tapHittableText(containing: ["Souer", "Bob"], timeout: 5, postPause: 0.4)
             }
         }
 
-        // ============================================================
-        // Сцена 4e: Увеличиваем скорость 1.0x → 1.2x
-        // ============================================================
-        // Скроллим к настройкам скорости (ниже аккордеонов)
+        // Скорость 1.0x → 1.2x
         let speedPlus = app.buttons["config-speed-plus"]
         if !speedPlus.isHittable {
             app.swipeUp()
-            pause(0.5)
+            pause(0.2)
         }
         if speedPlus.waitForExistence(timeout: 5) {
-            demoTapMultiple(speedPlus, times: 2, interval: 0.5)
-            pause(0.5)
+            demoTapMultiple(speedPlus, times: 2, interval: 0.25)
+            pause(0.2)
         }
 
-        // ============================================================
-        // Сцена 4f: Уменьшаем шрифт 100% → 70%
-        // ============================================================
+        // Шрифт 100% → 70%
         let fontMinus = app.buttons["config-font-minus"]
         if fontMinus.waitForExistence(timeout: 5) {
-            demoTapMultiple(fontMinus, times: 3, interval: 0.5)
-            pause(0.8)
+            demoTapMultiple(fontMinus, times: 3, interval: 0.25)
+            pause(0.3)
         }
 
-        // Сохраняем второй степ (кнопка в header — всегда видна)
+        // Сохраняем второй степ
         let configSave2 = app.buttons["multi-config-save"]
-        waitAndTap(configSave2, timeout: 5, postPause: 1.5)
+        waitAndTap(configSave2, timeout: 5, postPause: 0.5)
 
-        // ============================================================
-        // Сцена 5: Итоговый список степов
-        // ============================================================
-        pause(2.0)
+        // Показываем список степов
+        pause(0.8)
 
-        // ============================================================
-        // Сцена 6: «Сохранить и читать»
-        // ============================================================
+        // «Сохранить и читать»
         let saveAndRead = app.buttons["multilingual-save-and-read"]
-        waitAndTap(saveAndRead, postPause: 1.5)
+        waitAndTap(saveAndRead, postPause: 0.5)
 
-        // Save-alert — пропускаем сохранение шаблона
-        // Кнопки внутри alert наследуют identifier "multi-save-alert" от родительского VStack,
-        // поэтому ищем по identifier + label (как в тестах #9 и #49)
+        // Save-alert — пропускаем
         let skipPredicate = NSPredicate(format: "identifier == 'multi-save-alert' AND (label CONTAINS[c] 'without' OR label CONTAINS[c] 'без' OR label CONTAINS[c] 'Не сохран')")
         let skipBtn = app.buttons.matching(skipPredicate).firstMatch
         if skipBtn.waitForExistence(timeout: 5) {
-            demoTap(skipBtn, postPause: 1.5)
+            demoTap(skipBtn, postPause: 0.5)
         }
 
-        // ============================================================
-        // Сцена 7: Страница чтения
-        // ============================================================
+        // Страница чтения
         let readingPage = app.otherElements["page-multi-reading"]
         guard readingPage.waitForExistence(timeout: 15) else { return }
 
         let _ = app.waitForMultiTextContent(timeout: 15)
-        pause(2.0)
+        pause(0.8)
 
-        // ============================================================
-        // Сцена 8: Воспроизведение
-        // ============================================================
+        // Воспроизведение
         let playPause = app.buttons["multi-play-pause"]
-        waitAndTap(playPause, postPause: 3.0)
+        waitAndTap(playPause, postPause: 1.5)
 
-        // ============================================================
-        // Сцена 9: Следующий стих × 3
-        // ============================================================
+        // Следующий стих × 3
         let nextUnit = app.buttons["multi-next-unit"]
         if nextUnit.waitForExistence(timeout: 5) && nextUnit.isEnabled {
-            demoTap(nextUnit, prePause: 1.0, postPause: 3.0)
+            demoTap(nextUnit, prePause: 0.3, postPause: 1.5)
 
             if nextUnit.isEnabled {
-                demoTap(nextUnit, prePause: 0.5, postPause: 3.0)
+                demoTap(nextUnit, prePause: 0.2, postPause: 1.5)
             }
 
             if nextUnit.isEnabled {
-                demoTap(nextUnit, prePause: 0.5, postPause: 3.0)
+                demoTap(nextUnit, prePause: 0.2, postPause: 1.5)
             }
         }
 
-        // ============================================================
         // Финал
-        // ============================================================
-        pause(3.0)
+        pause(1.0)
 
         if playPause.exists && playPause.isEnabled {
-            demoTap(playPause, postPause: 2.0)
+            demoTap(playPause, postPause: 0.5)
         }
 
-        pause(2.0)
+        pause(0.5)
     }
 }
