@@ -2,6 +2,12 @@
 
 An iOS app (SwiftUI) for listening to the Bible with configurable pauses between verses, paragraphs, or fragments. Supports multiple translations, languages (Russian, English, Ukrainian), and narrators. Key feature — multilingual reading: sequential playback of the same passage in different languages/translations.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" width="30%" alt="Bible Garden home screen">
+  <img src="docs/screenshots/reading-settings.png" width="30%" alt="Reading language and translation settings">
+  <img src="docs/screenshots/multilingual-reading.png" width="30%" alt="Multilingual Bible reading screen">
+</p>
+
 ## Project Setup
 
 ### Requirements
@@ -16,8 +22,8 @@ API keys and URLs are set via xcconfig files, which are in `.gitignore`:
 
 1. Copy the example files:
    ```bash
-   cp Bible/Debug.xcconfig.example Bible/Debug.xcconfig
-   cp Bible/Release.xcconfig.example Bible/Release.xcconfig
+   cp BibleGarden/Debug.xcconfig.example BibleGarden/Debug.xcconfig
+   cp BibleGarden/Release.xcconfig.example BibleGarden/Release.xcconfig
    ```
 
 2. Replace `your-api-key-here` with your actual API key in each file.
@@ -26,8 +32,8 @@ API keys and URLs are set via xcconfig files, which are in `.gitignore`:
 
 ### xcconfig Structure
 
-- `Bible/Debug.xcconfig` — URL and key for the test API
-- `Bible/Release.xcconfig` — URL and key for the production API
+- `BibleGarden/Debug.xcconfig` — URL and key for the test API
+- `BibleGarden/Release.xcconfig` — URL and key for the production API
 
 Values are injected via `Info.plist` → `Config.swift` (`Config.baseURL`, `Config.apiKey`).
 
@@ -57,7 +63,7 @@ Requires `ffmpeg` (`brew install ffmpeg`). Output: `demo_appstore_{device}_{lang
 
 ## OpenAPI Generation
 
-The API client is auto-generated at build time from `Bible/openapi.yaml` using the Apple Swift OpenAPI Generator plugin (config: `Bible/openapi-generator-config.yml`).
+The API client is auto-generated at build time from `BibleGarden/openapi.yaml` using the Apple Swift OpenAPI Generator plugin (config: `BibleGarden/openapi-generator-config.yml`).
 
 References:
 - [Swift OpenAPI Generator — Xcode tutorial](https://swiftpackageindex.com/apple/swift-openapi-generator/1.3.0/tutorials/swift-openapi-generator/clientxcode)
