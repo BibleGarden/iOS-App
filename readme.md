@@ -3,9 +3,9 @@
 An iOS app (SwiftUI) for listening to the Bible with configurable pauses between verses, paragraphs, or fragments. Supports multiple translations, languages (Russian, English, Ukrainian), and narrators. Key feature — multilingual reading: sequential playback of the same passage in different languages/translations.
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="30%" alt="Bible Garden home screen">
-  <img src="docs/screenshots/reading-settings.png" width="30%" alt="Reading language and translation settings">
-  <img src="docs/screenshots/multilingual-reading.png" width="30%" alt="Multilingual Bible reading screen">
+  <img src="docs/screenshots/home.jpg" width="30%" alt="Bible Garden home screen">
+  <img src="docs/screenshots/multi-setup.jpg" width="30%" alt="Multi Reading setup screen">
+  <img src="docs/screenshots/multi-reading.jpg" width="30%" alt="Multi Reading playback screen">
 </p>
 
 ## Project Setup
