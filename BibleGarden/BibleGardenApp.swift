@@ -9,6 +9,11 @@ struct BibleGardenApp: App {
     var body: some Scene {
         WindowGroup {
             SkeletonView()
+                .onAppear {
+                    if TestingEnvironment.isDemoRecording {
+                        TapInterceptView.installOnKeyWindow()
+                    }
+                }
         }
     }
 }

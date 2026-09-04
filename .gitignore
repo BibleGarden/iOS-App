@@ -87,3 +87,6 @@ Configuration.plist
 Debug.xcconfig
 Release.xcconfig
 
+# Demo video recordings
+demo_videos/
+

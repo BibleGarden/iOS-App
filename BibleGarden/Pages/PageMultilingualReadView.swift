@@ -342,7 +342,6 @@ struct PageMultilingualReadView: View {
                     let buttonsColor = hasAudio ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
                     let prevColor = prevExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
                     let nextColor = nextExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
-                    let verseGoColor = (hasAudio && isPlaying) ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
 
                     // Previous chapter
                     Button {
@@ -571,7 +570,7 @@ struct PageMultilingualReadView: View {
 					.foregroundColor(Color("localAccentColor").opacity(0.85))
                 Spacer()
                 // Inline buffering/error indicator
-                if audiopleer.isStalled || audiopleer.isBufferingLong {
+                if !TestingEnvironment.isDemoRecording && (audiopleer.isStalled || audiopleer.isBufferingLong) {
                     HStack(spacing: 4) {
                         ProgressView()
                             .tint(Color("Mustard"))

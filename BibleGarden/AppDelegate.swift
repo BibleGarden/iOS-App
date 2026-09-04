@@ -12,6 +12,33 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             if let bundleId = Bundle.main.bundleIdentifier {
                 UserDefaults.standard.removePersistentDomain(forName: bundleId)
             }
+            // Override app language if specified (must be before multi-template setup)
+            if let langCode = TestingEnvironment.appLanguageOverride {
+                UserDefaults.standard.set(langCode, forKey: "app_language")
+                switch langCode {
+                case "ru":
+                    UserDefaults.standard.set("ru", forKey: "language")
+                    UserDefaults.standard.set(1, forKey: "translation")
+                    UserDefaults.standard.set("SYNO", forKey: "translationName")
+                    UserDefaults.standard.set(1, forKey: "voice")
+                    UserDefaults.standard.set("Alexander Bondarenko", forKey: "voiceName")
+                    UserDefaults.standard.set(true, forKey: "voiceMusic")
+                case "uk":
+                    UserDefaults.standard.set("uk", forKey: "language")
+                    UserDefaults.standard.set(20, forKey: "translation")
+                    UserDefaults.standard.set("UBH", forKey: "translationName")
+                    UserDefaults.standard.set(130, forKey: "voice")
+                    UserDefaults.standard.set("Igor Kozlov", forKey: "voiceName")
+                    UserDefaults.standard.set(false, forKey: "voiceMusic")
+                default:
+                    UserDefaults.standard.set("en", forKey: "language")
+                    UserDefaults.standard.set(16, forKey: "translation")
+                    UserDefaults.standard.set("BSB", forKey: "translationName")
+                    UserDefaults.standard.set(151, forKey: "voice")
+                    UserDefaults.standard.set("Bob Souer", forKey: "voiceName")
+                    UserDefaults.standard.set(false, forKey: "voiceMusic")
+                }
+            }
             // Override starting excerpt if specified
             if let excerpt = TestingEnvironment.startExcerptOverride {
                 UserDefaults.standard.set(excerpt, forKey: "currentExcerpt")
@@ -40,7 +67,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             }
             // Setup multilingual template if specified
             if let templateName = TestingEnvironment.multiTemplateOverride {
-                let lang = Locale.current.languageCode ?? "en"
+                let lang = TestingEnvironment.appLanguageOverride ?? Locale.current.languageCode ?? "en"
                 var steps: [MultilingualStep] = []
 
                 var primaryStep = MultilingualStep(type: .read)
@@ -102,6 +129,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                         UserDefaults.standard.set(false, forKey: "isMultilingualReadingActive")
                     } else {
                         UserDefaults.standard.set(true, forKey: "isMultilingualReadingActive")
+                    }
+                }
+            }
+        }
+
+        // Demo recording: ускоряем анимации чтобы XCUITest не ждал idle долго
+        if CommandLine.arguments.contains("--demo-recording") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                for scene in UIApplication.shared.connectedScenes {
+                    if let windowScene = scene as? UIWindowScene {
+                        for window in windowScene.windows {
+                            window.layer.speed = 100
+                        }
                     }
                 }
             }

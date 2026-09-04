@@ -44,6 +44,12 @@ enum TestingEnvironment {
         return CommandLine.arguments[idx + 1]
     }()
     static let multiSaveTemplate = CommandLine.arguments.contains("--multi-save-template")
+    static let isDemoRecording = CommandLine.arguments.contains("--demo-recording")
+    static let appLanguageOverride: String? = {
+        guard let idx = CommandLine.arguments.firstIndex(of: "--app-language"),
+              idx + 1 < CommandLine.arguments.count else { return nil }
+        return CommandLine.arguments[idx + 1]
+    }()
     /// One-shot: consumed after first use
     static var loadErrorOnceConsumed = false
     static var shouldForceLoadError: Bool {

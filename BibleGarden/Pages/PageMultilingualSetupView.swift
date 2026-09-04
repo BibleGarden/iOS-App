@@ -413,6 +413,7 @@ struct PageMultilingualSetupView: View {
                     .buttonStyle(PlainButtonStyle())
                     .disabled(step.pauseDuration <= 1)
                     .opacity(step.pauseDuration <= 1 ? 0.3 : 1.0)
+                    .accessibilityLabel("Decrease pause")
                     .accessibilityIdentifier("multi-pause-minus-\(index)")
 
                     Divider().frame(height: 20).background(Color.white.opacity(0.3))
@@ -430,8 +431,10 @@ struct PageMultilingualSetupView: View {
                     .buttonStyle(PlainButtonStyle())
                     .disabled(step.pauseDuration >= 60)
                     .opacity(step.pauseDuration >= 60 ? 0.3 : 1.0)
+                    .accessibilityLabel("Increase pause")
                     .accessibilityIdentifier("multi-pause-plus-\(index)")
                 }
+                .accessibilityElement(children: .contain)
                 .background(Color.white.opacity(0.1))
                 .cornerRadius(5)
                 .foregroundColor(.white)
