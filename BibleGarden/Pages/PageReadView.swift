@@ -1193,7 +1193,6 @@ struct PageReadView: View {
         let retryColor = audiopleer.state == .error ? Color("localAccentColor") : buttonsColor
         let prevColor =  prevExcerpt == "" ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
         let nextColor =  nextExcerpt == "" ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
-        let verseGoColor = (hasAudio && audiopleer.state == .playing) ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
 
         HStack {
 

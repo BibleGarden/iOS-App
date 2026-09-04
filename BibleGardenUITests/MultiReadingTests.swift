@@ -970,7 +970,6 @@ final class MultiReadingStepTests: XCTestCase {
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
-        let stateLabel = app.staticTexts["multi-playback-state"]
         let stepLabel = app.staticTexts["multi-current-step"]
 
         // Ждём пока step сменится (переход через паузу к следующему read step)

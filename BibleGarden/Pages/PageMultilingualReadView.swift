@@ -342,7 +342,6 @@ struct PageMultilingualReadView: View {
                     let buttonsColor = hasAudio ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
                     let prevColor = prevExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
                     let nextColor = nextExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
-                    let verseGoColor = (hasAudio && isPlaying) ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
 
                     // Previous chapter
                     Button {
