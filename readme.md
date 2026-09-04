@@ -36,18 +36,24 @@ Values are injected via `Info.plist` → `Config.swift` (`Config.baseURL`, `Conf
 Automated UI test + screen recording + ffmpeg post-processing for App Store preview videos. Supports 3 languages (ru, en, uk). Uses `--demo-recording` flag for tap indicator overlay and `--app-language` to set the interface language.
 
 ```bash
-# All 3 languages (record + process)
+# iPhone — all 3 languages (record + process)
 ./scripts/record-demo.sh
 
-# Single language
+# iPhone — single language
 ./scripts/record-demo.sh --lang ru
 
-# Re-process existing raw recordings (no re-recording)
+# iPad — all 3 languages
+./scripts/record-demo.sh --device ipad
+
+# iPad — single language
+./scripts/record-demo.sh --device ipad --lang en
+
+# Re-process existing raw recordings
 ./scripts/record-demo.sh --process-only
-./scripts/record-demo.sh --process-only --lang en
+./scripts/record-demo.sh --process-only --device ipad --lang en
 ```
 
-Requires `ffmpeg` (`brew install ffmpeg`). Output: `demo_appstore_{lang}.mp4` (1290x2796, H.264). Trim/speed constants are at the top of `scripts/record-demo.sh`. Test timings are in `BibleGardenUITests/DemoRecordingTests.swift`.
+Requires `ffmpeg` (`brew install ffmpeg`). Output: `demo_appstore_{device}_{lang}.mp4`. iPhone: 886×1920, iPad: 2048×2732. In `--process-only` mode, legacy iPhone recordings named `demo_raw_{lang}.mp4` and their original trim timings are also supported. Trim/speed constants are at the top of `scripts/record-demo.sh`. Test timings are in `BibleGardenUITests/DemoRecordingTests.swift`.
 
 ## OpenAPI Generation
 

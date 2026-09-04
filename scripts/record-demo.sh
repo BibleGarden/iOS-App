@@ -1,18 +1,20 @@
 #!/bin/bash
 #
-# Record & prepare App Store preview videos (supports multiple languages).
+# Record & prepare App Store preview videos (supports multiple languages & devices).
 #
 # Usage:
-#   ./scripts/record-demo.sh                    # record + process all 3 languages
-#   ./scripts/record-demo.sh --lang ru          # record + process single language
-#   ./scripts/record-demo.sh --process-only     # process all existing raw recordings
-#   ./scripts/record-demo.sh --process-only --lang en  # process single language
+#   ./scripts/record-demo.sh                           # iPhone, all 3 languages
+#   ./scripts/record-demo.sh --lang ru                 # iPhone, single language
+#   ./scripts/record-demo.sh --device ipad             # iPad, all 3 languages
+#   ./scripts/record-demo.sh --device ipad --lang en   # iPad, single language
+#   ./scripts/record-demo.sh --process-only            # process existing raw recordings
+#   ./scripts/record-demo.sh --process-only --device ipad --lang en
 #
 # Requirements: ffmpeg (brew install ffmpeg)
 #
 # Output (in demo_videos/ folder):
-#   demo_raw_{lang}.mp4       — raw simulator recording
-#   demo_appstore_{lang}.mp4  — cropped/scaled for App Store (1290x2796)
+#   demo_raw_{device}_{lang}.mp4       — raw simulator recording
+#   demo_appstore_{device}_{lang}.mp4  — cropped/scaled for App Store
 
 set -euo pipefail
 
@@ -20,18 +22,17 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VIDEO_DIR="$PROJECT_DIR/demo_videos"
 mkdir -p "$VIDEO_DIR"
 
-SIMULATOR="iPhone 16 Pro Max"
-# App Store preview 6.5"/6.7" display: 886x1920 (portrait)
-TARGET_W=886
-TARGET_H=1920
+# ── Device profiles ───────────────────────────────────────────────
+DEVICE="iphone"
+
 # Seconds to trim from the beginning (simulator boot + app launch)
-TRIM_START=12.5
+TRIM_START=36.5
 # Speed ramp: speed up a segment (times after trimming, e.g. 6-15s of final video)
 SPEED_START=6     # start of sped-up segment (seconds in trimmed video)
 SPEED_END=15      # end of sped-up segment
 SPEED_FACTOR=1.5  # playback speed multiplier
 # Seconds to trim from the end
-TRIM_END=1
+TRIM_END=2
 
 ALL_LANGUAGES=("ru" "en" "uk")
 LANGUAGES=("${ALL_LANGUAGES[@]}")
@@ -41,6 +42,10 @@ PROCESS_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --device)
+            DEVICE="$2"
+            shift 2
+            ;;
         --lang)
             LANGUAGES=("$2")
             shift 2
@@ -55,6 +60,27 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# ── Set device-specific parameters ───────────────────────────────
+
+case "$DEVICE" in
+    iphone)
+        SIMULATOR="iPhone 17 Pro Max"
+        TARGET_W=886
+        TARGET_H=1920
+        ;;
+    ipad)
+        SIMULATOR="iPad Pro 13-inch (M5)"
+        TARGET_W=2048
+        TARGET_H=2732
+        ;;
+    *)
+        echo "Unknown device: $DEVICE (use 'iphone' or 'ipad')"
+        exit 1
+        ;;
+esac
+
+echo "📱 Device: $DEVICE ($SIMULATOR) → ${TARGET_W}x${TARGET_H}"
 
 # ── Helpers ──────────────────────────────────────────────────────
 
@@ -77,7 +103,7 @@ check_ffmpeg() {
 
 record() {
     local LANG_CODE="$1"
-    local RAW="$VIDEO_DIR/demo_raw_${LANG_CODE}.mp4"
+    local RAW="$VIDEO_DIR/demo_raw_${DEVICE}_${LANG_CODE}.mp4"
 
     echo ""
     echo "🎬 [$LANG_CODE] Booting simulator: $SIMULATOR"
@@ -111,8 +137,22 @@ record() {
 
 process() {
     local LANG_CODE="$1"
-    local RAW="$VIDEO_DIR/demo_raw_${LANG_CODE}.mp4"
-    local OUTPUT="$VIDEO_DIR/demo_appstore_${LANG_CODE}.mp4"
+    local RAW="$VIDEO_DIR/demo_raw_${DEVICE}_${LANG_CODE}.mp4"
+    local OUTPUT="$VIDEO_DIR/demo_appstore_${DEVICE}_${LANG_CODE}.mp4"
+    local PROCESS_TRIM_START="$TRIM_START"
+    local PROCESS_TRIM_END="$TRIM_END"
+
+    # Recordings created before device profiles were introduced did not include
+    # "iphone" in the filename. Keep --process-only compatible with them.
+    if [[ "$DEVICE" == "iphone" && ! -f "$RAW" ]]; then
+        local LEGACY_RAW="$VIDEO_DIR/demo_raw_${LANG_CODE}.mp4"
+        if [[ -f "$LEGACY_RAW" ]]; then
+            RAW="$LEGACY_RAW"
+            PROCESS_TRIM_START=12.5
+            PROCESS_TRIM_END=1
+            echo "ℹ️  [$LANG_CODE] Using legacy iPhone recording: $RAW"
+        fi
+    fi
 
     check_ffmpeg
 
@@ -130,12 +170,12 @@ process() {
 
     echo ""
     echo "📐 [$LANG_CODE] Source: ${SRC_W}x${SRC_H}, ${DURATION_INT}s"
-    USABLE_DUR=$(echo "$DURATION - $TRIM_START - $TRIM_END" | bc)
-    echo "📐 [$LANG_CODE] Target: ${TARGET_W}x${TARGET_H}, trim ${TRIM_START}s start + ${TRIM_END}s end"
+    USABLE_DUR=$(echo "$DURATION - $PROCESS_TRIM_START - $PROCESS_TRIM_END" | bc)
+    echo "📐 [$LANG_CODE] Target: ${TARGET_W}x${TARGET_H}, trim ${PROCESS_TRIM_START}s start + ${PROCESS_TRIM_END}s end"
     echo "⏩ [$LANG_CODE] Speed ×${SPEED_FACTOR} from ${SPEED_START}s to ${SPEED_END}s"
 
     # Scale + crop filter
-    SCALE="scale=${TARGET_W}:-2,crop=${TARGET_W}:${TARGET_H}:(iw-${TARGET_W})/2:(ih-${TARGET_H})/2,setsar=1"
+    SCALE="scale=${TARGET_W}:${TARGET_H}:force_original_aspect_ratio=increase,crop=${TARGET_W}:${TARGET_H}:(iw-${TARGET_W})/2:(ih-${TARGET_H})/2,setsar=1"
 
     # PTS factor: 1/speed (e.g. 1.5x → PTS*0.6667)
     PTS_FACTOR=$(echo "scale=4; 1 / $SPEED_FACTOR" | bc)
@@ -158,7 +198,7 @@ process() {
         AUDIO_FILTER="[0:a]atrim=start=0,asetpts=PTS-STARTPTS[aout]"
         FULL_FILTER="${FILTER_COMPLEX%\[out\]*}[out];${AUDIO_FILTER}"
 
-        ffmpeg -y -ss "$TRIM_START" -t "$USABLE_DUR" -i "$RAW" \
+        ffmpeg -y -ss "$PROCESS_TRIM_START" -t "$USABLE_DUR" -i "$RAW" \
             -filter_complex "$FULL_FILTER" \
             -map "[out]" -map "[aout]" \
             -c:v h264 -profile:v high -level 4.2 \
@@ -168,7 +208,7 @@ process() {
             "$OUTPUT" 2>&1 | grep -E '(frame=|error|Error)' || true
     else
         # No audio in raw — add silent track
-        ffmpeg -y -ss "$TRIM_START" -t "$USABLE_DUR" -i "$RAW" \
+        ffmpeg -y -ss "$PROCESS_TRIM_START" -t "$USABLE_DUR" -i "$RAW" \
             -f lavfi -i anullsrc=r=44100:cl=stereo \
             -filter_complex "$FILTER_COMPLEX" \
             -map "[out]" -map 1:a -shortest \
