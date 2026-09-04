@@ -1479,10 +1479,13 @@ struct PageMultilingualReadView: View {
                 .verse-block {
                     margin-bottom: 4px;
                 }
+                .verse-block .quote {
+                    display: inline;
+                }
                 .verse-number {
                     font-size: 0.7rem;
                     color: rgba(255,255,255,0.5);
-                    margin-right: 4px;
+                    margin-right: 0.3rem;
                 }
                 .separator {
                     border: none;
@@ -1539,20 +1542,25 @@ struct PageMultilingualReadView: View {
                 
                 /* Title Styles */
                 .title {
-                    font-size: 1.3rem;
-                    font-weight: bold;
-                    margin-top: 0.5rem;
-                    margin-bottom: 0.2rem;
-                }
-                
-                .subtitle {
-                    font-size: 0.9rem;
-                    color: rgba(255, 255, 255, 0.7);
+                    font-size: 0.95rem;
+                    font-weight: 300;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05rem;
+                    opacity: 0.45;
                     margin-top: 0.8rem;
-                    margin-bottom: 0.8rem;
+                    margin-bottom: 0.3rem;
+                }
+
+                .subtitle {
+                    font-size: 0.85rem;
+                    color: rgba(255, 255, 255, 0.45);
+                    text-transform: uppercase;
+                    letter-spacing: 0.05rem;
+                    margin-top: 0.6rem;
+                    margin-bottom: 0.4rem;
                     display: block;
                     text-align: center;
-                    font-weight: bold;
+                    font-weight: 300;
                 }
                 
                 .reference {

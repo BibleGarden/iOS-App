@@ -352,7 +352,7 @@ struct PageMultilingualConfigView: View {
     func initializeState() {
         // Force update state from init parameter (fix for sticky state issues in sheets)
         self.step = self.initialStep
-        
+
         // Prepare initial state from step
         if !step.languageCode.isEmpty {
             selectedLanguage = step.languageCode
@@ -363,15 +363,18 @@ struct PageMultilingualConfigView: View {
             selectedVoiceMusic = step.voiceMusic
             selectedVoiceMusic = step.voiceMusic
         } else {
-            // New empty step - do NOT set defaults here. 
+            // New empty step - do NOT set defaults here.
             // Defaults are handled in setup view for first step only.
             // Leave everything empty to force user selection.
-            
+
              // Initialize font and speed from global settings / defaults (safe to have defaults)
              if step.fontIncreasePercent == 0 { step.fontIncreasePercent = 100.0 }
              if step.playbackSpeed == 0 { step.playbackSpeed = 1.0 }
+
+            // Auto-expand language section so the screen looks active
+            expandedSelectionSection = .language
         }
-        
+
         fetchLanguages()
     }
     
