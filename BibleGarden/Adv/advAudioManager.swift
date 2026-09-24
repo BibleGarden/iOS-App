@@ -648,6 +648,7 @@ class PlayerModel: ObservableObject {
         bufferingTimeoutWork?.cancel()
         bufferingIndicatorWork?.cancel()
         stalledSetWork?.cancel()
+        releaseNowPlaying()
     }
 
     func shutdown() {
