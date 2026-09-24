@@ -149,6 +149,7 @@ struct PageMultilingualReadView: View {
                             handleTextScroll(isAtBottom: isAtBottom)
                         }
                     )
+                    .id(localizationManager.currentLanguage.rawValue)
                     .accessibilityIdentifier("multi-text-content")
                     .mask(
                         LinearGradient(
