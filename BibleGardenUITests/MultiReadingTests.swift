@@ -947,13 +947,65 @@ final class MultiReadingStepTests: XCTestCase {
         try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping step tests")
 
         app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--multi-template", "two-langs"]
+        app.launchArguments = ["--uitesting", "--multi-template", "two-langs", "--app-language", "en"]
         app.launch()
         app.navigateToMultiReadingPage()
     }
 
     override func tearDownWithError() throws {
         app = nil
+    }
+
+    @MainActor
+    func testPauseLabelUpdatesWhenInterfaceLanguageChanges() {
+        let readingPage = app.otherElements["page-multi-reading"]
+        XCTAssertTrue(readingPage.waitForExistence(timeout: 10))
+
+        func assertPauseLabel(_ label: String) {
+            let webView = app.webViews.firstMatch
+            XCTAssertTrue(webView.waitForExistence(timeout: 15))
+            let pause = webView.staticTexts.matching(NSPredicate(format: "label == %@", label)).firstMatch
+            XCTAssertTrue(pause.waitForExistence(timeout: 15), "Expected pause label '\(label)' in the open reading view")
+        }
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 15))
+        let firstText = webView.staticTexts.element(boundBy: 0)
+        XCTAssertTrue(firstText.waitForExistence(timeout: 5))
+        let initialY = firstText.frame.midY
+        webView.swipeUp()
+        let scrolledY = firstText.frame.midY
+        XCTAssertLessThan(scrolledY, initialY - 20, "The reading view must scroll before checking position preservation")
+
+        func selectInterfaceLanguage(_ code: String, displayName: String) {
+            let menuLanguage = app.buttons["menu-language"]
+            if !menuLanguage.isHittable {
+                app.openMenu()
+            }
+            let visible = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "isHittable == true"),
+                object: menuLanguage
+            )
+            XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed)
+            menuLanguage.tap()
+            let option = app.buttons["language-\(code)"]
+            XCTAssertTrue(option.waitForExistence(timeout: 5))
+            option.tap()
+            XCTAssertTrue(readingPage.waitForExistence(timeout: 5), "Reading page should remain open")
+            XCTAssertTrue(menuLanguage.label.contains(displayName), "Interface language should be \(displayName)")
+            XCTAssertEqual(firstText.frame.midY, scrolledY, accuracy: 12,
+                           "Changing interface language should preserve reading position")
+        }
+
+        assertPauseLabel("30 sec.")
+        selectInterfaceLanguage("ru", displayName: "Русский")
+        assertPauseLabel("30 сек.")
+        XCTAssertFalse(webView.staticTexts["30 sec."].exists)
+        selectInterfaceLanguage("uk", displayName: "Українська")
+        assertPauseLabel("30 сек.")
+        selectInterfaceLanguage("en", displayName: "English")
+        assertPauseLabel("30 sec.")
+        XCTAssertFalse(webView.staticTexts["30 сек."].exists)
     }
 
     // #36 — Запускаем воспроизведение с шаблоном two-langs (read + pause + read).

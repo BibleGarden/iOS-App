@@ -147,7 +147,8 @@ struct PageMultilingualReadView: View {
                         scrollToVerse: $highlightVerseNumber,
                         onScrollMetricsChanged: { _, isAtBottom in
                             handleTextScroll(isAtBottom: isAtBottom)
-                        }
+                        },
+                        localizedPauseUnit: "multilingual.seconds".localized
                     )
                     .accessibilityIdentifier("multi-text-content")
                     .mask(
@@ -1628,9 +1629,10 @@ struct PageMultilingualReadView: View {
                 } else if step.type == .pause {
                     // Pause indicator between translations
                     let pauseSeconds = Int(step.pauseDuration)
+                    let pauseUnit = "multilingual.seconds".localized
                     // Unique ID needing Unit Index to avoid duplicates across units
                     let uniqueId = stepIdx * 10000 + 5000 + unitIdx
-                    htmlString += "<div id=\"verse-\(uniqueId)\" class=\"pause-indicator\"><span>\(pauseSeconds) sec.</span></div>"
+                    htmlString += "<div id=\"verse-\(uniqueId)\" class=\"pause-indicator\"><span data-pause-seconds=\"\(pauseSeconds)\">\(pauseSeconds) \(pauseUnit)</span></div>"
                 }
             }
             
