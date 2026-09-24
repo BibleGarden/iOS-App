@@ -141,6 +141,9 @@ class PlayerDurationObserver {
 
 class PlayerModel: ObservableObject {
     private static let boundaryObserverTimescale: CMTimeScale = 600
+    private static weak var nowPlayingOwner: PlayerModel?
+    private static var nowPlayingOwnerID: ObjectIdentifier?
+    private static var remoteTransportControlsInstalled = false
     
     enum PlaybackState: Int {
         case waitingForSelection
@@ -222,7 +225,6 @@ class PlayerModel: ObservableObject {
         DebugPlaybackRegistry.shared.registerPlayer(id: debugPlayerID, owner: debugOwner)
         #endif
         
-        self.setupNowPlaying()
         self.setupRemoteTransportControls()
         
         // Observe when media duration becomes available
@@ -237,9 +239,14 @@ class PlayerModel: ObservableObject {
                     self?.isStalled = false
                     self?.isBufferingLong = false
                     self?.state = .waitingForPlay
-                    self?.player.seek(to: CMTimeMake(value: Int64(self!.periodFrom*100), timescale: 100))
-                    self?.currentTime = self?.periodFrom ?? 0
-                    self?.findAndSetCurrentVerseIndex()
+                    if let self = self {
+                        self.player.seek(to: CMTimeMake(value: Int64(self.periodFrom * 100), timescale: 100)) { [weak self] finished in
+                            guard let self = self, finished else { return }
+                            self.setupNowPlaying()
+                        }
+                        self.currentTime = self.periodFrom
+                        self.findAndSetCurrentVerseIndex()
+                    }
                 }
                 self?.setupNowPlaying()
                 
@@ -333,6 +340,7 @@ class PlayerModel: ObservableObject {
     }
     
     deinit {
+        releaseNowPlaying()
         // Important: remove observers to avoid leaks
         if let endPlayingObserver = endPlayingObserver {
             NotificationCenter.default.removeObserver(endPlayingObserver)
@@ -344,6 +352,7 @@ class PlayerModel: ObservableObject {
     }
     
     @objc private func handleInterruption(notification: Notification) {
+        guard Self.nowPlayingOwner === self else { return }
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
@@ -364,7 +373,23 @@ class PlayerModel: ObservableObject {
         }
     }
     
+    private func claimNowPlaying() {
+        guard Self.nowPlayingOwner !== self else { return }
+        let previousOwner = Self.nowPlayingOwner
+        Self.nowPlayingOwner = self
+        Self.nowPlayingOwnerID = ObjectIdentifier(self)
+        previousOwner?.stop()
+    }
+
+    private func releaseNowPlaying() {
+        guard Self.nowPlayingOwnerID == ObjectIdentifier(self) else { return }
+        Self.nowPlayingOwner = nil
+        Self.nowPlayingOwnerID = nil
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
     private func setupNowPlaying() {
+        guard Self.nowPlayingOwner === self else { return }
         var nowPlayingInfo = [String: Any]()
         nowPlayingInfo[MPMediaItemPropertyTitle] = itemTitle
         nowPlayingInfo[MPMediaItemPropertyArtist] = itemSubtitle
@@ -382,15 +407,23 @@ class PlayerModel: ObservableObject {
     }
 
     private func setupRemoteTransportControls() {
+        guard !Self.remoteTransportControlsInstalled else { return }
+        Self.remoteTransportControlsInstalled = true
         let commandCenter = MPRemoteCommandCenter.shared()
         
-        commandCenter.playCommand.addTarget { [weak self] event in
-            self?.playSimple()
+        commandCenter.playCommand.addTarget { _ in
+            DispatchQueue.main.async {
+                guard let owner = PlayerModel.nowPlayingOwner else { return }
+                owner.playSimple()
+            }
             return .success
         }
         
-        commandCenter.pauseCommand.addTarget { [weak self] event in
-            self?.pauseSimple()
+        commandCenter.pauseCommand.addTarget { _ in
+            DispatchQueue.main.async {
+                guard let owner = PlayerModel.nowPlayingOwner else { return }
+                owner.pauseSimple()
+            }
             return .success
         }
         
@@ -399,6 +432,7 @@ class PlayerModel: ObservableObject {
 
     // MARK: Set up new track parameters
     func setItem(playerItem: AVPlayerItem, periodFrom: Double, periodTo: Double, audioVerses: [BibleAcousticalVerseFull], itemTitle: String, itemSubtitle: String) {
+        claimNowPlaying()
 
         // If the same item is already loaded — just seek, no re-buffering
         if player.currentItem === playerItem {
@@ -463,6 +497,7 @@ class PlayerModel: ObservableObject {
     /// Fast seek within an already-loaded player item. Skips buffering phase entirely —
     /// just updates verse boundaries, seeks, and signals readiness to play.
     func seekToSegment(periodFrom: Double, periodTo: Double, audioVerses: [BibleAcousticalVerseFull], itemTitle: String, itemSubtitle: String) {
+        claimNowPlaying()
         if self.state == .playing {
             self.player.pause()
         }
@@ -630,7 +665,7 @@ class PlayerModel: ObservableObject {
         errorMessage = nil
         oldState = .waitingForSelection
         state = .waitingForSelection
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        releaseNowPlaying()
     }
 
     #if DEBUG
@@ -671,6 +706,7 @@ class PlayerModel: ObservableObject {
     }
     
     private func playSimple() {
+        claimNowPlaying()
         self.player.play()
         self.state = .playing
         self.isBufferingLong = false
