@@ -69,3 +69,7 @@ References:
 - [Swift OpenAPI Generator — Xcode tutorial](https://swiftpackageindex.com/apple/swift-openapi-generator/1.3.0/tutorials/swift-openapi-generator/clientxcode)
 - [WWDC 2023 — Meet Swift OpenAPI Generator](https://developer.apple.com/videos/play/wwdc2023/10171/)
 - [Export FastAPI OpenAPI spec](https://www.doctave.com/blog/python-export-fastapi-openapi-spec)
+
+## License
+
+[GPLv3](LICENSE)
