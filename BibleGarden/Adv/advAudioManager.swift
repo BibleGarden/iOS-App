@@ -474,9 +474,8 @@ class PlayerModel: ObservableObject {
         }
 
         self.oldState = self.state
-        if self.state == .playing {
-            self.pauseSimple()
-        }
+        // The previous audio must stop even when a smooth pause was in progress
+        self.player.pause()
 
         // Store URL for retry capability
         self.currentItemURL = (playerItem.asset as? AVURLAsset)?.url
@@ -532,9 +531,8 @@ class PlayerModel: ObservableObject {
     func seekToSegment(periodFrom: Double, periodTo: Double, audioVerses: [BibleAcousticalVerseFull], itemTitle: String, itemSubtitle: String) {
         claimNowPlaying()
         cancelSmoothPause()
-        if self.state == .playing {
-            self.player.pause()
-        }
+        // The previous audio must stop even when a smooth pause was in progress
+        self.player.pause()
 
         self.periodFrom = periodFrom
         self.periodTo = periodTo
