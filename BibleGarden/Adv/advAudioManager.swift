@@ -9,6 +9,11 @@ enum DebugPlaybackOwner: String {
     case other
 }
 
+enum DebugRemoteCommand: String {
+    case play
+    case pause
+}
+
 final class DebugPlaybackRegistry {
     static let shared = DebugPlaybackRegistry()
 
@@ -19,6 +24,22 @@ final class DebugPlaybackRegistry {
 
     private init() {
         persistCounts()
+    }
+
+    /// Emulates a transport command from the lock screen / Control Center.
+    /// It goes through the same handling as a real command — including the
+    /// asynchronous dispatch to the main queue — so the app reacts exactly like
+    /// it does to the system transport controls.
+    func sendRemoteCommand(_ command: DebugRemoteCommand) {
+        DispatchQueue.main.async {
+            guard let owner = PlayerModel.nowPlayingOwner else { return }
+            switch command {
+            case .play:
+                owner.handleRemotePlayCommand()
+            case .pause:
+                owner.handleRemotePauseCommand()
+            }
+        }
     }
 
     func registerPlayer(id: UUID, owner: DebugPlaybackOwner) {
@@ -141,6 +162,9 @@ class PlayerDurationObserver {
 
 class PlayerModel: ObservableObject {
     private static let boundaryObserverTimescale: CMTimeScale = 600
+    fileprivate static weak var nowPlayingOwner: PlayerModel?
+    private static var nowPlayingOwnerID: ObjectIdentifier?
+    private static var remoteTransportControlsInstalled = false
     
     enum PlaybackState: Int {
         case waitingForSelection
@@ -165,6 +189,7 @@ class PlayerModel: ObservableObject {
     
     @Published var state = PlaybackState.waitingForSelection {
         didSet {
+            setupNowPlaying()
             #if DEBUG
             updateDebugPlaybackActivity()
             #endif
@@ -186,9 +211,16 @@ class PlayerModel: ObservableObject {
     
     var onStartVerse: ((Int) -> Void)?
     var onEndVerse: (() -> Void)?
+    /// Transport command handlers (lock screen / Control Center).
+    /// A screen that drives its own playback flow replaces them, so a remote
+    /// command always follows the same logic as the on-screen player controls.
+    var onRemotePlay: (() -> Void)?
+    var onRemotePause: (() -> Void)?
     var smoothPauseLength = 0.3
     
     private var pauseTimer: Timer?
+    private var smoothPauseTimer: Timer?
+    private var smoothPauseInitialVolume: Float = 1.0
     private var bufferingTimeoutWork: DispatchWorkItem?
     private var bufferingIndicatorWork: DispatchWorkItem?
     private var stalledSetWork: DispatchWorkItem?
@@ -196,6 +228,7 @@ class PlayerModel: ObservableObject {
 
     private var itemTitle: String = ""
     private var itemSubtitle: String = ""
+    private var lastNowPlayingSecond: Int?
 
     #if DEBUG
     let debugPlayerID = UUID()
@@ -220,9 +253,12 @@ class PlayerModel: ObservableObject {
         DebugPlaybackRegistry.shared.registerPlayer(id: debugPlayerID, owner: debugOwner)
         #endif
         
-        self.setupNowPlaying()
         self.setupRemoteTransportControls()
         
+        // Default transport behaviour for screens without their own playback flow
+        self.onRemotePlay = { [weak self] in self?.playSimple() }
+        self.onRemotePause = { [weak self] in self?.pauseSimple() }
+
         // Observe when media duration becomes available
         durationObserver.publisher
             .receive(on: DispatchQueue.main)
@@ -235,10 +271,16 @@ class PlayerModel: ObservableObject {
                     self?.isStalled = false
                     self?.isBufferingLong = false
                     self?.state = .waitingForPlay
-                    self?.player.seek(to: CMTimeMake(value: Int64(self!.periodFrom*100), timescale: 100))
-                    self?.currentTime = self?.periodFrom ?? 0
-                    self?.findAndSetCurrentVerseIndex()
+                    if let self = self {
+                        self.player.seek(to: CMTimeMake(value: Int64(self.periodFrom * 100), timescale: 100)) { [weak self] finished in
+                            guard let self = self, finished else { return }
+                            self.setupNowPlaying()
+                        }
+                        self.currentTime = self.periodFrom
+                        self.findAndSetCurrentVerseIndex()
+                    }
                 }
+                self?.setupNowPlaying()
                 
                 // Disable internal auto-play to avoid race conditions with View logic
                 // if self?.oldState == .playing {
@@ -257,6 +299,9 @@ class PlayerModel: ObservableObject {
             .sink { [weak self] time in
                 guard let self = self else { return }
                 self.currentTime = time
+                if time.isFinite && time >= 0 && Int(time) != self.lastNowPlayingSecond {
+                    self.setupNowPlaying()
+                }
 
                 // Boundary observers are not fully reliable with streamed audio.
                 // Keep verse tracking in sync from periodic time updates as a fallback.
@@ -321,11 +366,13 @@ class PlayerModel: ObservableObject {
                     self.stalledSetWork?.cancel()
                     self.isStalled = false
                 }
+                self.setupNowPlaying()
             }
             .store(in: &cancellables)
     }
     
     deinit {
+        releaseNowPlaying()
         // Important: remove observers to avoid leaks
         if let endPlayingObserver = endPlayingObserver {
             NotificationCenter.default.removeObserver(endPlayingObserver)
@@ -337,6 +384,7 @@ class PlayerModel: ObservableObject {
     }
     
     @objc private func handleInterruption(notification: Notification) {
+        guard Self.nowPlayingOwner === self else { return }
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
@@ -357,25 +405,57 @@ class PlayerModel: ObservableObject {
         }
     }
     
+    private func claimNowPlaying() {
+        guard Self.nowPlayingOwner !== self else { return }
+        let previousOwner = Self.nowPlayingOwner
+        Self.nowPlayingOwner = self
+        Self.nowPlayingOwnerID = ObjectIdentifier(self)
+        previousOwner?.stop()
+    }
+
+    private func releaseNowPlaying() {
+        guard Self.nowPlayingOwnerID == ObjectIdentifier(self) else { return }
+        Self.nowPlayingOwner = nil
+        Self.nowPlayingOwnerID = nil
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
     private func setupNowPlaying() {
+        guard Self.nowPlayingOwner === self else { return }
         var nowPlayingInfo = [String: Any]()
         nowPlayingInfo[MPMediaItemPropertyTitle] = itemTitle
         nowPlayingInfo[MPMediaItemPropertyArtist] = itemSubtitle
-        // Add extra metadata if needed
-        
+        if currentDuration.isFinite && currentDuration > 0 {
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = currentDuration
+        }
+        let elapsed = player.currentTime().seconds
+        if elapsed.isFinite && elapsed >= 0 {
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
+            lastNowPlayingSecond = Int(elapsed)
+        }
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player.timeControlStatus == .playing ? player.rate : 0
+        nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = currentSpeed
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
 
     private func setupRemoteTransportControls() {
+        guard !Self.remoteTransportControlsInstalled else { return }
+        Self.remoteTransportControlsInstalled = true
         let commandCenter = MPRemoteCommandCenter.shared()
         
-        commandCenter.playCommand.addTarget { [weak self] event in
-            self?.playSimple()
+        commandCenter.playCommand.addTarget { _ in
+            DispatchQueue.main.async {
+                guard let owner = PlayerModel.nowPlayingOwner else { return }
+                owner.handleRemotePlayCommand()
+            }
             return .success
         }
         
-        commandCenter.pauseCommand.addTarget { [weak self] event in
-            self?.pauseSimple()
+        commandCenter.pauseCommand.addTarget { _ in
+            DispatchQueue.main.async {
+                guard let owner = PlayerModel.nowPlayingOwner else { return }
+                owner.handleRemotePauseCommand()
+            }
             return .success
         }
         
@@ -384,6 +464,8 @@ class PlayerModel: ObservableObject {
 
     // MARK: Set up new track parameters
     func setItem(playerItem: AVPlayerItem, periodFrom: Double, periodTo: Double, audioVerses: [BibleAcousticalVerseFull], itemTitle: String, itemSubtitle: String) {
+        claimNowPlaying()
+        cancelSmoothPause()
 
         // If the same item is already loaded — just seek, no re-buffering
         if player.currentItem === playerItem {
@@ -392,9 +474,8 @@ class PlayerModel: ObservableObject {
         }
 
         self.oldState = self.state
-        if self.state == .playing {
-            self.pauseSimple()
-        }
+        // The previous audio must stop even when a smooth pause was in progress
+        self.player.pause()
 
         // Store URL for retry capability
         self.currentItemURL = (playerItem.asset as? AVURLAsset)?.url
@@ -424,9 +505,8 @@ class PlayerModel: ObservableObject {
 
         self.itemTitle = itemTitle
         self.itemSubtitle = itemSubtitle
-        self.setupNowPlaying()
-
         self.player.replaceCurrentItem(with: playerItem)
+        self.setupNowPlaying()
 
         // Start buffering timeout — if duration doesn't arrive within 15s, report error
         let timeoutWork = DispatchWorkItem { [weak self] in
@@ -449,9 +529,10 @@ class PlayerModel: ObservableObject {
     /// Fast seek within an already-loaded player item. Skips buffering phase entirely —
     /// just updates verse boundaries, seeks, and signals readiness to play.
     func seekToSegment(periodFrom: Double, periodTo: Double, audioVerses: [BibleAcousticalVerseFull], itemTitle: String, itemSubtitle: String) {
-        if self.state == .playing {
-            self.player.pause()
-        }
+        claimNowPlaying()
+        cancelSmoothPause()
+        // The previous audio must stop even when a smooth pause was in progress
+        self.player.pause()
 
         self.periodFrom = periodFrom
         self.periodTo = periodTo
@@ -471,6 +552,7 @@ class PlayerModel: ObservableObject {
 
         self.itemTitle = itemTitle
         self.itemSubtitle = itemSubtitle
+        self.currentTime = periodFrom
         self.setupNowPlaying()
 
         // Show buffering indicator if seek takes longer than 0.1s (slow network / unbuffered region)
@@ -487,6 +569,7 @@ class PlayerModel: ObservableObject {
             self.bufferingIndicatorWork?.cancel()
             self.isBufferingLong = false
             self.currentTime = periodFrom
+            self.setupNowPlaying()
             self.findAndSetCurrentVerseIndex()
             self.state = .waitingForPlay
         }
@@ -584,6 +667,7 @@ class PlayerModel: ObservableObject {
     
     /// Immediately stop playback (used before chapter switch to prevent old audio leaking)
     func stop() {
+        cancelSmoothPause()
         player.pause()
         if state == .playing
             || state == .buffering
@@ -597,6 +681,7 @@ class PlayerModel: ObservableObject {
         bufferingTimeoutWork?.cancel()
         bufferingIndicatorWork?.cancel()
         stalledSetWork?.cancel()
+        releaseNowPlaying()
     }
 
     func shutdown() {
@@ -614,6 +699,7 @@ class PlayerModel: ObservableObject {
         errorMessage = nil
         oldState = .waitingForSelection
         state = .waitingForSelection
+        releaseNowPlaying()
     }
 
     #if DEBUG
@@ -627,6 +713,20 @@ class PlayerModel: ObservableObject {
         )
     }
     #endif
+
+    // MARK: Remote transport commands
+
+    /// Handles a Play command from the lock screen / Control Center.
+    /// The owner of the playback session decides what "play" means in its flow.
+    func handleRemotePlayCommand() {
+        onRemotePlay?()
+    }
+
+    /// Handles a Pause command from the lock screen / Control Center.
+    /// The owner of the playback session decides what "pause" means in its flow.
+    func handleRemotePauseCommand() {
+        onRemotePause?()
+    }
 
     // MARK: Play/Pause handling
     func doPlayOrPause() {
@@ -654,12 +754,15 @@ class PlayerModel: ObservableObject {
     }
     
     private func playSimple() {
+        cancelSmoothPause()
+        claimNowPlaying()
         self.player.play()
         self.state = .playing
         self.isBufferingLong = false
     }
     
     private func pauseSimple() {
+        cancelSmoothPause()
         self.player.pause()
         self.state = .pausing
     }
@@ -692,27 +795,43 @@ class PlayerModel: ObservableObject {
     }
     
     private func pauseSmoothly(duration: TimeInterval) {
+        cancelSmoothPause()
         let initialVolume = player.volume
+        smoothPauseInitialVolume = initialVolume
         let steps = 10
         let interval = duration / Double(steps)
         var currentStep = 0
         
         self.state = .waitingForPause
-        Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { timer in
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { timer in
             if currentStep < steps {
                 let newVolume = initialVolume * (1.0 - Float(currentStep) / Float(steps))
                 self.player.volume = newVolume
                 currentStep += 1
             } else {
+                self.smoothPauseTimer = nil
                 self.player.volume = initialVolume // Reset volume to original after pausing
                 timer.invalidate()
                 self.pauseSimple()
                 let to = CMTimeGetSeconds(self.player.currentTime()) - duration
                 self.player.seek(to: CMTimeMake(value: Int64(to*100), timescale: 100))
+                self.currentTime = to
+                self.setupNowPlaying()
             }
         }
+        smoothPauseTimer = timer
     }
-    
+
+    /// Cancels a running smooth pause and restores the playback volume.
+    /// Called when the playback starts or a new track is loaded, so a pending
+    /// pause cannot stop the audio that is already playing.
+    private func cancelSmoothPause() {
+        guard let timer = smoothPauseTimer else { return }
+        timer.invalidate()
+        smoothPauseTimer = nil
+        player.volume = smoothPauseInitialVolume
+    }
+
     func breakForSeconds(_ seconds: Double) {
         self.player.pause()
         self.state = .autopausing
@@ -737,7 +856,9 @@ class PlayerModel: ObservableObject {
             let targetTime = CMTime(seconds: currentTime, preferredTimescale: 600)
             player.seek(to: targetTime) { _ in
                 self.timeObserver.pause(false)
+                self.setupNowPlaying()
             }
+            setupNowPlaying()
             if currentTime >= Double(periodTo == 0 ? currentDuration : periodTo) {
                 stopAtEnd = false
             }
@@ -750,6 +871,8 @@ class PlayerModel: ObservableObject {
             stopAtEnd = true
             setCurrentVerseIndex(-1)
             player.seek(to: CMTimeMake(value: Int64(periodFrom*100), timescale: 100))
+            currentTime = periodFrom
+            setupNowPlaying()
         }
     }
     
@@ -762,6 +885,7 @@ class PlayerModel: ObservableObject {
         let targetTime = CMTime(seconds: begin, preferredTimescale: 600)
         player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             self?.timeObserver.pause(false)
+            self?.setupNowPlaying()
         }
     }
 
@@ -777,6 +901,7 @@ class PlayerModel: ObservableObject {
             let targetTime = CMTime(seconds: begin, preferredTimescale: 600)
             player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
                 self?.timeObserver.pause(false)
+                self?.setupNowPlaying()
             }
         }
     }
@@ -792,6 +917,7 @@ class PlayerModel: ObservableObject {
             let targetTime = CMTime(seconds: begin, preferredTimescale: 600)
             player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
                 self?.timeObserver.pause(false)
+                self?.setupNowPlaying()
             }
         }
     }
@@ -811,6 +937,7 @@ class PlayerModel: ObservableObject {
         if state == .playing {
             player.rate = currentSpeed
         }
+        setupNowPlaying()
     }
 
     func setSpeed(speed: Float) {
@@ -818,6 +945,7 @@ class PlayerModel: ObservableObject {
         if #available(iOS 16.0, *) {
             player.defaultRate = speed
         }
+        setupNowPlaying()
     }
     
     

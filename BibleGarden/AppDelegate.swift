@@ -95,7 +95,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 if templateName == "default" {
                     steps = [primaryStep]
                 } else if templateName == "two-langs" {
-                    let pauseStep = MultilingualStep(type: .pause, pauseDuration: 30.0)
+                    let pauseStep = MultilingualStep(type: .pause, pauseDuration: TestingEnvironment.multiPauseDurationOverride ?? 30.0)
                     var secondStep = MultilingualStep(type: .read)
                     if lang != "en" {
                         secondStep.languageCode = "en"
