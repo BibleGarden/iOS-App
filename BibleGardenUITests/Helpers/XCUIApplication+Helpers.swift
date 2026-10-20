@@ -226,6 +226,32 @@ extension XCUIApplication {
         guard label.waitForExistence(timeout: 3) else { return false }
         return waitForLabel(element: label, toBe: status, timeout: timeout)
     }
+
+    /// Wait until more remote transport commands were emulated than before
+    func waitForDebugRemoteCommandCount(greaterThan count: Int, timeout: TimeInterval = 15) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let rawValue = debugValue("debug-remote-command-count"),
+               let value = Int(rawValue),
+               value > count {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return false
+    }
+
+    /// Emulate a remote transport command and wait until it was handled.
+    /// Returns the status that the command handler reported.
+    @discardableResult
+    func sendDebugRemoteCommand(buttonIdentifier: String, timeout: TimeInterval = 15) -> String? {
+        let button = buttons[buttonIdentifier]
+        guard button.waitForExistence(timeout: 5) else { return nil }
+        let handledBefore = Int(debugValue("debug-remote-command-count") ?? "0") ?? 0
+        button.tap()
+        _ = waitForDebugRemoteCommandCount(greaterThan: handledBefore, timeout: timeout)
+        return debugValue("debug-remote-command-status")
+    }
 }
 
 // MARK: - Shared API Health Check

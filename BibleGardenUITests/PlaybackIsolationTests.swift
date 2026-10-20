@@ -204,6 +204,9 @@ final class PlaybackIsolationTests: XCTestCase {
 
         let readPlayPause = app.buttons["read-play-pause"]
         XCTAssertTrue(readPlayPause.waitForExistence(timeout: 5), "Classic play button should exist")
+        // Ждём готовности аудио: пока идёт буферизация, команда play игнорируется.
+        XCTAssertTrue(app.waitForReadPlaybackState("waitingForPlay", timeout: 20),
+                      "Classic playback should become ready before starting")
         readPlayPause.tap()
 
         let readState = app.staticTexts["read-playback-state"]
