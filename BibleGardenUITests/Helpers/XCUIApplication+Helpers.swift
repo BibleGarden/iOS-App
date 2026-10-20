@@ -228,6 +228,7 @@ extension XCUIApplication {
     }
 
     /// Wait until more remote transport commands were emulated than before
+    @discardableResult
     func waitForDebugRemoteCommandCount(greaterThan count: Int, timeout: TimeInterval = 15) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -238,6 +239,7 @@ extension XCUIApplication {
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
+        XCTFail("The remote transport command should be handled within \(Int(timeout))s")
         return false
     }
 
@@ -246,11 +248,56 @@ extension XCUIApplication {
     @discardableResult
     func sendDebugRemoteCommand(buttonIdentifier: String, timeout: TimeInterval = 15) -> String? {
         let button = buttons[buttonIdentifier]
-        guard button.waitForExistence(timeout: 5) else { return nil }
-        let handledBefore = Int(debugValue("debug-remote-command-count") ?? "0") ?? 0
+        guard button.waitForExistence(timeout: 5) else {
+            XCTFail("Debug remote command button '\(buttonIdentifier)' should exist")
+            return nil
+        }
+        guard let rawCount = debugValue("debug-remote-command-count"),
+              let handledBefore = Int(rawCount) else {
+            XCTFail("The debug remote command counter should be published by the app")
+            return nil
+        }
         button.tap()
-        _ = waitForDebugRemoteCommandCount(greaterThan: handledBefore, timeout: timeout)
+        guard waitForDebugRemoteCommandCount(greaterThan: handledBefore, timeout: timeout) else {
+            return nil
+        }
         return debugValue("debug-remote-command-status")
+    }
+
+    /// Wait until the state of the player that owns the Now Playing session
+    /// reaches the given state.
+    @discardableResult
+    func waitForDebugNowPlayingState(_ state: String, timeout: TimeInterval = 15) -> Bool {
+        let label = staticTexts["debug-now-playing-state"]
+        guard label.waitForExistence(timeout: 3) else {
+            XCTFail("The debug Now Playing state should be published by the app")
+            return false
+        }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if label.label == state { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The Now Playing state should become '\(state)' within \(Int(timeout))s, got '\(label.label)'")
+        return false
+    }
+
+    /// Wait until the state of the player that owns the Now Playing session is
+    /// not one of the given states (for example while a smooth pause is over).
+    @discardableResult
+    func waitForDebugNowPlayingState(excluding states: [String], timeout: TimeInterval = 15) -> Bool {
+        let label = staticTexts["debug-now-playing-state"]
+        guard label.waitForExistence(timeout: 3) else {
+            XCTFail("The debug Now Playing state should be published by the app")
+            return false
+        }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !states.contains(label.label) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The Now Playing state should leave \(states.joined(separator: ", ")) within \(Int(timeout))s, got '\(label.label)'")
+        return false
     }
 }
 

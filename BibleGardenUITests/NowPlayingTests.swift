@@ -87,6 +87,8 @@ final class NowPlayingOwnershipTests: XCTestCase {
 
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 30),
                       "Multilingual playback should start")
+        XCTAssertTrue(app.waitForDebugNowPlayingState("playing", timeout: 15),
+                      "The player that owns the session should be playing. state=\(app.debugValue("debug-now-playing-state") ?? "nil")")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("multilingualRead", timeout: 10),
                       "Multilingual reading should own the Now Playing session. owner=\(app.debugValue("debug-now-playing-owner") ?? "nil")")
         XCTAssertTrue(app.waitForDebugRemoteCommandEnabled(true, timeout: 5),
@@ -98,6 +100,13 @@ final class NowPlayingOwnershipTests: XCTestCase {
                        "Remote pause with an owner should be handled. status=\(pauseStatus ?? "nil")")
         XCTAssertTrue(app.waitForMultiPlaybackState("pausing", timeout: 10),
                       "Remote pause should stop the multilingual reading. state=\(app.debugValue("multi-playback-state") ?? "nil")")
+
+        // Логическое состояние выставляется сразу, а аудио останавливается после
+        // плавной паузы — ждём её окончания и проверяем состояние самого плеера.
+        XCTAssertTrue(app.waitForDebugNowPlayingState(excluding: ["playing", "waitingForPause"], timeout: 15),
+                      "The smooth pause should be finished. state=\(app.debugValue("debug-now-playing-state") ?? "nil")")
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 10),
+                      "No player should stay active after the remote pause. count=\(app.debugValue("debug-playback-total-count") ?? "nil")")
 
         // Remote Play продолжает чтение
         let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-remote-play")

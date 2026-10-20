@@ -417,6 +417,7 @@ struct SkeletonView: View {
     @AppStorage("debugPlaybackLiveMultilingualCount") private var debugPlaybackLiveMultilingualCount: Int = 0
     #if DEBUG
     @AppStorage("debugNowPlayingOwner") private var debugNowPlayingOwner: String = "none"
+    @AppStorage("debugNowPlayingState") private var debugNowPlayingState: String = "none"
     @AppStorage("debugNowPlayingInfoPresent") private var debugNowPlayingInfoPresent: Int = 0
     @AppStorage("debugRemotePlayCommandEnabled") private var debugRemotePlayCommandEnabled: Int = 0
     @AppStorage("debugRemotePauseCommandEnabled") private var debugRemotePauseCommandEnabled: Int = 0
@@ -549,6 +550,8 @@ struct SkeletonView: View {
                         .accessibilityIdentifier("debug-playback-live-multilingual-count")
                     Text(debugNowPlayingOwner)
                         .accessibilityIdentifier("debug-now-playing-owner")
+                    Text(debugNowPlayingState)
+                        .accessibilityIdentifier("debug-now-playing-state")
                     Text("\(debugNowPlayingInfoPresent)")
                         .accessibilityIdentifier("debug-now-playing-info-present")
                     Text("\(debugRemotePlayCommandEnabled)")

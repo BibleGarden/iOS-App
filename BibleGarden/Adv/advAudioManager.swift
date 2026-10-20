@@ -24,6 +24,7 @@ final class DebugPlaybackRegistry {
     private var lastRemoteCommandStatus: String = "none"
     private var remoteCommandCount: Int = 0
     private var publishedNowPlayingOwner: String?
+    private var publishedNowPlayingState: String?
     private var publishedNowPlayingInfoPresent: Bool?
     private var publishedRemotePlayEnabled: Bool?
     private var publishedRemotePauseEnabled: Bool?
@@ -40,20 +41,19 @@ final class DebugPlaybackRegistry {
     /// command is published, so a test can check what the system would get.
     func sendRemoteCommand(_ command: DebugRemoteCommand) {
         DispatchQueue.main.async {
-            MainActor.assumeIsolated {
-                let status: MPRemoteCommandHandlerStatus
+            let status = PlayerModel.runOnMainThread {
                 switch command {
                 case .play:
-                    status = PlayerModel.performRemotePlayCommand()
+                    return PlayerModel.performRemotePlayCommand()
                 case .pause:
-                    status = PlayerModel.performRemotePauseCommand()
+                    return PlayerModel.performRemotePauseCommand()
                 }
-                self.lock.lock()
-                self.lastRemoteCommandStatus = DebugPlaybackRegistry.statusName(status)
-                self.remoteCommandCount += 1
-                self.persistCountsLocked()
-                self.lock.unlock()
             }
+            self.lock.lock()
+            self.lastRemoteCommandStatus = DebugPlaybackRegistry.statusName(status)
+            self.remoteCommandCount += 1
+            self.persistCountsLocked()
+            self.lock.unlock()
         }
     }
 
@@ -134,15 +134,21 @@ final class DebugPlaybackRegistry {
     /// Only changed values are written, so the debug UI is not rebuilt on
     /// every playback state change.
     private func persistNowPlayingStateLocked() {
-        let owner = PlayerModel.nowPlayingOwner?.debugOwner.rawValue ?? "none"
+        let owner = PlayerModel.nowPlayingOwner
+        let ownerName = owner?.debugOwner.rawValue ?? "none"
+        let ownerState = owner?.debugStateName ?? "none"
         let hasNowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo != nil
         let commandCenter = MPRemoteCommandCenter.shared()
         let isPlayEnabled = commandCenter.playCommand.isEnabled
         let isPauseEnabled = commandCenter.pauseCommand.isEnabled
 
-        if publishedNowPlayingOwner != owner {
-            publishedNowPlayingOwner = owner
-            defaults.set(owner, forKey: "debugNowPlayingOwner")
+        if publishedNowPlayingOwner != ownerName {
+            publishedNowPlayingOwner = ownerName
+            defaults.set(ownerName, forKey: "debugNowPlayingOwner")
+        }
+        if publishedNowPlayingState != ownerState {
+            publishedNowPlayingState = ownerState
+            defaults.set(ownerState, forKey: "debugNowPlayingState")
         }
         if publishedNowPlayingInfoPresent != hasNowPlayingInfo {
             publishedNowPlayingInfoPresent = hasNowPlayingInfo
@@ -302,6 +308,21 @@ class PlayerModel: ObservableObject {
         didSet {
             DebugPlaybackRegistry.shared.setPlayerOwner(id: debugPlayerID, owner: debugOwner)
             updateDebugPlaybackActivity()
+        }
+    }
+    /// Name of the playback state, published for the debug UI
+    var debugStateName: String {
+        switch state {
+        case .waitingForSelection: return "waitingForSelection"
+        case .waitingForPlay: return "waitingForPlay"
+        case .waitingForPause: return "waitingForPause"
+        case .buffering: return "buffering"
+        case .playing: return "playing"
+        case .pausing: return "pausing"
+        case .autopausing: return "autopausing"
+        case .finished: return "finished"
+        case .segmentFinished: return "segmentFinished"
+        case .error: return "error"
         }
     }
     #endif
@@ -519,18 +540,17 @@ class PlayerModel: ObservableObject {
         Self.remoteTransportControlsInstalled = true
         let commandCenter = MPRemoteCommandCenter.shared()
 
-        // The documentation does not guarantee that the handlers are called on the
-        // main thread, but the status of the command has to be returned synchronously.
-        // MainActor.assumeIsolated runs the body on the main actor and traps if the
-        // handler ever comes from another thread, instead of racing silently.
+        // The system may deliver a transport command on any thread, but the status
+        // of the command has to be returned synchronously — so the body runs on the
+        // main thread, where the playback session lives.
         commandCenter.playCommand.addTarget { _ in
-            MainActor.assumeIsolated {
+            PlayerModel.runOnMainThread {
                 PlayerModel.performRemotePlayCommand()
             }
         }
 
         commandCenter.pauseCommand.addTarget { _ in
-            MainActor.assumeIsolated {
+            PlayerModel.runOnMainThread {
                 PlayerModel.performRemotePauseCommand()
             }
         }
@@ -800,11 +820,24 @@ class PlayerModel: ObservableObject {
 
     // MARK: Remote transport commands
 
+    /// Runs the body on the main thread and returns its result.
+    ///
+    /// The transport commands of the lock screen / Control Center may be handled on
+    /// any thread, but the status of the command has to be returned synchronously.
+    /// When the command arrives on the main thread, the body runs right away —
+    /// otherwise it is dispatched to the main queue synchronously.
+    static func runOnMainThread<T>(_ body: () -> T) -> T {
+        if Thread.isMainThread {
+            return body()
+        }
+        return DispatchQueue.main.sync(execute: body)
+    }
+
     /// Handles a Play command from the lock screen / Control Center.
     /// The owner of the playback session decides what "play" means in its flow.
     /// Without an owner there is nothing to play, so the command is reported
     /// as not actionable.
-    @MainActor
+    /// Must be called on the main thread — see `runOnMainThread`.
     static func performRemotePlayCommand() -> MPRemoteCommandHandlerStatus {
         guard let owner = nowPlayingOwner else { return .noActionableNowPlayingItem }
         owner.handleRemotePlayCommand()
@@ -815,7 +848,7 @@ class PlayerModel: ObservableObject {
     /// The owner of the playback session decides what "pause" means in its flow.
     /// Without an owner there is nothing to pause, so the command is reported
     /// as not actionable.
-    @MainActor
+    /// Must be called on the main thread — see `runOnMainThread`.
     static func performRemotePauseCommand() -> MPRemoteCommandHandlerStatus {
         guard let owner = nowPlayingOwner else { return .noActionableNowPlayingItem }
         owner.handleRemotePauseCommand()
