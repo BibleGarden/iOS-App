@@ -43,7 +43,7 @@ enum TestingEnvironment {
               idx + 1 < CommandLine.arguments.count else { return nil }
         return CommandLine.arguments[idx + 1]
     }()
-    static var multiPauseDurationOverride: Double? = {
+    static let multiPauseDurationOverride: Double? = {
         guard let idx = CommandLine.arguments.firstIndex(of: "--multi-pause-duration"),
               idx + 1 < CommandLine.arguments.count,
               let value = Double(CommandLine.arguments[idx + 1]) else { return nil }

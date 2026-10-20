@@ -873,56 +873,51 @@ struct PageMultilingualReadView: View {
             play()
         }
     }
-    
-    /// Starts or resumes playback. A pending pause between translations is skipped.
+
+    /// Starts playback of the current step. A pending pause between translations is skipped.
     private func play() {
         isPausing = false
-        
+
         if isAutopausing {
             // Cancel the auto-pause timer and skip to the next step
             isAutopausing = false
             playCurrentStep(skipPause: true)
             return
         }
-        
+
         if isPlaying { return }
-        
-        if audiopleer.state == .pausing {
-            // Resume the interrupted audio instead of restarting the step
-            audiopleer.doPlayOrPause()
-            isPlaying = true
-            return
-        }
-        
+
         playCurrentStep(skipPause: true)
     }
-    
+
     /// Stops playback. A pending pause between translations is cancelled as well,
     /// so the reading stays stopped until playback is resumed explicitly.
     private func pause() {
+        // The reading stays stopped until an explicit Play, even when the pause
+        // arrives while the current step is still loading.
+        isPausing = true
+
         if isAutopausing {
             // Cancels the scheduled transition to the next translation
             isAutopausing = false
-            isPausing = true
             return
         }
-        
+
         guard isPlaying else { return }
-        
+
         audiopleer.doPlayOrPause()
         isPlaying = false
-        isPausing = true
     }
-    
+
     // MARK: Remote transport commands
-    
+
     /// Routes transport commands from the lock screen / Control Center to the same
     /// logic as the on-screen player controls.
     private func installRemoteCommandHandlers() {
         audiopleer.onRemotePlay = { play() }
         audiopleer.onRemotePause = { pause() }
     }
-    
+
     private func uninstallRemoteCommandHandlers() {
         audiopleer.onRemotePlay = nil
         audiopleer.onRemotePause = nil
@@ -933,9 +928,8 @@ struct PageMultilingualReadView: View {
             moveToNextUnit()
             return
         }
-        
+
         retryCount = 0
-        isPausing = false
 
         let step = allSteps[currentStepIndex]
         let pipelineSessionID = self.pipelineSessionID
@@ -1260,14 +1254,20 @@ struct PageMultilingualReadView: View {
                 // When audio is ready to play, start it
                 if newState == .waitingForPlay {
                     print("[MultiRead] State is waitingForPlay")
-                    // Check if PlayerModel already auto-started playback to avoid toggling to PAUSE
-                    if self.audiopleer.state != .playing {
-                        print("[MultiRead] Starting playback (manual)")
-                        self.audiopleer.doPlayOrPause()
+                    if self.isPausing {
+                        // The reading was paused while the audio was still loading —
+                        // it stays stopped until an explicit Play.
+                        print("[MultiRead] Staying stopped: the reading was paused by the user")
                     } else {
-                        print("[MultiRead] Already playing (auto-started), skipping toggle")
+                        // Check if PlayerModel already auto-started playback to avoid toggling to PAUSE
+                        if self.audiopleer.state != .playing {
+                            print("[MultiRead] Starting playback (manual)")
+                            self.audiopleer.doPlayOrPause()
+                        } else {
+                            print("[MultiRead] Already playing (auto-started), skipping toggle")
+                        }
+                        self.isPlaying = true
                     }
-                    self.isPlaying = true
                 }
 
                 // Handle audio loading error — auto-retry once, then skip
