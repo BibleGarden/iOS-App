@@ -9,6 +9,11 @@ enum DebugPlaybackOwner: String {
     case other
 }
 
+enum DebugRemoteCommand: String {
+    case play
+    case pause
+}
+
 final class DebugPlaybackRegistry {
     static let shared = DebugPlaybackRegistry()
 
@@ -19,6 +24,19 @@ final class DebugPlaybackRegistry {
 
     private init() {
         persistCounts()
+    }
+
+    /// Emulates a transport command from the lock screen / Control Center.
+    /// It goes through the same handling as a real command, so the app reacts
+    /// exactly like it does to the system transport controls.
+    func sendRemoteCommand(_ command: DebugRemoteCommand) {
+        guard let owner = PlayerModel.nowPlayingOwner else { return }
+        switch command {
+        case .play:
+            owner.handleRemotePlayCommand()
+        case .pause:
+            owner.handleRemotePauseCommand()
+        }
     }
 
     func registerPlayer(id: UUID, owner: DebugPlaybackOwner) {
@@ -141,7 +159,7 @@ class PlayerDurationObserver {
 
 class PlayerModel: ObservableObject {
     private static let boundaryObserverTimescale: CMTimeScale = 600
-    private static weak var nowPlayingOwner: PlayerModel?
+    fileprivate static weak var nowPlayingOwner: PlayerModel?
     private static var nowPlayingOwnerID: ObjectIdentifier?
     private static var remoteTransportControlsInstalled = false
     
@@ -190,6 +208,11 @@ class PlayerModel: ObservableObject {
     
     var onStartVerse: ((Int) -> Void)?
     var onEndVerse: (() -> Void)?
+    /// Transport command handlers (lock screen / Control Center).
+    /// A screen that drives its own playback flow replaces them, so a remote
+    /// command always follows the same logic as the on-screen player controls.
+    var onRemotePlay: (() -> Void)?
+    var onRemotePause: (() -> Void)?
     var smoothPauseLength = 0.3
     
     private var pauseTimer: Timer?
@@ -226,6 +249,10 @@ class PlayerModel: ObservableObject {
         #endif
         
         self.setupRemoteTransportControls()
+        
+        // Default transport behaviour for screens without their own playback flow
+        self.onRemotePlay = { [weak self] in self?.playSimple() }
+        self.onRemotePause = { [weak self] in self?.pauseSimple() }
         
         // Observe when media duration becomes available
         durationObserver.publisher
@@ -414,7 +441,7 @@ class PlayerModel: ObservableObject {
         commandCenter.playCommand.addTarget { _ in
             DispatchQueue.main.async {
                 guard let owner = PlayerModel.nowPlayingOwner else { return }
-                owner.playSimple()
+                owner.handleRemotePlayCommand()
             }
             return .success
         }
@@ -422,7 +449,7 @@ class PlayerModel: ObservableObject {
         commandCenter.pauseCommand.addTarget { _ in
             DispatchQueue.main.async {
                 guard let owner = PlayerModel.nowPlayingOwner else { return }
-                owner.pauseSimple()
+                owner.handleRemotePauseCommand()
             }
             return .success
         }
@@ -681,6 +708,20 @@ class PlayerModel: ObservableObject {
     }
     #endif
 
+    // MARK: Remote transport commands
+    
+    /// Handles a Play command from the lock screen / Control Center.
+    /// The owner of the playback session decides what "play" means in its flow.
+    func handleRemotePlayCommand() {
+        onRemotePlay?()
+    }
+    
+    /// Handles a Pause command from the lock screen / Control Center.
+    /// The owner of the playback session decides what "pause" means in its flow.
+    func handleRemotePauseCommand() {
+        onRemotePause?()
+    }
+    
     // MARK: Play/Pause handling
     func doPlayOrPause() {
         if self.state == .playing {

@@ -31,7 +31,7 @@ struct PageMultilingualReadView: View {
     @State private var currentUnitIndex: Int = 0 // Which verse/paragraph/fragment are we on
     @State private var currentStepIndex: Int = 0 // Which step within the unit flow
     @State private var isPlaying: Bool = false
-    @State private var isPausing: Bool = false
+    @State private var isPausing: Bool = false // The reading was stopped by the user (on screen or remotely)
     @State private var isAutopausing: Bool = false
     @State private var lastSwitchTime: Date = Date()
     
@@ -234,11 +234,13 @@ struct PageMultilingualReadView: View {
             #if DEBUG
             audiopleer.debugOwner = .multilingualRead
             #endif
+            installRemoteCommandHandlers()
             Task {
                 await loadAllData()
             }
         }
         .onDisappear {
+            uninstallRemoteCommandHandlers()
             shutdownPlaybackPipeline()
             invalidateAudioProgressTracking()
             invalidateTextReadingTracking()
@@ -329,6 +331,29 @@ struct PageMultilingualReadView: View {
                     }
                     .font(.system(size: 1))
                     .foregroundStyle(.clear)
+                    .overlay {
+                        // Debug triggers for the transport commands of the lock screen / Control Center.
+                        // They are placed over the debug block, so the panel layout stays untouched.
+                        VStack(spacing: 0) {
+                            Button {
+                                DebugPlaybackRegistry.shared.sendRemoteCommand(.pause)
+                            } label: {
+                                Text("pause")
+                            }
+                            .font(.system(size: 8))
+                            .frame(width: 40, height: 12)
+                            .accessibilityIdentifier("debug-remote-pause")
+                            Button {
+                                DebugPlaybackRegistry.shared.sendRemoteCommand(.play)
+                            } label: {
+                                Text("play")
+                            }
+                            .font(.system(size: 8))
+                            .frame(width: 40, height: 12)
+                            .accessibilityIdentifier("debug-remote-play")
+                        }
+                        .foregroundStyle(.clear)
+                    }
                     #endif
                 }
                 .padding(.horizontal, globalBasePadding)
@@ -604,6 +629,7 @@ struct PageMultilingualReadView: View {
 
     #if DEBUG
     private var multiPlaybackStateName: String {
+        if isPausing { return "pausing" }
         if isAutopausing { return "autopausing" }
         if isPlaying {
             switch audiopleer.state {
@@ -841,20 +867,65 @@ struct PageMultilingualReadView: View {
     
     // MARK: Playback Control
     private func togglePlayPause() {
+        if isPlaying {
+            pause()
+        } else {
+            play()
+        }
+    }
+    
+    /// Starts or resumes playback. A pending pause between translations is skipped.
+    private func play() {
+        isPausing = false
+        
         if isAutopausing {
             // Cancel the auto-pause timer and skip to the next step
             isAutopausing = false
             playCurrentStep(skipPause: true)
             return
         }
-
-        if isPlaying {
+        
+        if isPlaying { return }
+        
+        if audiopleer.state == .pausing {
+            // Resume the interrupted audio instead of restarting the step
             audiopleer.doPlayOrPause()
-            isPlaying = false
-        } else {
-            // If we are resuming manually, skip any current pause step to move on
-            playCurrentStep(skipPause: true)
+            isPlaying = true
+            return
         }
+        
+        playCurrentStep(skipPause: true)
+    }
+    
+    /// Stops playback. A pending pause between translations is cancelled as well,
+    /// so the reading stays stopped until playback is resumed explicitly.
+    private func pause() {
+        if isAutopausing {
+            // Cancels the scheduled transition to the next translation
+            isAutopausing = false
+            isPausing = true
+            return
+        }
+        
+        guard isPlaying else { return }
+        
+        audiopleer.doPlayOrPause()
+        isPlaying = false
+        isPausing = true
+    }
+    
+    // MARK: Remote transport commands
+    
+    /// Routes transport commands from the lock screen / Control Center to the same
+    /// logic as the on-screen player controls.
+    private func installRemoteCommandHandlers() {
+        audiopleer.onRemotePlay = { play() }
+        audiopleer.onRemotePause = { pause() }
+    }
+    
+    private func uninstallRemoteCommandHandlers() {
+        audiopleer.onRemotePlay = nil
+        audiopleer.onRemotePause = nil
     }
     
     private func playCurrentStep(skipPause: Bool = false) {
@@ -864,6 +935,7 @@ struct PageMultilingualReadView: View {
         }
         
         retryCount = 0
+        isPausing = false
 
         let step = allSteps[currentStepIndex]
         let pipelineSessionID = self.pipelineSessionID
@@ -1152,6 +1224,7 @@ struct PageMultilingualReadView: View {
         retryCount = 0
         isAutopausing = false
         isPlaying = false
+        isPausing = false
         currentAudioVerseNumber = -1
         audiopleer.onStartVerse = nil
         audiopleer.onEndVerse = nil
