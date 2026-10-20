@@ -415,6 +415,11 @@ struct SkeletonView: View {
     @AppStorage("debugPlaybackLiveTotalCount") private var debugPlaybackLiveTotalCount: Int = 0
     @AppStorage("debugPlaybackLiveClassicCount") private var debugPlaybackLiveClassicCount: Int = 0
     @AppStorage("debugPlaybackLiveMultilingualCount") private var debugPlaybackLiveMultilingualCount: Int = 0
+    @AppStorage("debugNowPlayingOwner") private var debugNowPlayingOwner: String = "none"
+    @AppStorage("debugNowPlayingInfoPresent") private var debugNowPlayingInfoPresent: Int = 0
+    @AppStorage("debugRemotePlayCommandEnabled") private var debugRemotePlayCommandEnabled: Int = 0
+    @AppStorage("debugRemotePauseCommandEnabled") private var debugRemotePauseCommandEnabled: Int = 0
+    @AppStorage("debugRemoteCommandStatus") private var debugRemoteCommandStatus: String = "none"
     
     // Not relevant here
     @State private var showAsPartOfRead: Bool = false
@@ -539,6 +544,16 @@ struct SkeletonView: View {
                         .accessibilityIdentifier("debug-playback-live-classic-count")
                     Text("\(debugPlaybackLiveMultilingualCount)")
                         .accessibilityIdentifier("debug-playback-live-multilingual-count")
+                    Text(debugNowPlayingOwner)
+                        .accessibilityIdentifier("debug-now-playing-owner")
+                    Text("\(debugNowPlayingInfoPresent)")
+                        .accessibilityIdentifier("debug-now-playing-info-present")
+                    Text("\(debugRemotePlayCommandEnabled)")
+                        .accessibilityIdentifier("debug-remote-play-enabled")
+                    Text("\(debugRemotePauseCommandEnabled)")
+                        .accessibilityIdentifier("debug-remote-pause-enabled")
+                    Text(debugRemoteCommandStatus)
+                        .accessibilityIdentifier("debug-remote-command-status")
                 }
                 .font(.system(size: 1))
                 .foregroundStyle(.clear)
