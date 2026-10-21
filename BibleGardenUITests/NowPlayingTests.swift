@@ -156,6 +156,8 @@ final class NowPlayingOwnershipTests: XCTestCase {
 
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 30),
                       "Multilingual playback should start")
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "The multilingual AVPlayer should really start")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("multilingualRead", timeout: 10),
                       "Multilingual reading should own the Now Playing session. owner=\(app.debugValue("debug-now-playing-owner") ?? "nil")")
         XCTAssertTrue(app.waitForDebugNowPlayingInfoPresent(true, timeout: 5),
@@ -181,8 +183,10 @@ final class NowPlayingOwnershipTests: XCTestCase {
         let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-menu-remote-play")
         XCTAssertEqual(playStatus, "noActionableNowPlayingItem",
                        "Remote play without an owner should be reported as not actionable. status=\(playStatus ?? "nil")")
-        XCTAssertFalse(app.debugPlaybackCountExceeds(identifier: "debug-playback-total-count", threshold: 0, duration: 5, pollInterval: 0.5),
-                       "Remote play should not start any player")
+        // Отсутствие запуска проверяется по фактической телеметрии всех экземпляров:
+        // ни один AVPlayer не перешёл в воспроизведение.
+        XCTAssertTrue(app.assertNoPlayerIsActuallyPlaying("Remote play should not start any player"),
+                      "Remote play should not start any player")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("none", timeout: 5),
                       "Remote play should not claim the Now Playing session")
     }

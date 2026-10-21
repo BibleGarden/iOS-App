@@ -352,6 +352,14 @@ struct PageMultilingualReadView: View {
                             .font(.system(size: 8))
                             .frame(width: 40, height: 12)
                             .accessibilityIdentifier("debug-remote-play")
+                            Button {
+                                DebugPlaybackRace.shared.start()
+                            } label: {
+                                Text("race")
+                            }
+                            .font(.system(size: 8))
+                            .frame(width: 40, height: 12)
+                            .accessibilityIdentifier("debug-race-51")
                         }
                         .foregroundStyle(.clear)
                     }

@@ -168,60 +168,207 @@ extension XCUIApplication {
         return label.label
     }
 
-    func debugPlaybackCountExceeds(
-        identifier: String,
-        threshold: Int,
-        duration: TimeInterval,
-        pollInterval: TimeInterval = 0.1
-    ) -> Bool {
-        let deadline = Date().addingTimeInterval(duration)
-        while Date() < deadline {
-            if let rawValue = debugPlaybackCount(identifier),
-               let count = Int(rawValue),
-               count > threshold {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
-        }
-        return false
-    }
-
     // MARK: - Actual AVPlayer state (debug registry, только DEBUG-сборка)
 
-    /// Читает из label JSON-словарь владельца → значение.
-    private func debugDictionary(_ identifier: String) -> [String: Any]? {
-        guard let raw = debugValue(identifier),
+    /// Разбирает опубликованный снимок телеметрии.
+    /// nil — снимок не опубликован, нечитаем или содержит ошибку сериализации.
+    private func debugTelemetrySnapshot() -> [String: Any]? {
+        guard let raw = debugValue("debug-player-snapshot"),
               let data = raw.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              json["error"] == nil else {
             return nil
         }
-        return dict
+        return json
+    }
+
+    /// Фактическое состояние одного экземпляра AVPlayer из снимка телеметрии.
+    struct DebugPlayerTelemetry {
+        let id: String
+        let owner: String
+        let timeControlStatus: String
+        let isActuallyPlaying: Bool
+        let playingTransitionCount: Int
+    }
+
+    /// Агрегат по владельцу из снимка телеметрии.
+    struct DebugOwnerTelemetry {
+        let playerIds: [String]
+        let timeControlStatus: String
+        let isActuallyPlaying: Bool
+        let playingTransitionCount: Int
+    }
+
+    /// Результат отладочной команды (детерминированная гонка #51).
+    struct DebugPlaybackRaceResult {
+        let executionId: String
+        let status: String
+        let phases: [String]
+        let error: String?
+        let actualTimeControlStatus: String
+        let playingTransitionCountBefore: Int
+        let playingTransitionCountAfter: Int
+    }
+
+    /// Фактическое состояние всех зарегистрированных экземпляров плееров.
+    /// nil — телеметрия недоступна (это не значит «никто не играет»).
+    func debugPlayersTelemetry() -> [DebugPlayerTelemetry]? {
+        guard let json = debugTelemetrySnapshot(),
+              let players = json["players"] as? [String: Any] else { return nil }
+        var result: [DebugPlayerTelemetry] = []
+        for (id, value) in players {
+            guard let entry = value as? [String: Any],
+                  let owner = entry["owner"] as? String,
+                  let status = entry["timeControlStatus"] as? String,
+                  let isPlaying = entry["isActuallyPlaying"] as? Bool,
+                  let transitions = entry["playingTransitionCount"] as? Int else {
+                return nil
+            }
+            result.append(DebugPlayerTelemetry(id: id,
+                                              owner: owner,
+                                              timeControlStatus: status,
+                                              isActuallyPlaying: isPlaying,
+                                              playingTransitionCount: transitions))
+        }
+        return result
+    }
+
+    /// Агрегат по владельцу. nil — владельца нет в снимке (экземпляр удалён)
+    /// или данные нечитаемы.
+    func debugOwnerTelemetry(forOwner owner: String) -> DebugOwnerTelemetry? {
+        guard let json = debugTelemetrySnapshot(),
+              let owners = json["owners"] as? [String: Any],
+              let entry = owners[owner] as? [String: Any],
+              let playerIds = entry["playerIds"] as? [String],
+              let status = entry["timeControlStatus"] as? String,
+              let isPlaying = entry["isActuallyPlaying"] as? Bool,
+              let transitions = entry["playingTransitionCount"] as? Int else {
+            return nil
+        }
+        return DebugOwnerTelemetry(playerIds: playerIds,
+                                   timeControlStatus: status,
+                                   isActuallyPlaying: isPlaying,
+                                   playingTransitionCount: transitions)
+    }
+
+    /// Владелец удалён из снимка — экземпляров плеера больше нет.
+    /// Это отдельное состояние, его нельзя путать с паузой.
+    func debugOwnerHasNoPlayers(forOwner owner: String) -> Bool {
+        guard let json = debugTelemetrySnapshot(),
+              let owners = json["owners"] as? [String: Any] else { return false }
+        return owners[owner] == nil
     }
 
     /// AVPlayer timeControlStatus владельца: "playing" / "paused" / "waitingToPlay"
     func debugPlayerTimeControlStatus(forOwner owner: String) -> String? {
-        debugDictionary("debug-player-time-control-status")?[owner] as? String
+        debugOwnerTelemetry(forOwner: owner)?.timeControlStatus
     }
 
-    /// Играет ли AVPlayer владельца прямо сейчас (фактически, а не логически)
+    /// Играет ли AVPlayer владельца прямо сейчас (фактически, а не логически).
+    /// nil — данных нет; это не равно «не играет».
     func debugPlayerIsActuallyPlaying(forOwner owner: String) -> Bool? {
-        debugDictionary("debug-player-is-actually-playing")?[owner] as? Int == 1
+        debugOwnerTelemetry(forOwner: owner)?.isActuallyPlaying
     }
 
-    /// Сколько раз плеер владельца перешёл в .playing (включая неожидаемые запуски)
-    func debugUnexpectedPlayStarts(forOwner owner: String) -> Int? {
-        debugDictionary("debug-unexpected-play-starts")?[owner] as? Int
+    /// Сколько раз плеер владельца переходил в .playing.
+    /// История переживает удаление экземпляра.
+    func debugPlayingTransitionCount(forOwner owner: String) -> Int? {
+        debugOwnerTelemetry(forOwner: owner)?.playingTransitionCount
+    }
+
+    /// Играет ли хотя бы один зарегистрированный экземпляр. nil — телеметрия недоступна.
+    func debugAnyPlayerIsActuallyPlaying() -> Bool? {
+        guard let players = debugPlayersTelemetry() else { return nil }
+        return players.contains(where: { $0.isActuallyPlaying })
+    }
+
+    /// Фактическое состояние воспроизведения плеера владельца.
+    /// Остановленный экземпляр и удалённый экземпляр — разные состояния:
+    /// удаление проверяется отдельным условием, а не трактуется как пауза.
+    enum DebugPlayerPlaybackState: String {
+        /// AVPlayer играет.
+        case playing
+        /// Экземпляр жив, AVPlayer не играет.
+        case stopped
+        /// Экземпляр удалён — звука быть не может.
+        case removed
+        /// Телеметрия недоступна — неизвестные данные отвергаются.
+        case unknown
+    }
+
+    func debugPlayerPlaybackState(forOwner owner: String) -> DebugPlayerPlaybackState {
+        if let telemetry = debugOwnerTelemetry(forOwner: owner) {
+            return telemetry.isActuallyPlaying ? .playing : .stopped
+        }
+        return debugOwnerHasNoPlayers(forOwner: owner) ? .removed : .unknown
+    }
+
+    /// Дождаться конкретного состояния фактического воспроизведения.
+    @discardableResult
+    func waitForDebugPlayerPlaybackState(_ expected: DebugPlayerPlaybackState, forOwner owner: String, timeout: TimeInterval = 15) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = DebugPlayerPlaybackState.unknown
+        while Date() < deadline {
+            let current = debugPlayerPlaybackState(forOwner: owner)
+            lastKnown = current
+            if current == expected { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The AVPlayer of '\(owner)' should be '\(expected.rawValue)' within \(Int(timeout))s, got '\(lastKnown.rawValue)'")
+        return false
+    }
+
+    /// Дождаться, пока плеер владельца фактически не играет.
+    /// Остановленный и удалённый экземпляр означают отсутствие звука;
+    /// неизвестные данные отвергаются.
+    @discardableResult
+    func waitForDebugPlayerNotPlaying(forOwner owner: String, timeout: TimeInterval = 15) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = DebugPlayerPlaybackState.unknown
+        while Date() < deadline {
+            let current = debugPlayerPlaybackState(forOwner: owner)
+            lastKnown = current
+            if current == .stopped || current == .removed { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The AVPlayer of '\(owner)' should not play within \(Int(timeout))s, got '\(lastKnown.rawValue)'")
+        return false
+    }
+
+    /// За интервал фактически играет не более одного экземпляра
+    /// (при owner != nil — только экземпляров этого владельца).
+    @discardableResult
+    func assertAtMostOnePlayerPlaying(owner: String? = nil, duration: TimeInterval, pollInterval: TimeInterval = 0.5) -> Bool {
+        let deadline = Date().addingTimeInterval(duration)
+        while Date() < deadline {
+            guard let players = debugPlayersTelemetry() else {
+                XCTFail("The playback telemetry is not available")
+                return false
+            }
+            let scope = owner.map { target in players.filter { $0.owner == target } } ?? players
+            let playing = scope.filter { $0.isActuallyPlaying }
+            if playing.count > 1 {
+                XCTFail("Several AVPlayers are playing at the same time: \(playing.map { $0.id }.joined(separator: ", "))")
+                return false
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+        }
+        return true
     }
 
     /// Дождаться заданного timeControlStatus у AVPlayer владельца
     @discardableResult
     func waitForDebugPlayerTimeControlStatus(_ status: String, forOwner owner: String, timeout: TimeInterval = 20) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "no telemetry"
         while Date() < deadline {
-            if debugPlayerTimeControlStatus(forOwner: owner) == status { return true }
+            if let telemetry = debugOwnerTelemetry(forOwner: owner) {
+                lastKnown = telemetry.timeControlStatus
+                if telemetry.timeControlStatus == status { return true }
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
-        XCTFail("AVPlayer of '\(owner)' should be '\(status)' within \(Int(timeout))s, got '\(debugPlayerTimeControlStatus(forOwner: owner) ?? "nil")'")
+        XCTFail("AVPlayer of '\(owner)' should be '\(status)' within \(Int(timeout))s, got '\(lastKnown)'")
         return false
     }
 
@@ -229,29 +376,134 @@ extension XCUIApplication {
     @discardableResult
     func waitForDebugPlayerActuallyPlaying(_ isPlaying: Bool, forOwner owner: String, timeout: TimeInterval = 20) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "no telemetry"
         while Date() < deadline {
-            if debugPlayerIsActuallyPlaying(forOwner: owner) == isPlaying { return true }
+            if let telemetry = debugOwnerTelemetry(forOwner: owner) {
+                lastKnown = telemetry.isActuallyPlaying ? "playing" : "not playing"
+                if telemetry.isActuallyPlaying == isPlaying { return true }
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
-        XCTFail("AVPlayer of '\(owner)' should be \(isPlaying ? "" : "not ")actually playing within \(Int(timeout))s")
+        XCTFail("AVPlayer of '\(owner)' should be \(isPlaying ? "" : "not ")actually playing within \(Int(timeout))s, got '\(lastKnown)'")
         return false
     }
 
-    /// Убедиться, что за интервал плеер владельца ни разу не начал играть
-    /// (счётчик переходов в .playing не увеличился).
+    /// Дождаться, пока экземпляры плеера владельца будут удалены.
+    /// Отсутствие телеметрии владельца — это удаление, а не пауза.
+    @discardableResult
+    func waitForDebugPlayerRemoved(forOwner owner: String, timeout: TimeInterval = 20) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if debugOwnerHasNoPlayers(forOwner: owner) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The player of '\(owner)' should be released within \(Int(timeout))s")
+        return false
+    }
+
+    /// Ни один зарегистрированный экземпляр не играет фактически.
+    @discardableResult
+    func assertNoPlayerIsActuallyPlaying(_ message: String) -> Bool {
+        guard let isPlaying = debugAnyPlayerIsActuallyPlaying() else {
+            XCTFail("The playback telemetry is not available — \(message)")
+            return false
+        }
+        if isPlaying {
+            XCTFail("Some AVPlayer is still playing — \(message)")
+            return false
+        }
+        return true
+    }
+
+    /// Убедиться, что за интервал плеер владельца ни разу не начал играть.
+    /// Проверяются фактическое состояние AVPlayer, счётчик переходов в .playing
+    /// и идентичность экземпляров: пересоздание плеера обнуляет счётчик,
+    /// поэтому такой случай — ошибка, а не «тишина».
     @discardableResult
     func assertDebugPlayerDidNotStartPlaying(forOwner owner: String, duration: TimeInterval, pollInterval: TimeInterval = 1.0) -> Bool {
-        let startsBefore = debugUnexpectedPlayStarts(forOwner: owner) ?? 0
+        guard let baseline = debugOwnerTelemetry(forOwner: owner) else {
+            XCTFail("No telemetry for '\(owner)' — the player instance is gone, that is not a pause")
+            return false
+        }
+        guard !baseline.isActuallyPlaying else {
+            XCTFail("The AVPlayer of '\(owner)' is already playing before the pause interval")
+            return false
+        }
         let deadline = Date().addingTimeInterval(duration)
         while Date() < deadline {
-            let startsNow = debugUnexpectedPlayStarts(forOwner: owner) ?? 0
-            if startsNow > startsBefore {
-                XCTFail("AVPlayer of '\(owner)' started playing during the pause interval (starts \(startsBefore) → \(startsNow))")
+            guard let current = debugOwnerTelemetry(forOwner: owner) else {
+                XCTFail("The telemetry of '\(owner)' disappeared during the pause interval")
+                return false
+            }
+            if let failure = debugPauseIntervalFailure(owner: owner, baseline: baseline, current: current) {
+                XCTFail(failure)
                 return false
             }
             RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
         }
+        // Обязательное чтение после окончания интервала.
+        guard let final = debugOwnerTelemetry(forOwner: owner) else {
+            XCTFail("The telemetry of '\(owner)' disappeared at the end of the pause interval")
+            return false
+        }
+        if let failure = debugPauseIntervalFailure(owner: owner, baseline: baseline, current: final) {
+            XCTFail(failure)
+            return false
+        }
         return true
+    }
+
+    private func debugPauseIntervalFailure(owner: String, baseline: DebugOwnerTelemetry, current: DebugOwnerTelemetry) -> String? {
+        if current.isActuallyPlaying {
+            return "The AVPlayer of '\(owner)' started playing during the pause interval"
+        }
+        if current.playingTransitionCount > baseline.playingTransitionCount {
+            return "The AVPlayer of '\(owner)' started playing during the pause interval (transitions \(baseline.playingTransitionCount) → \(current.playingTransitionCount))"
+        }
+        if current.playingTransitionCount < baseline.playingTransitionCount {
+            return "The play-start history of '\(owner)' was reset during the pause interval (\(baseline.playingTransitionCount) → \(current.playingTransitionCount))"
+        }
+        if current.playerIds != baseline.playerIds {
+            return "The player instance of '\(owner)' was replaced during the pause interval — the counter was reset"
+        }
+        return nil
+    }
+
+    // MARK: - Debug race command (#51)
+
+    /// Разобранный результат отладочной команды. nil — результата нет или он нечитаем.
+    func debugPlaybackRaceResult() -> DebugPlaybackRaceResult? {
+        guard let raw = debugValue("debug-playback-race-result"),
+              let data = raw.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let executionId = json["executionId"] as? String,
+              let status = json["status"] as? String,
+              let phases = json["phases"] as? [String] else {
+            return nil
+        }
+        return DebugPlaybackRaceResult(
+            executionId: executionId,
+            status: status,
+            phases: phases,
+            error: json["error"] as? String,
+            actualTimeControlStatus: json["actualTimeControlStatus"] as? String ?? "unknown",
+            playingTransitionCountBefore: json["playingTransitionCountBefore"] as? Int ?? 0,
+            playingTransitionCountAfter: json["playingTransitionCountAfter"] as? Int ?? 0
+        )
+    }
+
+    /// Дождаться завершения отладочной команды (гонка #51).
+    @discardableResult
+    func waitForDebugPlaybackRaceResult(timeout: TimeInterval = 30) -> DebugPlaybackRaceResult? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let result = debugPlaybackRaceResult(), result.status != "running" {
+                return result
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The race command should publish its result within \(Int(timeout))s")
+        return nil
     }
 
     // MARK: - Now Playing debug helpers
@@ -368,37 +620,54 @@ extension XCUIApplication {
         return false
     }
 
-    /// Дождаться, пока AVPlayer владельца начнёт играть, и сразу же прислать remote-паузу.
-    /// Ловит короткий сегмент, пока он звучит, вместо фиксированного ожидания.
-    /// Кнопка паузы проверяется в тесте до вызова хелпера, поэтому здесь не ждём её
-    /// Appearance — любая лишняя задержка позволяет короткому стиху закончиться.
-    @discardableResult
-    func waitForPlayerPlayingAndPause(forOwner owner: String, pauseButtonIdentifier: String, timeout: TimeInterval = 30) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if debugPlayerTimeControlStatus(forOwner: owner) == "playing" {
-                buttons[pauseButtonIdentifier].tap()
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        XCTFail("AVPlayer of '\(owner)' never started playing within \(Int(timeout))s")
-        return false
-    }
+}
 
-    /// Ожидает debug-now-playing-state без промежуточного waitForExistence.
-    /// Элемент уже существует; любая лишняя задержка позволяет короткой фазе
-    /// waitingForPause (≈0.3 с) пройти мимо, поэтому опрашиваем плотно сразу.
-    @discardableResult
-    func waitForDebugNowPlayingStateFast(_ state: String, timeout: TimeInterval = 5) -> Bool {
-        let label = staticTexts["debug-now-playing-state"]
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if label.label == state { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+// MARK: - Multilingual navigation without a restart
+
+extension XCUIApplication {
+
+    /// Возврат к мультичтению через страницу настройки — без перезапуска приложения.
+    /// Перезапуск убивает старые плееры и отложенные callback'и, а тест проверяет
+    /// именно возврат в том же процессе.
+    func navigateToMultiReadingPageViaSetup() {
+        navigateViaMenu(to: "menu-multilingual")
+
+        let readingPage = otherElements["page-multi-reading"]
+        let setupPage = otherElements["page-multi-setup"]
+        if !readingPage.waitForExistence(timeout: 10) {
+            XCTAssertTrue(setupPage.waitForExistence(timeout: 5),
+                          "Multilingual reading or setup page should appear")
         }
-        XCTFail("The Now Playing state should become '\(state)' within \(Int(timeout))s, got '\(label.label)'")
-        return false
+        // Идём через настройку: шестерёнка на странице чтения открывает её.
+        if readingPage.exists {
+            let configButton = buttons["multi-config-button"]
+            XCTAssertTrue(configButton.waitForExistence(timeout: 5),
+                          "Multilingual config button should exist")
+            configButton.tap()
+        }
+        XCTAssertTrue(setupPage.waitForExistence(timeout: 5),
+                      "Multi setup page did not appear")
+
+        let saveAndRead = buttons["multilingual-save-and-read"]
+        XCTAssertTrue(saveAndRead.waitForExistence(timeout: 5),
+                      "Save and read button should exist")
+        saveAndRead.tap()
+
+        // Диалог сохранения шаблона — читаем без сохранения.
+        // Идентификатор контейнера диалога наследуется кнопками, поэтому
+        // «без сохранения» ищем по подписи, а не по идентификатору кнопки.
+        let skipByLabel = buttons.matching(NSPredicate(format: "label CONTAINS[c] 'without' OR label CONTAINS[c] 'без'")).firstMatch
+        if skipByLabel.waitForExistence(timeout: 3) {
+            skipByLabel.tap()
+        } else {
+            let alertButtons = buttons.matching(NSPredicate(format: "identifier == 'multi-save-alert'"))
+            if alertButtons.count > 0 {
+                alertButtons.element(boundBy: 0).tap()
+            }
+        }
+
+        XCTAssertTrue(readingPage.waitForExistence(timeout: 10),
+                      "Multi reading page did not appear")
     }
 }
 

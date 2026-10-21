@@ -14,6 +14,43 @@ enum DebugRemoteCommand: String {
     case pause
 }
 
+/// Фактическое состояние одного AVPlayer: timeControlStatus, признак реального
+/// воспроизведения и число переходов в .playing.
+/// Только для отладки — Release эти типы не использует.
+struct DebugPlayerTelemetry: Codable {
+    let owner: String
+    let timeControlStatus: String
+    let isActuallyPlaying: Bool
+    let playingTransitionCount: Int
+}
+
+/// Агрегат по владельцу: все его живые экземпляры.
+/// Экземпляры одного владельца не склеиваются — каждый остаётся в players,
+/// агрегат только считает их.
+struct DebugOwnerTelemetry: Codable {
+    let playerIds: [String]
+    let timeControlStatus: String
+    let isActuallyPlaying: Bool
+    let playingTransitionCount: Int
+}
+
+/// Согласованный снимок телеметрии воспроизведения.
+struct DebugPlaybackTelemetry: Codable {
+    let players: [String: DebugPlayerTelemetry]
+    let owners: [String: DebugOwnerTelemetry]
+}
+
+/// Результат детерминированного воспроизведения гонки #51.
+struct DebugPlaybackRaceResult: Codable {
+    let executionId: String
+    let status: String
+    let phases: [String]
+    let error: String?
+    let actualTimeControlStatus: String
+    let playingTransitionCountBefore: Int
+    let playingTransitionCountAfter: Int
+}
+
 final class DebugPlaybackRegistry {
     static let shared = DebugPlaybackRegistry()
 
@@ -22,11 +59,14 @@ final class DebugPlaybackRegistry {
     private var registeredPlayers: [UUID: DebugPlaybackOwner] = [:]
     private var activePlayers: [UUID: DebugPlaybackOwner] = [:]
     /// Фактическое состояние AVPlayer каждого зарегистрированного плеера (timeControlStatus),
-    /// признак реального воспроизведения и счётчик неожиданных запусков.
+    /// признак реального воспроизведения и число переходов в .playing.
     /// Только для отладки — Release не использует эти поля.
     private var playerTimeControlStatus: [UUID: String] = [:]
     private var playerIsActuallyPlaying: [UUID: Bool] = [:]
-    private var unexpectedPlayStarts: [UUID: Int] = [:]
+    private var playerPlayingTransitionCount: [UUID: Int] = [:]
+    /// Число переходов в .playing по владельцам. Не уменьшается при удалении экземпляра:
+    /// история запусков переживает пересоздание плеера.
+    private var ownerPlayingTransitionCount: [DebugPlaybackOwner: Int] = [:]
     private var lastRemoteCommandStatus: String = "none"
     private var remoteCommandCount: Int = 0
     private var publishedNowPlayingOwner: String?
@@ -113,7 +153,7 @@ final class DebugPlaybackRegistry {
         activePlayers.removeValue(forKey: id)
         playerTimeControlStatus.removeValue(forKey: id)
         playerIsActuallyPlaying.removeValue(forKey: id)
-        unexpectedPlayStarts.removeValue(forKey: id)
+        playerPlayingTransitionCount.removeValue(forKey: id)
         persistCountsLocked()
         lock.unlock()
     }
@@ -127,9 +167,29 @@ final class DebugPlaybackRegistry {
         playerTimeControlStatus[id] = status
         playerIsActuallyPlaying[id] = (status == "playing")
         if status == "playing", !wasPlaying {
-            unexpectedPlayStarts[id, default: 0] += 1
+            playerPlayingTransitionCount[id, default: 0] += 1
+            if let owner = registeredPlayers[id] {
+                ownerPlayingTransitionCount[owner, default: 0] += 1
+            }
         }
         persistCountsLocked()
+        lock.unlock()
+    }
+
+    /// Сколько раз плеер владельца переходил в .playing.
+    /// История переживает удаление экземпляра, поэтому пересоздание плеера
+    /// не обнуляет счётчик.
+    func playingTransitionCount(forOwner owner: String) -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let owner = DebugPlaybackOwner(rawValue: owner) else { return 0 }
+        return ownerPlayingTransitionCount[owner] ?? 0
+    }
+
+    /// Публикует результат отладочной команды (гонка #51).
+    func publishRaceResult(_ result: DebugPlaybackRaceResult) {
+        lock.lock()
+        defaults.set(jsonString(result), forKey: "debugPlaybackRaceResult")
         lock.unlock()
     }
 
@@ -139,8 +199,57 @@ final class DebugPlaybackRegistry {
         lock.unlock()
     }
 
-    private func jsonString(_ dict: [String: Any]) -> String {
-        (try? JSONSerialization.data(withJSONObject: dict)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    /// Сериализует значение для публикации. Ошибка сериализации не прячется:
+    /// публикуется явный маркер, чтобы тест не принял неизвестные данные за «тишину».
+    private func jsonString<T: Encodable>(_ value: T) -> String {
+        guard let data = try? JSONEncoder().encode(value),
+              let text = String(data: data, encoding: .utf8) else {
+            return "{\"error\":\"telemetry-serialization-failed\"}"
+        }
+        return text
+    }
+
+    /// Собирает снимок телеметрии: записи по UUID (владелец — атрибут записи)
+    /// и отдельный агрегат по владельцам. Экземпляры одного владельца не склеиваются.
+    private func buildTelemetryLocked() -> DebugPlaybackTelemetry {
+        var players: [String: DebugPlayerTelemetry] = [:]
+        var instancesByOwner: [DebugPlaybackOwner: [DebugPlayerTelemetry]] = [:]
+        var idsByOwner: [DebugPlaybackOwner: [String]] = [:]
+
+        for (id, owner) in registeredPlayers {
+            let key = id.uuidString
+            let telemetry = DebugPlayerTelemetry(
+                owner: owner.rawValue,
+                timeControlStatus: playerTimeControlStatus[id] ?? "unknown",
+                isActuallyPlaying: playerIsActuallyPlaying[id] ?? false,
+                playingTransitionCount: playerPlayingTransitionCount[id] ?? 0
+            )
+            players[key] = telemetry
+            instancesByOwner[owner, default: []].append(telemetry)
+            idsByOwner[owner, default: []].append(key)
+        }
+
+        var owners: [String: DebugOwnerTelemetry] = [:]
+        for (owner, instances) in instancesByOwner {
+            let status: String
+            if instances.contains(where: { $0.isActuallyPlaying }) {
+                status = "playing"
+            } else if instances.contains(where: { $0.timeControlStatus == "waitingToPlay" }) {
+                status = "waitingToPlay"
+            } else if instances.contains(where: { $0.timeControlStatus == "paused" }) {
+                status = "paused"
+            } else {
+                status = "unknown"
+            }
+            owners[owner.rawValue] = DebugOwnerTelemetry(
+                playerIds: (idsByOwner[owner] ?? []).sorted(),
+                timeControlStatus: status,
+                isActuallyPlaying: instances.contains(where: { $0.isActuallyPlaying }),
+                playingTransitionCount: ownerPlayingTransitionCount[owner] ?? 0
+            )
+        }
+
+        return DebugPlaybackTelemetry(players: players, owners: owners)
     }
 
     private func persistCountsLocked() {
@@ -155,14 +264,8 @@ final class DebugPlaybackRegistry {
         defaults.set(classicCount, forKey: "debugPlaybackClassicCount")
         defaults.set(multilingualCount, forKey: "debugPlaybackMultilingualCount")
 
-        // Фактическое состояние AVPlayer плееров, ключ — имя владельца.
-        let ownerKey: (UUID) -> String = { [self] id in self.registeredPlayers[id]?.rawValue ?? "unknown" }
-        let statusByOwner = Dictionary(uniqueKeysWithValues: playerTimeControlStatus.map { (ownerKey($0.key), $0.value) })
-        let playingByOwner = Dictionary(uniqueKeysWithValues: playerIsActuallyPlaying.map { (ownerKey($0.key), $0.value ? 1 : 0) })
-        let startsByOwner = Dictionary(uniqueKeysWithValues: unexpectedPlayStarts.map { (ownerKey($0.key), $0.value) })
-        defaults.set(jsonString(statusByOwner), forKey: "debugPlayerTimeControlStatus")
-        defaults.set(jsonString(playingByOwner), forKey: "debugPlayerIsActuallyPlaying")
-        defaults.set(jsonString(startsByOwner), forKey: "debugUnexpectedPlayStarts")
+        // Один согласованный снимок фактического состояния всех плееров.
+        defaults.set(jsonString(buildTelemetryLocked()), forKey: "debugPlayerSnapshot")
 
         persistNowPlayingStateLocked()
     }
@@ -208,6 +311,220 @@ final class DebugPlaybackRegistry {
             publishedRemoteCommandCount = remoteCommandCount
             defaults.set(remoteCommandCount, forKey: "debugRemoteCommandCount")
         }
+    }
+}
+
+/// Детерминированное воспроизведение гонки #51:
+/// remote Pause → remote Play → remote Pause.
+///
+/// Критическая последовательность выполняется внутри приложения одним заходом
+/// главного потока и проходит через настоящие обработчики транспортных команд.
+/// Поэтому фазы не могут «уехать» между проверками: состояние модели
+/// подтверждается сразу после вызова обработчика, а не по чтению лейбла из теста.
+///
+/// Команда публикует идентификатор выполнения, достигнутые фазы и явную ошибку
+/// при нарушении предусловий. Только для отладки.
+final class DebugPlaybackRace {
+
+    static let shared = DebugPlaybackRace()
+
+    private let lock = NSLock()
+    private var cancellables = Set<AnyCancellable>()
+    private var timeoutWork: DispatchWorkItem?
+    private var executionId: String = ""
+    private var ownerName: String = ""
+    private var phases: [String] = []
+    private var error: String?
+    private var status: String = "idle"
+    private var transitionsBefore: Int = 0
+    private var transitionsAfter: Int = 0
+
+    private init() {}
+
+    /// Запускает гонку. Вызывается на главном потоке.
+    func start() {
+        lock.lock()
+        cancellables.removeAll()
+        timeoutWork?.cancel()
+        timeoutWork = nil
+        executionId = UUID().uuidString
+        ownerName = ""
+        phases = []
+        error = nil
+        status = "running"
+        transitionsBefore = 0
+        transitionsAfter = 0
+        lock.unlock()
+        appendPhase("started")
+
+        // 1. Исходное состояние: модель играет, и AVPlayer действительно играет.
+        guard let owner = PlayerModel.nowPlayingOwner else {
+            finish(error: "no-now-playing-owner")
+            return
+        }
+        guard owner.state == .playing else {
+            finish(error: "model-state-is-\(owner.debugStateName)-expected-playing")
+            return
+        }
+        guard owner.debugTimeControlStatus == .playing else {
+            let status = PlayerModel.timeControlStatusName(owner.debugTimeControlStatus)
+            finish(error: "avplayer-is-\(status)-expected-playing")
+            return
+        }
+        guard owner.onRemotePlay != nil, owner.onRemotePause != nil else {
+            finish(error: "remote-command-handlers-are-not-installed")
+            return
+        }
+
+        ownerName = owner.debugOwner.rawValue
+        transitionsBefore = DebugPlaybackRegistry.shared.playingTransitionCount(forOwner: ownerName)
+
+        // 2. Pause и немедленное подтверждение фазы .waitingForPause.
+        owner.handleRemotePauseCommand()
+        guard owner.state == .waitingForPause else {
+            finish(error: "pause-did-not-enter-waitingForPause-model-state-is-\(owner.debugStateName)")
+            return
+        }
+        appendPhase("pause-registered")
+
+        // 3. Play: вход в seekToSegment именно из .waitingForPause с прежним item.
+        let itemBefore = owner.debugCurrentItem
+        owner.handleRemotePlayCommand()
+        guard owner.state == .waitingForPause else {
+            finish(error: "play-did-not-enter-seek-from-waitingForPause-model-state-is-\(owner.debugStateName)")
+            return
+        }
+        guard let itemBefore, owner.debugCurrentItem === itemBefore else {
+            finish(error: "play-replaced-the-current-item")
+            return
+        }
+        appendPhase("play-entered-seek")
+
+        // 4. Последний Pause — до завершения seek, без ожидания playing.
+        owner.handleRemotePauseCommand()
+        appendPhase("last-pause")
+
+        // 5. Подтверждаем завершение seek и проверяем фактическое состояние AVPlayer.
+        observeSeekCompletion(owner: owner)
+    }
+
+    // MARK: - Private
+
+    private func observeSeekCompletion(owner: PlayerModel) {
+        // Подписка не удерживает плеер: иначе экземпляр не был бы освобождён
+        // и телеметрия продолжала бы показывать «живой» плеер.
+        let cancellable = owner.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak owner] newState in
+                guard let self = self, newState == .waitingForPlay else { return }
+                guard let owner else {
+                    self.finish(error: "player-was-released-during-the-race")
+                    return
+                }
+                self.verifyActualState(owner: owner, attempt: 0)
+            }
+
+        lock.lock()
+        cancellables.insert(cancellable)
+        lock.unlock()
+
+        // Страховка: незавершённый seek не должен оставлять команду висеть навсегда.
+        let work = DispatchWorkItem { [weak self] in
+            self?.finish(error: "seek-did-not-complete")
+        }
+        lock.lock()
+        timeoutWork = work
+        lock.unlock()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20, execute: work)
+    }
+
+    /// Фактическое состояние AVPlayer после завершения seek: плеер обязан быть
+    /// остановлен, и запусков после последнего Pause быть не должно.
+    private func verifyActualState(owner: PlayerModel, attempt: Int) {
+        let actual = owner.debugTimeControlStatus
+        if actual == .playing {
+            finish(error: "avplayer-is-still-playing")
+            return
+        }
+        if actual == .paused {
+            complete()
+            return
+        }
+        guard attempt < 30 else {
+            let status = PlayerModel.timeControlStatusName(actual)
+            finish(error: "avplayer-is-\(status)-expected-paused")
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.verifyActualState(owner: owner, attempt: attempt + 1)
+        }
+    }
+
+    private func complete() {
+        let after = DebugPlaybackRegistry.shared.playingTransitionCount(forOwner: ownerName)
+        lock.lock()
+        transitionsAfter = after
+        let before = transitionsBefore
+        lock.unlock()
+
+        guard before == after else {
+            finish(error: "unexpected-play-start-transitions-\(before)-to-\(after)")
+            return
+        }
+        appendPhase("seek-completed")
+        appendPhase("avplayer-paused")
+
+        lock.lock()
+        status = "passed"
+        error = nil
+        lock.unlock()
+        publish()
+        scheduleCleanup()
+    }
+
+    private func finish(error: String) {
+        lock.lock()
+        self.error = error
+        self.status = "failed"
+        lock.unlock()
+        publish()
+        scheduleCleanup()
+    }
+
+    /// Отпускает подписку и таймаут: гонка не должна удерживать плеер.
+    private func scheduleCleanup() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.lock.lock()
+            self.cancellables.removeAll()
+            self.timeoutWork?.cancel()
+            self.timeoutWork = nil
+            self.lock.unlock()
+        }
+    }
+
+    private func appendPhase(_ phase: String) {
+        lock.lock()
+        phases.append(phase)
+        lock.unlock()
+        publish()
+    }
+
+    private func publish() {
+        let actual = PlayerModel.nowPlayingOwner
+            .map { PlayerModel.timeControlStatusName($0.debugTimeControlStatus) } ?? "unknown"
+        lock.lock()
+        let result = DebugPlaybackRaceResult(
+            executionId: executionId,
+            status: status,
+            phases: phases,
+            error: error,
+            actualTimeControlStatus: actual,
+            playingTransitionCountBefore: transitionsBefore,
+            playingTransitionCountAfter: transitionsAfter
+        )
+        lock.unlock()
+        DebugPlaybackRegistry.shared.publishRaceResult(result)
     }
 }
 #endif
@@ -368,6 +685,10 @@ class PlayerModel: ObservableObject {
         case .error: return "error"
         }
     }
+    /// Фактическое состояние AVPlayer — читается напрямую, без логической модели.
+    var debugTimeControlStatus: AVPlayer.TimeControlStatus { player.timeControlStatus }
+    /// Текущий item AVPlayer — им идентифицируется экземпляр плеера.
+    var debugCurrentItem: AVPlayerItem? { player.currentItem }
     #endif
     
     // MARK: init
