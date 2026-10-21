@@ -48,11 +48,9 @@ final class ReadSettingsDefaultsTests: XCTestCase {
 
     private func closeSettings() {
         let closeBtn = app.buttons["settings-close"]
-        if closeBtn.waitForExistence(timeout: 3) {
-            closeBtn.tap()
-        } else {
-            app.swipeDown()
-        }
+        XCTAssertTrue(closeBtn.waitForExistence(timeout: 5),
+                      "Settings close button should exist")
+        closeBtn.tap()
     }
 
     private func waitForReadingPage() {
@@ -108,6 +106,12 @@ final class ReadSettingsDefaultsTests: XCTestCase {
         XCTAssertTrue(app.waitForLabel(element: label, toBe: expected, timeout: 5), message)
     }
 
+    /// Дождаться исчезновения элемента (секция диктора сворачивается после выбора).
+    private func waitForElementToDisappear(_ element: XCUIElement, timeout: TimeInterval = 5, _ message: String) {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == 0"), object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: timeout), .completed, message)
+    }
+
     // MARK: - Tests
 
     // Первый запуск с русской системной локалью: выбраны Кулаков (BTI) и
@@ -127,38 +131,39 @@ final class ReadSettingsDefaultsTests: XCTestCase {
         launchCleanFirstRun()
         assertChips(translation: Self.defaultTranslationName, voice: Self.defaultVoiceName)
 
-        // Меняем выбор с дефолтного на SYNO + первый голос (Бондаренко)
+        // Меняем выбор с дефолтного на SYNO + Бондаренко — по названиям, не по индексам.
         openSettings()
 
         let transSection = app.otherElements["setup-translation-section"]
         XCTAssertTrue(transSection.waitForExistence(timeout: 5))
         transSection.tap()
-        Thread.sleep(forTimeInterval: 1) // ждём загрузку списка переводов
 
-        // transSection.buttons: index 0 — заголовок аккордеона, index 1+ — опции.
-        // У выбранного перевода внутри кнопки есть Image(checkmark), у остальных — нет.
-        let translationButtons = transSection.buttons
-        var tappedDifferent = false
-        for i in 1..<translationButtons.count {
-            let btn = translationButtons.element(boundBy: i)
-            guard btn.exists else { continue }
-            if btn.images.count == 0 {
-                btn.tap()
-                tappedDifferent = true
-                break
-            }
-        }
-        XCTAssertTrue(tappedDifferent, "Should find a translation different from the default")
+        // Ждём в раскрывшемся списке именно SYNO по названию
+        // (заголовок аккордеона показывает дефолт BTI и не совпадает).
+        let synoOption = transSection.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", Self.otherTranslationName)
+        ).firstMatch
+        XCTAssertTrue(synoOption.waitForExistence(timeout: 5),
+                      "SYNO option should appear in the expanded translation list")
+        synoOption.tap()
 
-        // После выбора перевода раскрывается секция диктора. Голоса выбираются
-        // через onTapGesture на HStack (не Button), поэтому тапаем по области
-        // имени — левее кнопки превью.
-        Thread.sleep(forTimeInterval: 1)
-        let previewBtn = app.buttons["settings-voice-preview-0"]
-        XCTAssertTrue(previewBtn.waitForExistence(timeout: 5),
+        // После выбора перевода раскрывается секция диктора — ждём её элементы.
+        let voiceSection = app.otherElements["setup-voice-section"]
+        XCTAssertTrue(voiceSection.waitForExistence(timeout: 5))
+        let firstPreviewBtn = app.buttons["settings-voice-preview-0"]
+        XCTAssertTrue(firstPreviewBtn.waitForExistence(timeout: 5),
                       "Voice list should appear after selecting a translation")
-        previewBtn.coordinate(withNormalizedOffset: CGVector(dx: -3.0, dy: 0.5)).tap()
-        Thread.sleep(forTimeInterval: 1)
+
+        // Выбор — тап по имени диктора внутри строки (жест на всей строке,
+        // кнопка превью справа не задевается).
+        let bondarenkoOption = voiceSection.staticTexts[Self.otherVoiceName]
+        XCTAssertTrue(bondarenkoOption.waitForExistence(timeout: 5),
+                      "'\(Self.otherVoiceName)' should appear in the voice list")
+        bondarenkoOption.tap()
+
+        // Выбор голоса сворачивает секцию — конкретный признак применённого выбора.
+        waitForElementToDisappear(firstPreviewBtn,
+                                  "Voice section should collapse after selecting a voice")
 
         closeSettings()
         waitForReadingPage()
