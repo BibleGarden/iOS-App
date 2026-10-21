@@ -737,10 +737,12 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         XCTAssertTrue(app.waitForMultiPlaybackState("pausing", timeout: 10),
                       "Remote pause should stop the multilingual reading")
 
-        // Плеер не должен играть на всём интервале паузы между переводами (опрос с шагом ~1 с).
-        // Интервал покрывает окончание паузы между переводами.
-        XCTAssertFalse(app.debugPlaybackCountExceeds(identifier: "debug-playback-multilingual-count", threshold: 0, duration: 20, pollInterval: 1.0),
-                       "Multilingual player should stay inactive while the reading is paused")
+        // Плеер реально не играет на всём интервале паузы между переводами —
+        // проверяем фактическое состояние AVPlayer, а не только логический счётчик.
+        XCTAssertTrue(app.waitForDebugPlayerActuallyPlaying(false, forOwner: "multilingualRead", timeout: 15),
+                      "AVPlayer should really stop while the reading is paused. state=\(app.debugValue("multi-playback-state") ?? "nil")")
+        XCTAssertTrue(app.assertDebugPlayerDidNotStartPlaying(forOwner: "multilingualRead", duration: 20),
+                      "Multilingual player should stay silent while the reading is paused")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 5),
                       "No player should be active while the reading is paused")
         XCTAssertFalse(app.waitForMultiPlaybackState("playing", timeout: 5),
@@ -769,27 +771,50 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         XCTAssertTrue(playPause.waitForExistence(timeout: 10), "Play button should exist")
         XCTAssertTrue(playPause.isEnabled, "Play button should be enabled")
 
-        playPause.tap()
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 10),
-                      "Multilingual player should be active. count=\(app.debugPlaybackCount("debug-playback-multilingual-count") ?? "nil") state=\(app.debugPlaybackCount("multi-playback-state") ?? "nil")")
-        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 20), "Playback should start")
-
         let remotePause = app.buttons["debug-remote-pause"]
         let remotePlay = app.buttons["debug-remote-play"]
         XCTAssertTrue(remotePause.waitForExistence(timeout: 5), "Debug remote pause button should exist")
         XCTAssertTrue(remotePlay.waitForExistence(timeout: 5), "Debug remote play button should exist")
 
-        // Pause → Play → Pause: последняя команда должна остановить воспроизведение
-        remotePause.tap()
+        playPause.tap()
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 10),
+                      "Multilingual player should be active. count=\(app.debugPlaybackCount("debug-playback-multilingual-count") ?? "nil") state=\(app.debugPlaybackCount("multi-playback-state") ?? "nil")")
+
+        // Ловим момент, пока сегмент реально звучит, и сразу ставим на паузу —
+        // сегмент может быть коротким, поэтому ждём фактического начала воспроизведения
+        // (AVPlayer, а не логическое состояние) и тут же шлём remote-паузу.
+        XCTAssertTrue(app.waitForPlayerPlayingAndPause(forOwner: "multilingualRead", pauseButtonIdentifier: "debug-remote-pause", timeout: 30),
+                      "Should catch the segment while it plays and pause it")
+        // Фаза плавной паузы (.waitingForPause) длится ≈0.3 с — короче задержки доставки tap().
+        // Надёжный признак, что пауза принята и переход в waitingForPause начался:
+        // multi-playback-state становится "pausing" сразу при isPausing = true.
+        XCTAssertTrue(app.waitForMultiPlaybackState("pausing", timeout: 5),
+                      "Pause should be registered and smooth-pause phase started")
+
+        // Сколько запусков воспроизведения было до команды Play (первое — старт чтения).
+        let startsBeforePlay = app.debugUnexpectedPlayStarts(forOwner: "multilingualRead") ?? 0
+
+        // Play строго после регистрации паузы — во время или сразу после плавной паузы.
         remotePlay.tap()
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 10),
+                      "Remote play should resume playback after the smooth pause")
+
+        // seekToSegment приостановил плеер перед запуском — счётчик переходов в .playing
+        // должен увеличиться на 1. При условительной остановке в seekToSegment (баг)
+        // пауза была пропущена, и счётчик не изменился.
+        let startsAfterPlay = app.debugUnexpectedPlayStarts(forOwner: "multilingualRead") ?? 0
+        XCTAssertEqual(startsAfterPlay, startsBeforePlay + 1,
+                       "Play during smooth pause should restart the player after the seek pause. starts \(startsBeforePlay) → \(startsAfterPlay)")
+
+        // Последняя команда Pause — плеер должен реально остановиться.
         remotePause.tap()
 
-        // Даём командам и плавной паузе завершиться
-        Thread.sleep(forTimeInterval: 2)
-
-        // Плеер не должен играть после последней паузы (опрос с шагом ~1 с)
-        XCTAssertFalse(app.debugPlaybackCountExceeds(identifier: "debug-playback-multilingual-count", threshold: 0, duration: 15, pollInterval: 1.0),
-                       "Multilingual player should stay inactive after the Pause → Play → Pause sequence")
+        // Плеер реально не играет после последней паузы: AVPlayer в паузе и за интервал
+        // не было ни одного неожиданного перехода в воспроизведение.
+        XCTAssertTrue(app.waitForDebugPlayerActuallyPlaying(false, forOwner: "multilingualRead", timeout: 15),
+                      "AVPlayer should be paused after the Pause → Play → Pause sequence")
+        XCTAssertTrue(app.assertDebugPlayerDidNotStartPlaying(forOwner: "multilingualRead", duration: 15),
+                      "No sound should start after the Pause → Play → Pause sequence")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 5),
                       "No player should be active after the Pause → Play → Pause sequence")
         XCTAssertTrue(app.waitForMultiPlaybackState("pausing", timeout: 5),

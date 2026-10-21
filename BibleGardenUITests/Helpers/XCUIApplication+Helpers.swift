@@ -186,6 +186,74 @@ extension XCUIApplication {
         return false
     }
 
+    // MARK: - Actual AVPlayer state (debug registry, только DEBUG-сборка)
+
+    /// Читает из label JSON-словарь владельца → значение.
+    private func debugDictionary(_ identifier: String) -> [String: Any]? {
+        guard let raw = debugValue(identifier),
+              let data = raw.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return dict
+    }
+
+    /// AVPlayer timeControlStatus владельца: "playing" / "paused" / "waitingToPlay"
+    func debugPlayerTimeControlStatus(forOwner owner: String) -> String? {
+        debugDictionary("debug-player-time-control-status")?[owner] as? String
+    }
+
+    /// Играет ли AVPlayer владельца прямо сейчас (фактически, а не логически)
+    func debugPlayerIsActuallyPlaying(forOwner owner: String) -> Bool? {
+        debugDictionary("debug-player-is-actually-playing")?[owner] as? Int == 1
+    }
+
+    /// Сколько раз плеер владельца перешёл в .playing (включая неожидаемые запуски)
+    func debugUnexpectedPlayStarts(forOwner owner: String) -> Int? {
+        debugDictionary("debug-unexpected-play-starts")?[owner] as? Int
+    }
+
+    /// Дождаться заданного timeControlStatus у AVPlayer владельца
+    @discardableResult
+    func waitForDebugPlayerTimeControlStatus(_ status: String, forOwner owner: String, timeout: TimeInterval = 20) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if debugPlayerTimeControlStatus(forOwner: owner) == status { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("AVPlayer of '\(owner)' should be '\(status)' within \(Int(timeout))s, got '\(debugPlayerTimeControlStatus(forOwner: owner) ?? "nil")'")
+        return false
+    }
+
+    /// Дождаться, пока AVPlayer владельца станет (не) играть фактически
+    @discardableResult
+    func waitForDebugPlayerActuallyPlaying(_ isPlaying: Bool, forOwner owner: String, timeout: TimeInterval = 20) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if debugPlayerIsActuallyPlaying(forOwner: owner) == isPlaying { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("AVPlayer of '\(owner)' should be \(isPlaying ? "" : "not ")actually playing within \(Int(timeout))s")
+        return false
+    }
+
+    /// Убедиться, что за интервал плеер владельца ни разу не начал играть
+    /// (счётчик переходов в .playing не увеличился).
+    @discardableResult
+    func assertDebugPlayerDidNotStartPlaying(forOwner owner: String, duration: TimeInterval, pollInterval: TimeInterval = 1.0) -> Bool {
+        let startsBefore = debugUnexpectedPlayStarts(forOwner: owner) ?? 0
+        let deadline = Date().addingTimeInterval(duration)
+        while Date() < deadline {
+            let startsNow = debugUnexpectedPlayStarts(forOwner: owner) ?? 0
+            if startsNow > startsBefore {
+                XCTFail("AVPlayer of '\(owner)' started playing during the pause interval (starts \(startsBefore) → \(startsNow))")
+                return false
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+        }
+        return true
+    }
+
     // MARK: - Now Playing debug helpers
 
     /// Read a debug value published by the app
@@ -297,6 +365,39 @@ extension XCUIApplication {
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
         XCTFail("The Now Playing state should leave \(states.joined(separator: ", ")) within \(Int(timeout))s, got '\(label.label)'")
+        return false
+    }
+
+    /// Дождаться, пока AVPlayer владельца начнёт играть, и сразу же прислать remote-паузу.
+    /// Ловит короткий сегмент, пока он звучит, вместо фиксированного ожидания.
+    /// Кнопка паузы проверяется в тесте до вызова хелпера, поэтому здесь не ждём её
+    /// Appearance — любая лишняя задержка позволяет короткому стиху закончиться.
+    @discardableResult
+    func waitForPlayerPlayingAndPause(forOwner owner: String, pauseButtonIdentifier: String, timeout: TimeInterval = 30) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if debugPlayerTimeControlStatus(forOwner: owner) == "playing" {
+                buttons[pauseButtonIdentifier].tap()
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("AVPlayer of '\(owner)' never started playing within \(Int(timeout))s")
+        return false
+    }
+
+    /// Ожидает debug-now-playing-state без промежуточного waitForExistence.
+    /// Элемент уже существует; любая лишняя задержка позволяет короткой фазе
+    /// waitingForPause (≈0.3 с) пройти мимо, поэтому опрашиваем плотно сразу.
+    @discardableResult
+    func waitForDebugNowPlayingStateFast(_ state: String, timeout: TimeInterval = 5) -> Bool {
+        let label = staticTexts["debug-now-playing-state"]
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if label.label == state { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTFail("The Now Playing state should become '\(state)' within \(Int(timeout))s, got '\(label.label)'")
         return false
     }
 }

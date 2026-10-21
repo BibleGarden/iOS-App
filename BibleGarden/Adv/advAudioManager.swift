@@ -21,6 +21,12 @@ final class DebugPlaybackRegistry {
     private let lock = NSLock()
     private var registeredPlayers: [UUID: DebugPlaybackOwner] = [:]
     private var activePlayers: [UUID: DebugPlaybackOwner] = [:]
+    /// Фактическое состояние AVPlayer каждого зарегистрированного плеера (timeControlStatus),
+    /// признак реального воспроизведения и счётчик неожиданных запусков.
+    /// Только для отладки — Release не использует эти поля.
+    private var playerTimeControlStatus: [UUID: String] = [:]
+    private var playerIsActuallyPlaying: [UUID: Bool] = [:]
+    private var unexpectedPlayStarts: [UUID: Int] = [:]
     private var lastRemoteCommandStatus: String = "none"
     private var remoteCommandCount: Int = 0
     private var publishedNowPlayingOwner: String?
@@ -105,6 +111,24 @@ final class DebugPlaybackRegistry {
         lock.lock()
         registeredPlayers.removeValue(forKey: id)
         activePlayers.removeValue(forKey: id)
+        playerTimeControlStatus.removeValue(forKey: id)
+        playerIsActuallyPlaying.removeValue(forKey: id)
+        unexpectedPlayStarts.removeValue(forKey: id)
+        persistCountsLocked()
+        lock.unlock()
+    }
+
+    /// Called from PlayerModel via KVO observation of AVPlayer.timeControlStatus.
+    /// Публикует фактическое состояние плеера и считает каждый переход в .playing
+    /// (независимо от того, PlayerModel так задумывал или нет).
+    func setPlayerTimeControlStatus(id: UUID, status: String) {
+        lock.lock()
+        let wasPlaying = playerIsActuallyPlaying[id] ?? false
+        playerTimeControlStatus[id] = status
+        playerIsActuallyPlaying[id] = (status == "playing")
+        if status == "playing", !wasPlaying {
+            unexpectedPlayStarts[id, default: 0] += 1
+        }
         persistCountsLocked()
         lock.unlock()
     }
@@ -113,6 +137,10 @@ final class DebugPlaybackRegistry {
         lock.lock()
         persistCountsLocked()
         lock.unlock()
+    }
+
+    private func jsonString(_ dict: [String: Any]) -> String {
+        (try? JSONSerialization.data(withJSONObject: dict)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 
     private func persistCountsLocked() {
@@ -126,6 +154,16 @@ final class DebugPlaybackRegistry {
         defaults.set(activePlayers.count, forKey: "debugPlaybackTotalCount")
         defaults.set(classicCount, forKey: "debugPlaybackClassicCount")
         defaults.set(multilingualCount, forKey: "debugPlaybackMultilingualCount")
+
+        // Фактическое состояние AVPlayer плееров, ключ — имя владельца.
+        let ownerKey: (UUID) -> String = { [self] id in self.registeredPlayers[id]?.rawValue ?? "unknown" }
+        let statusByOwner = Dictionary(uniqueKeysWithValues: playerTimeControlStatus.map { (ownerKey($0.key), $0.value) })
+        let playingByOwner = Dictionary(uniqueKeysWithValues: playerIsActuallyPlaying.map { (ownerKey($0.key), $0.value ? 1 : 0) })
+        let startsByOwner = Dictionary(uniqueKeysWithValues: unexpectedPlayStarts.map { (ownerKey($0.key), $0.value) })
+        defaults.set(jsonString(statusByOwner), forKey: "debugPlayerTimeControlStatus")
+        defaults.set(jsonString(playingByOwner), forKey: "debugPlayerIsActuallyPlaying")
+        defaults.set(jsonString(startsByOwner), forKey: "debugUnexpectedPlayStarts")
+
         persistNowPlayingStateLocked()
     }
 
@@ -456,6 +494,13 @@ class PlayerModel: ObservableObject {
                     self.isStalled = false
                 }
                 self.setupNowPlaying()
+
+                #if DEBUG
+                DebugPlaybackRegistry.shared.setPlayerTimeControlStatus(
+                    id: self.debugPlayerID,
+                    status: PlayerModel.timeControlStatusName(status)
+                )
+                #endif
             }
             .store(in: &cancellables)
     }
@@ -836,6 +881,16 @@ class PlayerModel: ObservableObject {
             owner: debugOwner,
             isActive: isActive
         )
+    }
+
+    /// Human-readable name of AVPlayer.TimeControlStatus for the debug registry.
+    static func timeControlStatusName(_ status: AVPlayer.TimeControlStatus) -> String {
+        switch status {
+        case .playing: return "playing"
+        case .paused: return "paused"
+        case .waitingToPlayAtSpecifiedRate: return "waitingToPlay"
+        @unknown default: return "unknown"
+        }
     }
     #endif
 

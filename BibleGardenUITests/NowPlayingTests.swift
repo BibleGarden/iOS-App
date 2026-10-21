@@ -65,6 +65,8 @@ final class NowPlayingOwnershipTests: XCTestCase {
                        "Remote pause with an owner should be handled. status=\(pauseStatus ?? "nil")")
         XCTAssertTrue(app.waitForReadPlaybackState("pausing", timeout: 10),
                       "Remote pause should stop the classic playback. state=\(app.debugValue("read-playback-state") ?? "nil")")
+        XCTAssertTrue(app.waitForDebugPlayerActuallyPlaying(false, forOwner: "classicRead", timeout: 15),
+                      "Classic AVPlayer should really pause after remote pause")
 
         // Remote Play снова запускает воспроизведение
         let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-menu-remote-play")
@@ -72,6 +74,8 @@ final class NowPlayingOwnershipTests: XCTestCase {
                        "Remote play with an owner should be handled. status=\(playStatus ?? "nil")")
         XCTAssertTrue(app.waitForReadPlaybackState("playing", timeout: 15),
                       "Remote play should resume the classic playback. state=\(app.debugValue("read-playback-state") ?? "nil")")
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 15),
+                      "Classic AVPlayer should really play after remote play")
     }
 
     // #53 — Мультичтение владеет Now Playing: команды Play/Pause включены,
@@ -85,8 +89,9 @@ final class NowPlayingOwnershipTests: XCTestCase {
         XCTAssertTrue(waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
         multiPlayPause.tap()
 
-        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 30),
-                      "Multilingual playback should start")
+        // Ждём реального старта аудио (AVPlayer играет), а не только логического состояния
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "Multilingual playback should really start. state=\(app.debugValue("multi-playback-state") ?? "nil")")
         XCTAssertTrue(app.waitForDebugNowPlayingState("playing", timeout: 15),
                       "The player that owns the session should be playing. state=\(app.debugValue("debug-now-playing-state") ?? "nil")")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("multilingualRead", timeout: 10),
@@ -105,6 +110,8 @@ final class NowPlayingOwnershipTests: XCTestCase {
         // плавной паузы — ждём её окончания и проверяем состояние самого плеера.
         XCTAssertTrue(app.waitForDebugNowPlayingState(excluding: ["playing", "waitingForPause"], timeout: 15),
                       "The smooth pause should be finished. state=\(app.debugValue("debug-now-playing-state") ?? "nil")")
+        XCTAssertTrue(app.waitForDebugPlayerActuallyPlaying(false, forOwner: "multilingualRead", timeout: 15),
+                      "Multilingual AVPlayer should really pause after the smooth pause")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 10),
                       "No player should stay active after the remote pause. count=\(app.debugValue("debug-playback-total-count") ?? "nil")")
 
@@ -114,6 +121,8 @@ final class NowPlayingOwnershipTests: XCTestCase {
                        "Remote play with an owner should be handled. status=\(playStatus ?? "nil")")
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 20),
                       "Remote play should resume the multilingual reading. state=\(app.debugValue("multi-playback-state") ?? "nil")")
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 20),
+                      "Multilingual AVPlayer should really play after remote play")
     }
 
     // #54 — Обычное чтение → мультичтение → уход из мультичтения → команда Play с экрана блокировки.

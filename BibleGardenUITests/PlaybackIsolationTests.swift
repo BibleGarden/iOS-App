@@ -57,8 +57,8 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(multiPlayPause.waitForExistence(timeout: 5), "Multilingual play button should exist")
         multiPlayPause.tap()
 
-        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 15),
-                      "Multilingual playback should start")
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "Multilingual playback should really start")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-classic-count", value: "0", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
@@ -194,6 +194,10 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-classic-count", value: "0", timeout: 5))
+        // Дождёмся фактического воспроизведения (готовности аудио), а не только
+        // регистрации плеера — тестовый API может загружать аудио долго.
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "Multilingual playback should really start before switching")
 
         app.navigateToReadingPage()
 
@@ -232,6 +236,10 @@ final class PlaybackIsolationTests: XCTestCase {
 
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
+        // Дождёмся фактического воспроизведения (готовности аудио), а не только
+        // регистрации плеера — тестовый API может загружать аудио долго.
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "Multilingual playback should really start before leaving")
 
         app.navigateViaMenu(to: "menu-main")
 
@@ -242,6 +250,13 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 10),
                       "No playback should remain active on the main page")
 
+        // Возврат к мультичтению: с запущенного приложения переход через menu-multilingual
+        // попадает на страницу настройки, а не сразу на чтение, поэтому перезапускаем приложение
+        // с теми же аргументами — это гарантирует чистое состояние без авто-восстановления плеера.
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--multi-template", "default"]
+        app.launch()
         app.navigateToMultiReadingPage()
 
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "0", timeout: 5),
@@ -257,8 +272,8 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(multiPlayPauseAfterReturn.waitForExistence(timeout: 5), "Multilingual play button should exist after return")
         multiPlayPauseAfterReturn.tap()
 
-        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 15),
-                      "Multilingual playback should start again on demand")
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "Multilingual playback should really start again on demand")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
     }
