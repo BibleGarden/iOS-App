@@ -276,6 +276,11 @@ class PlayerModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var isStalled: Bool = false
     @Published var isBufferingLong: Bool = false
+
+    /// True when the player holds an audio item that can be played.
+    var hasCurrentItem: Bool {
+        player.currentItem != nil
+    }
     
     private var oldState = PlaybackState.waitingForSelection
     private var audioVerses: [BibleAcousticalVerseFull] = []
@@ -769,8 +774,10 @@ class PlayerModel: ObservableObject {
         }
     }
     
-    /// Immediately stop playback (used before chapter switch to prevent old audio leaking)
-    func stop() {
+    /// Immediately stops the playback, but keeps the Now Playing session.
+    /// The owner of the session stays the owner, so the transport commands of the
+    /// lock screen / Control Center stay available while the next chapter is loading.
+    func stopPlayback() {
         cancelSmoothPause()
         player.pause()
         if state == .playing
@@ -785,13 +792,21 @@ class PlayerModel: ObservableObject {
         bufferingTimeoutWork?.cancel()
         bufferingIndicatorWork?.cancel()
         stalledSetWork?.cancel()
+    }
+
+    /// Immediately stops the playback and releases the Now Playing session.
+    /// Used when the screen that owns the playback is left.
+    func stop() {
+        stopPlayback()
         releaseNowPlaying()
     }
 
-    func shutdown() {
-        stop()
-        pauseTimer?.invalidate()
-        pauseTimer = nil
+    /// Removes the current audio from the player, but keeps the Now Playing session.
+    /// The old track can not be resumed any more and its verse callbacks are gone,
+    /// so a chapter that is replaced never plays the audio of the previous one.
+    func detachCurrentItem() {
+        stopPlayback()
+        deleteObservation()
         player.replaceCurrentItem(with: nil)
         currentItemURL = nil
         audioVerses = []
@@ -803,6 +818,12 @@ class PlayerModel: ObservableObject {
         errorMessage = nil
         oldState = .waitingForSelection
         state = .waitingForSelection
+    }
+
+    func shutdown() {
+        detachCurrentItem()
+        pauseTimer?.invalidate()
+        pauseTimer = nil
         releaseNowPlaying()
     }
 
@@ -892,15 +913,19 @@ class PlayerModel: ObservableObject {
         }
     }
     
-    private func playSimple() {
+    /// Starts the playback immediately, without the smooth pause.
+    /// A screen that drives its own playback flow uses it for the transport
+    /// commands of the lock screen / Control Center.
+    func playSimple() {
         cancelSmoothPause()
         claimNowPlaying()
         self.player.play()
         self.state = .playing
         self.isBufferingLong = false
     }
-    
-    private func pauseSimple() {
+
+    /// Stops the playback immediately, without the smooth pause.
+    func pauseSimple() {
         cancelSmoothPause()
         self.player.pause()
         self.state = .pausing
