@@ -69,6 +69,18 @@ final class ClassicReadingTests: XCTestCase {
                       "Should return to reading page")
     }
 
+    /// Restarts the app with an explicitly pinned app language.
+    ///
+    /// Without this the app language (and the default translation) depends on
+    /// the simulator locale, so scenarios whose test data contract is stated
+    /// for a specific language must not rely on the environment.
+    private func relaunchApp(language: String) {
+        app.terminate()
+        app.launchArguments = ["--uitesting", "--app-language", language]
+        app.launch()
+        app.navigateToReadingPage()
+    }
+
     // MARK: - Загрузка и отображение
 
     // #1 — Открываем страницу чтения через меню.
@@ -547,10 +559,12 @@ final class ClassicReadingTests: XCTestCase {
 
     // #26 — Меняем перевод в настройках.
     // Результат: заголовок секции диктора сбрасывается на заглушку.
-    // Контракт тестовых данных: живой API предоставляет ≥2 языка и ≥2 перевода
-    // для языка по умолчанию (en). Меньше — нарушение контракта, а не пропуск.
+    // Контракт тестовых данных заявлен для en, поэтому язык задаётся явно
+    // (--app-language en), а не локалью симулятора: живой API предоставляет
+    // ≥2 языка и ≥2 перевода для en. Меньше — нарушение контракта, не пропуск.
     @MainActor
     func testSettingsTranslationResetsVoice() throws {
+        relaunchApp(language: "en")
         openSettings()
 
         // Запоминаем заголовок секции диктора до изменений
@@ -605,10 +619,13 @@ final class ClassicReadingTests: XCTestCase {
 
     // #27 — Меняем язык в настройках, но НЕ выбираем диктора и закрываем sheet.
     // Результат: перевод остаётся прежним — изменения не сохранились без выбора voice.
-    // Контракт тестовых данных: живой API предоставляет ≥2 языка и ≥2 перевода
-    // для языка по умолчанию (en). Меньше — нарушение контракта, а не пропуск.
+    // Контракт тестовых данных заявлен для en, поэтому язык задаётся явно
+    // (--app-language en), а не локалью симулятора: живой API предоставляет
+    // ≥2 языка и ≥2 перевода для en. Меньше — нарушение контракта, не пропуск.
     @MainActor
     func testSettingsResetNotPersistedWithoutVoice() throws {
+        relaunchApp(language: "en")
+
         let translationChip = app.buttons["read-translation-chip"]
         XCTAssertTrue(translationChip.waitForExistence(timeout: 5))
         let originalTranslation = translationChip.label

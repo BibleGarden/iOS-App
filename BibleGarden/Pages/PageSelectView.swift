@@ -13,10 +13,10 @@ struct PageSelectView: View {
     @State private var needSelectedBookOpen: Bool = true
     // The auto-scroll is the initial positioning only: the first manual
     // interaction with the list (book tap, chapter tap, testament switch,
-    // scrolling) cancels it, including the already scheduled callbacks, so a
-    // late list/current-book update can never override the user's position.
+    // scrolling) cancels it, so a late list/current-book update can never
+    // override the user's position. The positioning itself is one-shot and
+    // driven by the layout signal of the current book's row, not by timers.
     @State private var isInitialAutoScrollActive: Bool = true
-    @State private var pendingAutoScrollWorkItems: [DispatchWorkItem] = []
     
     @State private var booksInfo: [Components.Schemas.TranslationBookModel] = []
     
@@ -317,6 +317,16 @@ struct PageSelectView: View {
                                     .padding(.vertical, 10)
                                     .opacity(hasNoTextForWholeBook ? 0.3 : 1)
                                     .id("book_\(book.book_number)")
+                                    .background(
+                                        GeometryReader { geo in
+                                            Color.clear.preference(
+                                                key: CurrentBookRowGeometryKey.self,
+                                                value: book.book_number == settingsManager.currentBookId && geo.size.width > 0
+                                                    ? book.book_number
+                                                    : nil
+                                            )
+                                        }
+                                    )
                                 }
                                 .disabled(hasNoTextForWholeBook)
                                 .accessibilityIdentifier("book_\(book.book_number)")
@@ -333,14 +343,8 @@ struct PageSelectView: View {
                 
             }
             .frame(maxHeight: .infinity)
-            .onAppear {
-                scheduleInitialAutoScroll(proxy: proxy)
-            }
-            .onChange(of: booksInfo) { _ in
-                scheduleInitialAutoScroll(proxy: proxy)
-            }
-            .onChange(of: settingsManager.currentBookId) { _ in
-                scheduleInitialAutoScroll(proxy: proxy)
+            .onPreferenceChange(CurrentBookRowGeometryKey.self) { bookNumber in
+                positionInitially(atBook: bookNumber, proxy: proxy)
             }
             .onChange(of: scrollToTop) { newValue in
                 if newValue {
@@ -360,36 +364,53 @@ struct PageSelectView: View {
         }
     }
 
-    /// Scrolls the book list to the current book at the initial positioning.
+    /// One-shot initial positioning of the book list.
     ///
-    /// The chapter grid is lazy: its buttons are created only when the book row
-    /// is close to the viewport. A `scrollTo` issued in the same layout pass in
-    /// which the lazy content is inserted may silently do nothing, so the scroll
-    /// is deferred to the next run loop turn and repeated once more shortly
-    /// after — both attempts stay cancelable by the first manual interaction.
-    private func scheduleInitialAutoScroll(proxy: ScrollViewProxy) {
-        guard isInitialAutoScrollActive, !booksInfo.isEmpty else { return }
-        let bookId = settingsManager.currentBookId
-        pendingAutoScrollWorkItems.forEach { $0.cancel() }
-        pendingAutoScrollWorkItems = []
-        for delay in [0.0, 0.35] {
-            let work = DispatchWorkItem {
-                proxy.scrollTo("book_\(bookId)", anchor: .top)
-            }
-            pendingAutoScrollWorkItems.append(work)
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
-        }
+    /// It runs on the layout signal of the current book's row, not on a timer:
+    /// the book list is a plain (non-lazy) VStack, so every row — including
+    /// the current book's — receives geometry in the first layout pass, and
+    /// `onPreferenceChange` fires after that pass. The scroll target is
+    /// therefore guaranteed to be laid out, which is exactly what a `scrollTo`
+    /// from `onAppear` cannot promise. Performed at most once per presentation;
+    /// a manual interaction cancels it beforehand.
+    ///
+    /// Note on cleanup: the positioning has no deferred work (no timers, no
+    /// scheduled callbacks), so `onDisappear` has nothing to cancel — and a
+    /// flag reset there is actively wrong: right after the loading spinner the
+    /// empty list renders once and is then replaced by the filled one, and
+    /// that subtree replacement fires `onDisappear` before the row signal
+    /// arrives. The `isInitialAutoScrollActive` flag is scoped by `@State` to
+    /// the lifetime of the whole sheet presentation.
+    private func positionInitially(atBook bookNumber: Int?, proxy: ScrollViewProxy) {
+        guard isInitialAutoScrollActive, let bookNumber else { return }
+        isInitialAutoScrollActive = false
+        proxy.scrollTo("book_\(bookNumber)", anchor: .top)
     }
 
-    /// Cancels the initial auto-scroll together with its scheduled callbacks.
+    /// Cancels the initial auto-scroll.
     private func cancelInitialAutoScroll() {
         isInitialAutoScrollActive = false
-        pendingAutoScrollWorkItems.forEach { $0.cancel() }
-        pendingAutoScrollWorkItems = []
     }
     
 }
 
+
+/// Layout signal of the current book's row inside the book list.
+///
+/// The list itself is a plain (non-lazy) VStack, so all book rows get geometry
+/// in the first layout pass; only the chapter grids inside rows are lazy. The
+/// row of the currently open book reports its number once it actually has
+/// geometry — `onPreferenceChange` runs after that layout pass, which makes it
+/// a reliable "the scroll target is laid out" signal. A new number is reported
+/// when the current book changes (e.g. the chapter finished loading after the
+/// sheet was opened); `nil` is reported while there is no current book row.
+private struct CurrentBookRowGeometryKey: PreferenceKey {
+    static let defaultValue: Int? = nil
+
+    static func reduce(value: inout Int?, nextValue: () -> Int?) {
+        value = nextValue() ?? value
+    }
+}
 
 struct TestPageSelectView: View {
     
