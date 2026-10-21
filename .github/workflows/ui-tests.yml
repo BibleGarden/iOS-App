@@ -14,6 +14,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  API_BASE_URL: https://test-api.bible.garden
   DEVELOPER_DIR: /Applications/Xcode_26.3.app
   DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.2
   DERIVED_DATA: build/DerivedData
@@ -21,8 +22,8 @@ env:
 
 jobs:
   # Secrets are not passed to workflows triggered from forks, so UI tests
-  # cannot reach the test API there. The skip is stated explicitly instead of
-  # letting the job fail or silently pass without tests.
+  # cannot authenticate to the test API there. The skip is stated explicitly
+  # instead of letting the job fail or silently pass without tests.
   fork-notice:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
@@ -38,13 +39,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Write Debug.xcconfig from secrets
+      - name: Write Debug.xcconfig
         env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
           API_KEY: ${{ secrets.API_KEY }}
         run: |
-          if [ -z "$API_BASE_URL" ] || [ -z "$API_KEY" ]; then
-            echo "::error::Repository secrets API_BASE_URL and API_KEY must be set."
+          if [ -z "$API_KEY" ]; then
+            echo "::error::Repository secret API_KEY must be set."
             exit 1
           fi
           # xcconfig treats // as a comment; $() breaks the sequence.
@@ -55,13 +55,12 @@ jobs:
 
       - name: Check test API health
         env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
           API_KEY: ${{ secrets.API_KEY }}
         run: |
           status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
             -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/health") || status=unreachable
           if [ "$status" != "200" ]; then
-            echo "::error title=Test API unavailable::GET /api/health returned $status. UI tests skip themselves without the API, so the job stops here."
+            echo "::error title=Test API unavailable::GET $API_BASE_URL/api/health returned $status. UI tests skip themselves without the API, so the job stops here."
             exit 1
           fi
 

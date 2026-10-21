@@ -27,7 +27,7 @@ These values surface through `Info.plist` → `Config.swift` (`Config.baseURL`, 
 ### CI
 
 `.github/workflows/ui-tests.yml` runs the UI tests on every pull request and on push to `main` (GitHub-hosted `macos-26`, Xcode 26.3, iPhone 17 simulator with iOS 26.2):
-- `BibleGarden/Debug.xcconfig` is written from repository secrets `API_BASE_URL` (plain URL such as `https://host`) and `API_KEY` of the **test** Bible-API; production is never used by CI.
+- `BibleGarden/Debug.xcconfig` is written from `API_BASE_URL` in the workflow (`https://test-api.bible.garden`, the **test** Bible-API) and repository secret `API_KEY` of that server; production is never used by CI.
 - The job fails before building when `GET /api/health` does not answer 200: the tests skip themselves without the API, so a run without this check would be green and prove nothing.
 - `build-for-testing` uses only the committed `Package.resolved`; `test-without-building` runs test plan `BibleGarden` without `DemoRecordingTests` (an App Store preview script, not a test).
 - On failure `UITests.xcresult` is uploaded as an artifact; pass/fail/skip counts go to the job summary. Investigate the result bundle instead of re-running a red job.

@@ -21,7 +21,7 @@ UI tests live in `BibleGardenUITests/` with shared helpers in `BibleGardenUITest
   Runs UI tests from the test plan.
 
 ## Continuous Integration
-`.github/workflows/ui-tests.yml` builds the app and runs the UI test plan on GitHub-hosted macOS runners for every pull request and push to `main`. It writes `BibleGarden/Debug.xcconfig` from repository secrets `API_BASE_URL` and `API_KEY` of the test Bible-API (never production), fails fast when `GET /api/health` is not 200, skips `DemoRecordingTests`, and uploads `UITests.xcresult` when the job fails. Fork pull requests have no secrets and skip UI tests with a notice. Details are in `CLAUDE.md` → CI. Investigate a red run through its result bundle; do not re-run it to get green.
+`.github/workflows/ui-tests.yml` builds the app and runs the UI test plan on GitHub-hosted macOS runners for every pull request and push to `main`. It writes `BibleGarden/Debug.xcconfig` for the test Bible-API `https://test-api.bible.garden` with repository secret `API_KEY` (never production), fails fast when `GET /api/health` is not 200, skips `DemoRecordingTests`, and uploads `UITests.xcresult` when the job fails. Fork pull requests have no secrets and skip UI tests with a notice. Details are in `CLAUDE.md` → CI. Investigate a red run through its result bundle; do not re-run it to get green.
 
 ## Coding Style & Naming Conventions
 Use Swift 5/SwiftUI conventions: 4-space indentation, no tabs, and `// MARK:` separators in larger files. Use `UpperCamelCase` for types and views, `lowerCamelCase` for properties/functions, and descriptive enum cases. Keep screen files as `Page*View.swift`; keep existing `adv*` naming in shared legacy modules. Prefer `.accessibilityIdentifier("...")` for interactive UI to keep tests stable.
