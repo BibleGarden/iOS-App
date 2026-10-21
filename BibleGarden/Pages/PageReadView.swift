@@ -390,12 +390,14 @@ struct PageReadView: View {
 
             // UI Testing: delay the load of the audio, so the window while the
             // chapter is loading can be observed by a test.
-            if let delay = TestingEnvironment.chapterLoadDelay, delay > 0 {
+            #if DEBUG
+            if TestingEnvironment.isUITesting, let delay = TestingEnvironment.chapterLoadDelay, delay > 0 {
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { return }
                 guard self.playbackPipelineSessionID == sessionID else { return }
                 guard self.pageLifecycleSessionID == lifecycleID else { return }
             }
+            #endif
 
             // Check for audio availability
             if effectiveFirstUrl.isEmpty {

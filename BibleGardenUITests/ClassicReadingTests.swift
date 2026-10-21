@@ -1306,7 +1306,7 @@ final class ClassicReadingAutoNextTests: XCTestCase {
             "--pause-type", "full",
             "--pause-block", "verse",
             // Задержка загрузки делает окно «глава грузится» наблюдаемым для теста.
-            "--chapter-load-delay", "8",
+            "--chapter-load-delay", "12",
             "--start-excerpt", "psa 117"
         ]
         app.launch()
@@ -1349,9 +1349,21 @@ final class ClassicReadingAutoNextTests: XCTestCase {
         // Пользователь нажимает Play, пока глава ещё грузится. Remote Pause/Play
         // доступны во время загрузки — владение Now Playing не отпускается.
         app.openMenu()
-        let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-menu-remote-play")
-        XCTAssertEqual(playStatus, "success",
-                       "The remote play should be handled while the chapter is loading. status=\(playStatus ?? "nil")")
+        let remotePlayButton = app.buttons["debug-menu-remote-play"]
+        XCTAssertTrue(remotePlayButton.waitForExistence(timeout: 5),
+                      "The debug remote play button should exist")
+        let handledBefore = Int(app.debugValue("debug-remote-command-count") ?? "") ?? 0
+        remotePlayButton.tap()
+        XCTAssertTrue(app.waitForDebugRemoteCommandCount(greaterThan: handledBefore, timeout: 15),
+                      "The remote play should be handled while the chapter is loading")
+
+        // Команда должна быть обработана до `setItem()` — пока глава грузится, её item
+        // ещё не подключён к плееру. Иначе сценарий не воспроизведён и проверка ниже
+        // прошла бы даже без исправления.
+        XCTAssertEqual(stateLabel.label, "waitingForSelection",
+                       "The remote play must be handled while the chapter is still loading. state=\(stateLabel.label)")
+        XCTAssertTrue(app.waitForDebugRemoteCommandStatus("success", timeout: 5),
+                      "The remote play should be handled by the owner of the Now Playing session")
 
         // Ключевая проверка: глава играет по запросу пользователя, хотя ".full"
         // запрещает автозапуск — запрос автоперехода не должен был его ослабить.
