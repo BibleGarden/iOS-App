@@ -166,6 +166,7 @@
 "multilingual.select_translation" = "Select Translation";
 "multilingual.pause" = "Pause";
 "multilingual.seconds" = "sec.";
+"multilingual.delete_step" = "Delete Step";
 "multilingual.config.title" = "Reading Step Setup";
 
 "multilingual.library.title" = "Templates Library";

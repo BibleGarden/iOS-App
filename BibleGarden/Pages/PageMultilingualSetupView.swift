@@ -455,8 +455,9 @@ struct PageMultilingualSetupView: View {
                 Image(systemName: "xmark")
                     .foregroundColor(.red.opacity(0.7))
             }
-            .accessibilityIdentifier("multi-step-delete-\(index)")
             .buttonStyle(PlainButtonStyle())
+            .accessibilityLabel("multilingual.delete_step".localized)
+            .accessibilityIdentifier("multi-step-delete-\(index)")
         }
         .padding()
         .background(Color("DarkGreen").brightness(0.05))
@@ -465,6 +466,7 @@ struct PageMultilingualSetupView: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("multi-step-row-\(index)")
         .accessibilityValue(step.type == .pause ? String(format: "%0.0f", step.pauseDuration) : "")
         .contentShape(Rectangle())

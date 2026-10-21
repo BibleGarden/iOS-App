@@ -119,35 +119,39 @@ final class MultiReadingSetupTests: XCTestCase {
     }
 
     // #6 — Тап на кнопку удаления (xmark) удаляет степ из списка.
-    // Результат: строка степа исчезает, кнопка удаления больше не существует.
+    // Результат: строка степа и кнопка удаления исчезают.
     @MainActor
-    func testDeleteStep() throws {
+    func testDeleteStep() {
         app.navigateToMultiSetupPage()
         let addPause = app.buttons["multi-add-pause-step"]
         XCTAssertTrue(addPause.waitForExistence(timeout: 5))
         addPause.tap()
 
-        // Собственный identifier кнопки удаления (multi-step-delete-0) не попадает
-        // в a11y-дерево — SF Symbol «xmark» доступен по авто-label «Close».
-        // Кнопок «Close» несколько (скрытое меню и т.п.) — берём хитабельную.
-        let closeButtons = app.buttons.matching(NSPredicate(format: "label == 'Close'"))
-        XCTAssertTrue(closeButtons.firstMatch.waitForExistence(timeout: 5), "Delete button should exist")
-        var deleteBtn: XCUIElement?
-        for i in 0..<closeButtons.count {
-            let candidate = closeButtons.element(boundBy: i)
-            if candidate.isHittable {
-                deleteBtn = candidate
-                break
-            }
-        }
-        let button = try XCTUnwrap(deleteBtn, "Hittable delete button should be present")
-        button.tap()
-
+        // До удаления: дожидаемся строки паузы и проверяем её начальное значение (2 сек).
         let stepRow = app.descendants(matching: .any).matching(identifier: "multi-step-row-0").firstMatch
-        let disappeared = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
-                                                    object: stepRow)
-        XCTAssertEqual(XCTWaiter.wait(for: [disappeared], timeout: 5), .completed,
+        XCTAssertTrue(stepRow.waitForExistence(timeout: 5), "Pause row should exist")
+        XCTAssertEqual(stepRow.value as? String, "2",
+                       "Initial pause duration should be 2. Got: \(stepRow.value ?? "nil")")
+
+        // Кнопка удаления — только по собственному identifier,
+        // ждём exists && isHittable через predicate expectation.
+        let deleteBtn = app.buttons["multi-step-delete-0"]
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND isHittable == true"),
+            object: deleteBtn)
+        XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
+                       "Delete button should be visible and hittable")
+        deleteBtn.tap()
+
+        // После удаления исчезают и строка, и кнопка удаления.
+        let rowGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                object: stepRow)
+        XCTAssertEqual(XCTWaiter.wait(for: [rowGone], timeout: 5), .completed,
                        "Step should be deleted")
+        let buttonGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                   object: deleteBtn)
+        XCTAssertEqual(XCTWaiter.wait(for: [buttonGone], timeout: 5), .completed,
+                       "Delete button should be gone")
     }
 
     // #7 — Picker режима чтения (verse/paragraph/fragment/chapter) существует.
