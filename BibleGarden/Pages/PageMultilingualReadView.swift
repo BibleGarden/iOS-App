@@ -991,8 +991,6 @@ struct PageMultilingualReadView: View {
                 return
             }
             
-            print("[MultiRead] Audio URL: \(audioUrl)")
-            
             // Get verse range for current unit
             guard currentUnitIndex < unitRanges.count else {
                 print("[MultiRead] ERROR: currentUnitIndex out of range")
