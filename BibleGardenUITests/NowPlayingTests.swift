@@ -50,7 +50,9 @@ final class NowPlayingOwnershipTests: XCTestCase {
         XCTAssertTrue(waitForEnabled(readPlayPause), "Classic play button should be enabled")
         readPlayPause.tap()
 
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 15),
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 30),
+                      "The classic AVPlayer should really start")
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5),
                       "Classic playback should become active")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("classicRead", timeout: 10),
                       "Classic reading should own the Now Playing session. owner=\(app.debugValue("debug-now-playing-owner") ?? "nil")")
@@ -140,7 +142,9 @@ final class NowPlayingOwnershipTests: XCTestCase {
         XCTAssertTrue(waitForEnabled(readPlayPause), "Classic play button should be enabled")
         readPlayPause.tap()
 
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 15),
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 30),
+                      "The classic AVPlayer should really start")
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5),
                       "Classic playback should become active")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("classicRead", timeout: 10),
                       "Classic reading should own the Now Playing session. owner=\(app.debugValue("debug-now-playing-owner") ?? "nil")")
@@ -183,9 +187,11 @@ final class NowPlayingOwnershipTests: XCTestCase {
         let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-menu-remote-play")
         XCTAssertEqual(playStatus, "noActionableNowPlayingItem",
                        "Remote play without an owner should be reported as not actionable. status=\(playStatus ?? "nil")")
-        // Отсутствие запуска проверяется по фактической телеметрии всех экземпляров:
-        // ни один AVPlayer не перешёл в воспроизведение.
+        // Отсутствие запуска проверяется по фактической телеметрии всех экземпляров
+        // и по истории переходов: отложенный запуск не должен остаться незамеченным.
         XCTAssertTrue(app.assertNoPlayerIsActuallyPlaying("Remote play should not start any player"),
+                      "Remote play should not start any player")
+        XCTAssertTrue(app.assertNoPlayerStartedPlaying(duration: 5),
                       "Remote play should not start any player")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("none", timeout: 5),
                       "Remote play should not claim the Now Playing session")

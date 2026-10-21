@@ -196,13 +196,14 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(multiPlayPause.waitForExistence(timeout: 5), "Multilingual play button should exist")
         multiPlayPause.tap()
 
+        // Сначала дожидаемся фактического воспроизведения (готовности аудио),
+        // и только потом сверяем логические счётчики: иначе проверка зависит
+        // от скорости сети и может сработать на «до запуска».
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "Multilingual playback should really start before switching")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-classic-count", value: "0", timeout: 5))
-        // Дождёмся фактического воспроизведения (готовности аудио), а не только
-        // регистрации плеера — тестовый API может загружать аудио долго.
-        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
-                      "Multilingual playback should really start before switching")
 
         app.navigateToReadingPage()
 
@@ -242,12 +243,12 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(multiPlayPause.waitForExistence(timeout: 5), "Multilingual play button should exist")
         multiPlayPause.tap()
 
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
-        // Дождёмся фактического воспроизведения (готовности аудио), а не только
-        // регистрации плеера — тестовый API может загружать аудио долго.
+        // Сначала дожидаемся фактического воспроизведения, потом сверяем
+        // логические счётчики: иначе проверка зависит от скорости сети.
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
                       "Multilingual playback should really start before leaving")
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "1", timeout: 5))
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5))
 
         app.navigateViaMenu(to: "menu-main")
 
@@ -262,10 +263,15 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 10),
                       "No playback should remain active on the main page")
 
-        // Возврат к мультичтению — через настройку, штатным UI, без перезапуска
-        // приложения: перезапуск убил бы старые плееры и отложенные callback'и,
-        // а тест проверяет именно возврат в том же процессе.
-        app.navigateToMultiReadingPageViaSetup()
+        // Историю запусков фиксируем до возврата: сам возврат не должен
+        // добавить ни одного запуска воспроизведения.
+        let transitionsBeforeReturn = app.debugPlayingTransitionCount(forOwner: "multilingualRead")
+
+        // Возврат к мультичтению — без перезапуска приложения: перезапуск убил бы
+        // старые плееры и отложенные callback'и, а тест проверяет именно возврат
+        // в том же процессе. Помощник идёт по настройке только тогда, когда меню
+        // действительно открыло её: лишний уход стёр бы ошибочный автозапуск.
+        app.returnToMultiReadingPageWithoutRestart()
 
         XCTAssertTrue(app.waitForDebugPlayerNotPlaying(forOwner: "multilingualRead", timeout: 10),
                       "Returning to multilingual reading should not auto-resume old playback")
@@ -276,13 +282,11 @@ final class PlaybackIsolationTests: XCTestCase {
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 5),
                       "Returning to multilingual reading should keep total active playback at zero")
 
-        // Старый pipeline не должен просыпаться в фоне: число реальных запусков
-        // воспроизведения не растёт.
-        let transitionsBefore = app.debugPlayingTransitionCount(forOwner: "multilingualRead")
-        Thread.sleep(forTimeInterval: 1.5)
-        XCTAssertEqual(app.debugPlaybackCount("debug-playback-total-count"), "0",
-                       "Old multilingual pipeline should not wake up in the background")
-        XCTAssertEqual(app.debugPlayingTransitionCount(forOwner: "multilingualRead"), transitionsBefore,
+        // Старый pipeline не должен просыпаться в фоне: за интервал наблюдения
+        // не было ни одного нового запуска воспроизведения.
+        XCTAssertTrue(app.assertNoPlayerStartedPlaying(duration: 5),
+                      "Old multilingual pipeline should not wake up in the background")
+        XCTAssertEqual(app.debugPlayingTransitionCount(forOwner: "multilingualRead"), transitionsBeforeReturn,
                        "Old multilingual pipeline should not wake up in the background")
         XCTAssertTrue(app.assertNoPlayerIsActuallyPlaying("Old multilingual pipeline should not wake up in the background"),
                       "Old multilingual pipeline should not wake up in the background")

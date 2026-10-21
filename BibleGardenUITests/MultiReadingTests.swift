@@ -181,10 +181,9 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 3))
         saveBtn.tap()
 
-        // Save alert — элементы с identifier "multi-save-alert"
-        // Кнопка «Read without saving» / «Не сохранять» — пропускаем сохранение шаблона
-        let skipPredicate = NSPredicate(format: "identifier == 'multi-save-alert' AND (label CONTAINS[c] 'without' OR label CONTAINS[c] 'без' OR label CONTAINS[c] 'Не сохран')")
-        let skipBtn = app.buttons.matching(skipPredicate).firstMatch
+        // Save alert — кнопка «Read without saving» / «Не сохранять»:
+        // пропускаем сохранение шаблона. Кнопка ищется по идентификатору.
+        let skipBtn = app.buttons["multi-save-alert-skip"]
         if skipBtn.waitForExistence(timeout: 5) {
             skipBtn.tap()
         }
@@ -241,9 +240,8 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 3))
         saveBtn.tap()
 
-        // Обработка save-alert (кнопка «Read without saving»)
-        let skipPredicate = NSPredicate(format: "identifier == 'multi-save-alert' AND (label CONTAINS[c] 'without' OR label CONTAINS[c] 'без' OR label CONTAINS[c] 'Не сохран')")
-        let skipBtn = app.buttons.matching(skipPredicate).firstMatch
+        // Обработка save-alert (кнопка «Read without saving» — по идентификатору)
+        let skipBtn = app.buttons["multi-save-alert-skip"]
         if skipBtn.waitForExistence(timeout: 5) {
             skipBtn.tap()
         }
@@ -718,7 +716,11 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         XCTAssertTrue(playPause.isEnabled, "Play button should be enabled")
 
         playPause.tap()
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 10),
+        // Сначала дожидаемся фактического воспроизведения, потом сверяем
+        // логические счётчики: иначе проверка зависит от скорости сети.
+        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+                      "The multilingual AVPlayer should really start")
+        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5),
                       "Multilingual player should be active. count=\(app.debugPlaybackCount("debug-playback-multilingual-count") ?? "nil") state=\(app.debugPlaybackCount("multi-playback-state") ?? "nil")")
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 20), "Playback should start")
 
@@ -732,6 +734,7 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         // Пауза с экрана блокировки
         let remotePause = app.buttons["debug-remote-pause"]
         XCTAssertTrue(remotePause.waitForExistence(timeout: 5), "Debug remote pause button should exist")
+        let advancesBeforePause = app.debugPipelineAdvanceCount()
         remotePause.tap()
 
         XCTAssertTrue(app.waitForMultiPlaybackState("pausing", timeout: 10),
@@ -747,12 +750,17 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
                       "No player should be active while the reading is paused")
         XCTAssertFalse(app.waitForMultiPlaybackState("playing", timeout: 5),
                        "Reading should not resume on its own after a remote pause")
+        // Пока чтение остановлено, пайплайн не переходит дальше: индекс шага
+        // цикличен, поэтому используется монотонный счётчик переходов.
+        XCTAssertEqual(app.debugPipelineAdvanceCount(), advancesBeforePause,
+                       "The reading pipeline should not advance while the reading is paused")
         XCTAssertEqual(app.multiCurrentStep(), stepDuringPause,
                        "Step should not advance while the reading is paused")
 
         // Явная команда Play возобновляет чтение
         let remotePlay = app.buttons["debug-remote-play"]
         XCTAssertTrue(remotePlay.waitForExistence(timeout: 5), "Debug remote play button should exist")
+        let advancesBeforePlay = app.debugPipelineAdvanceCount()
         remotePlay.tap()
 
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 20),
@@ -763,8 +771,9 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
                       "The multilingual AVPlayer should really resume after the remote play command")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5),
                       "Multilingual player should be active again")
-        XCTAssertNotEqual(app.multiCurrentStep(), stepDuringPause,
-                          "Step should advance after the remote play command")
+        // Чтение продолжилось со следующего перевода: пайплайн ушёл с шага паузы.
+        XCTAssertTrue(app.waitForDebugPipelineAdvanced(after: advancesBeforePlay ?? 0, timeout: 20),
+                      "The reading should continue after the remote play command. unit=\(app.multiCurrentUnit() ?? "nil") step=\(app.multiCurrentStep() ?? "nil") state=\(app.debugValue("multi-playback-state") ?? "nil")")
     }
 
     // #51 — Remote Pause → remote Play → remote Pause.
@@ -806,10 +815,14 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         XCTAssertEqual(result?.playingTransitionCountAfter, result?.playingTransitionCountBefore,
                        "No play start should happen after the last Pause")
 
-        // Независимая проверка по телеметрии: фактический AVPlayer не играет,
-        // и после гонки не было ни одного нового запуска.
+        // Независимая проверка по телеметрии: фактический AVPlayer не играет.
         XCTAssertTrue(app.waitForDebugPlayerActuallyPlaying(false, forOwner: "multilingualRead", timeout: 10),
                       "The AVPlayer of the multilingual player should not play after the race")
+        // Счётчики команды сняты в момент завершения seek, поэтому период после
+        // гонки наблюдается отдельно: отложенный запуск не должен остаться
+        // незамеченным.
+        XCTAssertTrue(app.assertDebugPlayerDidNotStartPlaying(forOwner: "multilingualRead", duration: 15),
+                      "No sound should start after the Pause → Play → Pause sequence")
         XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-total-count", value: "0", timeout: 5),
                       "No player should be active after the Pause → Play → Pause sequence")
         XCTAssertTrue(app.waitForMultiPlaybackState("pausing", timeout: 5),

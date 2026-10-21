@@ -187,15 +187,18 @@ extension XCUIApplication {
         let id: String
         let owner: String
         let timeControlStatus: String
-        let isActuallyPlaying: Bool
+        /// nil — состояние экземпляра неизвестно.
+        let isActuallyPlaying: Bool?
         let playingTransitionCount: Int
     }
 
     /// Агрегат по владельцу из снимка телеметрии.
     struct DebugOwnerTelemetry {
+        /// Идентификаторы живых экземпляров. Пусто — экземпляров больше нет.
         let playerIds: [String]
         let timeControlStatus: String
-        let isActuallyPlaying: Bool
+        /// nil — есть экземпляр с неизвестным состоянием.
+        let isActuallyPlaying: Bool?
         let playingTransitionCount: Int
     }
 
@@ -220,10 +223,12 @@ extension XCUIApplication {
             guard let entry = value as? [String: Any],
                   let owner = entry["owner"] as? String,
                   let status = entry["timeControlStatus"] as? String,
-                  let isPlaying = entry["isActuallyPlaying"] as? Bool,
                   let transitions = entry["playingTransitionCount"] as? Int else {
                 return nil
             }
+            // null или отсутствующее значение — состояние неизвестно:
+            // это не то же самое, что «не играет».
+            let isPlaying = entry["isActuallyPlaying"] as? Bool
             result.append(DebugPlayerTelemetry(id: id,
                                               owner: owner,
                                               timeControlStatus: status,
@@ -233,7 +238,7 @@ extension XCUIApplication {
         return result
     }
 
-    /// Агрегат по владельцу. nil — владельца нет в снимке (экземпляр удалён)
+    /// Агрегат по владельцу. nil — владельца нет в снимке (он не регистрировался)
     /// или данные нечитаемы.
     func debugOwnerTelemetry(forOwner owner: String) -> DebugOwnerTelemetry? {
         guard let json = debugTelemetrySnapshot(),
@@ -241,22 +246,22 @@ extension XCUIApplication {
               let entry = owners[owner] as? [String: Any],
               let playerIds = entry["playerIds"] as? [String],
               let status = entry["timeControlStatus"] as? String,
-              let isPlaying = entry["isActuallyPlaying"] as? Bool,
               let transitions = entry["playingTransitionCount"] as? Int else {
             return nil
         }
+        // null или отсутствующее значение — состояние неизвестно.
+        let isPlaying = entry["isActuallyPlaying"] as? Bool
         return DebugOwnerTelemetry(playerIds: playerIds,
                                    timeControlStatus: status,
                                    isActuallyPlaying: isPlaying,
                                    playingTransitionCount: transitions)
     }
 
-    /// Владелец удалён из снимка — экземпляров плеера больше нет.
+    /// У владельца не осталось живых экземпляров.
     /// Это отдельное состояние, его нельзя путать с паузой.
     func debugOwnerHasNoPlayers(forOwner owner: String) -> Bool {
-        guard let json = debugTelemetrySnapshot(),
-              let owners = json["owners"] as? [String: Any] else { return false }
-        return owners[owner] == nil
+        guard let telemetry = debugOwnerTelemetry(forOwner: owner) else { return false }
+        return telemetry.playerIds.isEmpty
     }
 
     /// AVPlayer timeControlStatus владельца: "playing" / "paused" / "waitingToPlay"
@@ -276,10 +281,62 @@ extension XCUIApplication {
         debugOwnerTelemetry(forOwner: owner)?.playingTransitionCount
     }
 
-    /// Играет ли хотя бы один зарегистрированный экземпляр. nil — телеметрия недоступна.
+    /// Играет ли хотя бы один зарегистрированный экземпляр.
+    /// nil — телеметрия недоступна или состояние экземпляра неизвестно:
+    /// неизвестное не равно «не играет».
     func debugAnyPlayerIsActuallyPlaying() -> Bool? {
         guard let players = debugPlayersTelemetry() else { return nil }
-        return players.contains(where: { $0.isActuallyPlaying })
+        if players.contains(where: { $0.isActuallyPlaying == true }) { return true }
+        if players.contains(where: { $0.isActuallyPlaying == nil }) { return nil }
+        return false
+    }
+
+    /// Суммарное число переходов в .playing по всем владельцам.
+    /// История публикуется независимо от наличия живых экземпляров.
+    func debugTotalPlayingTransitionCount() -> Int? {
+        guard let json = debugTelemetrySnapshot(),
+              let owners = json["owners"] as? [String: Any] else { return nil }
+        var total = 0
+        for (_, value) in owners {
+            guard let entry = value as? [String: Any],
+                  let transitions = entry["playingTransitionCount"] as? Int else {
+                return nil
+            }
+            total += transitions
+        }
+        return total
+    }
+
+    /// За интервал ни один экземпляр не перешёл в воспроизведение:
+    /// накопленное число переходов в .playing не выросло.
+    @discardableResult
+    func assertNoPlayerStartedPlaying(duration: TimeInterval, pollInterval: TimeInterval = 0.5) -> Bool {
+        guard let baseline = debugTotalPlayingTransitionCount() else {
+            XCTFail("The playback telemetry is not available")
+            return false
+        }
+        let deadline = Date().addingTimeInterval(duration)
+        while Date() < deadline {
+            guard let current = debugTotalPlayingTransitionCount() else {
+                XCTFail("The playback telemetry is not available")
+                return false
+            }
+            if current > baseline {
+                XCTFail("Some AVPlayer started playing during the interval (transitions \(baseline) → \(current))")
+                return false
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+        }
+        // Обязательное чтение после окончания интервала.
+        guard let final = debugTotalPlayingTransitionCount() else {
+            XCTFail("The playback telemetry is not available")
+            return false
+        }
+        if final > baseline {
+            XCTFail("Some AVPlayer started playing during the interval (transitions \(baseline) → \(final))")
+            return false
+        }
+        return true
     }
 
     /// Фактическое состояние воспроизведения плеера владельца.
@@ -297,10 +354,13 @@ extension XCUIApplication {
     }
 
     func debugPlayerPlaybackState(forOwner owner: String) -> DebugPlayerPlaybackState {
-        if let telemetry = debugOwnerTelemetry(forOwner: owner) {
-            return telemetry.isActuallyPlaying ? .playing : .stopped
+        guard let telemetry = debugOwnerTelemetry(forOwner: owner) else {
+            return .unknown
         }
-        return debugOwnerHasNoPlayers(forOwner: owner) ? .removed : .unknown
+        if telemetry.playerIds.isEmpty { return .removed }
+        // Неизвестное состояние экземпляра — это не остановка.
+        guard let isPlaying = telemetry.isActuallyPlaying else { return .unknown }
+        return isPlaying ? .playing : .stopped
     }
 
     /// Дождаться конкретного состояния фактического воспроизведения.
@@ -346,7 +406,7 @@ extension XCUIApplication {
                 return false
             }
             let scope = owner.map { target in players.filter { $0.owner == target } } ?? players
-            let playing = scope.filter { $0.isActuallyPlaying }
+            let playing = scope.filter { $0.isActuallyPlaying == true }
             if playing.count > 1 {
                 XCTFail("Several AVPlayers are playing at the same time: \(playing.map { $0.id }.joined(separator: ", "))")
                 return false
@@ -372,15 +432,21 @@ extension XCUIApplication {
         return false
     }
 
-    /// Дождаться, пока AVPlayer владельца станет (не) играть фактически
+    /// Дождаться, пока AVPlayer владельца станет (не) играть фактически.
+    /// Неизвестное состояние экземпляра не считается остановкой — ждём известного.
     @discardableResult
     func waitForDebugPlayerActuallyPlaying(_ isPlaying: Bool, forOwner owner: String, timeout: TimeInterval = 20) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         var lastKnown = "no telemetry"
         while Date() < deadline {
             if let telemetry = debugOwnerTelemetry(forOwner: owner) {
-                lastKnown = telemetry.isActuallyPlaying ? "playing" : "not playing"
-                if telemetry.isActuallyPlaying == isPlaying { return true }
+                switch telemetry.isActuallyPlaying {
+                case .some(let value):
+                    lastKnown = value ? "playing" : "not playing"
+                    if value == isPlaying { return true }
+                case .none:
+                    lastKnown = "unknown"
+                }
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
@@ -402,10 +468,11 @@ extension XCUIApplication {
     }
 
     /// Ни один зарегистрированный экземпляр не играет фактически.
+    /// Неизвестное состояние экземпляра проверку не удовлетворяет.
     @discardableResult
     func assertNoPlayerIsActuallyPlaying(_ message: String) -> Bool {
         guard let isPlaying = debugAnyPlayerIsActuallyPlaying() else {
-            XCTFail("The playback telemetry is not available — \(message)")
+            XCTFail("The playback telemetry is unavailable or its state is unknown — \(message)")
             return false
         }
         if isPlaying {
@@ -419,14 +486,19 @@ extension XCUIApplication {
     /// Проверяются фактическое состояние AVPlayer, счётчик переходов в .playing
     /// и идентичность экземпляров: пересоздание плеера обнуляет счётчик,
     /// поэтому такой случай — ошибка, а не «тишина».
+    /// Неизвестное состояние экземпляра проверку не удовлетворяет.
     @discardableResult
     func assertDebugPlayerDidNotStartPlaying(forOwner owner: String, duration: TimeInterval, pollInterval: TimeInterval = 1.0) -> Bool {
         guard let baseline = debugOwnerTelemetry(forOwner: owner) else {
             XCTFail("No telemetry for '\(owner)' — the player instance is gone, that is not a pause")
             return false
         }
-        guard !baseline.isActuallyPlaying else {
-            XCTFail("The AVPlayer of '\(owner)' is already playing before the pause interval")
+        guard !baseline.playerIds.isEmpty else {
+            XCTFail("The player instance of '\(owner)' is gone — that is not a pause")
+            return false
+        }
+        guard baseline.isActuallyPlaying == false else {
+            XCTFail("The AVPlayer of '\(owner)' is \(baseline.isActuallyPlaying == true ? "already playing" : "of unknown state") before the pause interval")
             return false
         }
         let deadline = Date().addingTimeInterval(duration)
@@ -454,8 +526,11 @@ extension XCUIApplication {
     }
 
     private func debugPauseIntervalFailure(owner: String, baseline: DebugOwnerTelemetry, current: DebugOwnerTelemetry) -> String? {
-        if current.isActuallyPlaying {
+        if current.isActuallyPlaying == true {
             return "The AVPlayer of '\(owner)' started playing during the pause interval"
+        }
+        if current.isActuallyPlaying == nil {
+            return "The state of the AVPlayer of '\(owner)' is unknown — the pause interval cannot be verified"
         }
         if current.playingTransitionCount > baseline.playingTransitionCount {
             return "The AVPlayer of '\(owner)' started playing during the pause interval (transitions \(baseline.playingTransitionCount) → \(current.playingTransitionCount))"
@@ -467,6 +542,30 @@ extension XCUIApplication {
             return "The player instance of '\(owner)' was replaced during the pause interval — the counter was reset"
         }
         return nil
+    }
+
+    /// Монотонный счётчик переходов пайплайна чтения.
+    /// Индекс шага цикличен (шаг паузы встречается в каждом юните),
+    /// поэтому «чтение продолжилось» проверяется по этому счётчику.
+    func debugPipelineAdvanceCount() -> Int? {
+        guard let json = debugTelemetrySnapshot() else { return nil }
+        return json["pipelineAdvanceCount"] as? Int
+    }
+
+    /// Дождаться, пока пайплайн чтения перейдёт дальше указанного счётчика.
+    @discardableResult
+    func waitForDebugPipelineAdvanced(after count: Int, timeout: TimeInterval = 20) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "no telemetry"
+        while Date() < deadline {
+            if let current = debugPipelineAdvanceCount() {
+                lastKnown = "\(current)"
+                if current > count { return true }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The reading pipeline should advance beyond \(count), got '\(lastKnown)'")
+        return false
     }
 
     // MARK: - Debug race command (#51)
@@ -626,48 +725,46 @@ extension XCUIApplication {
 
 extension XCUIApplication {
 
-    /// Возврат к мультичтению через страницу настройки — без перезапуска приложения.
+    /// Возврат к мультичтению без перезапуска приложения.
     /// Перезапуск убивает старые плееры и отложенные callback'и, а тест проверяет
     /// именно возврат в том же процессе.
-    func navigateToMultiReadingPageViaSetup() {
+    ///
+    /// Проверяется первый открывшийся экран: если меню открыло сразу чтение,
+    /// лишний уход в настройку не делается — он вызвал бы shutdownPlaybackPipeline()
+    /// и стёр бы ошибочный автозапуск до проверок. Настройка используется только
+    /// тогда, когда меню действительно открыло её.
+    func returnToMultiReadingPageWithoutRestart() {
         navigateViaMenu(to: "menu-multilingual")
 
         let readingPage = otherElements["page-multi-reading"]
         let setupPage = otherElements["page-multi-setup"]
-        if !readingPage.waitForExistence(timeout: 10) {
-            XCTAssertTrue(setupPage.waitForExistence(timeout: 5),
-                          "Multilingual reading or setup page should appear")
-        }
-        // Идём через настройку: шестерёнка на странице чтения открывает её.
-        if readingPage.exists {
-            let configButton = buttons["multi-config-button"]
-            XCTAssertTrue(configButton.waitForExistence(timeout: 5),
-                          "Multilingual config button should exist")
-            configButton.tap()
-        }
-        XCTAssertTrue(setupPage.waitForExistence(timeout: 5),
-                      "Multi setup page did not appear")
 
-        let saveAndRead = buttons["multilingual-save-and-read"]
-        XCTAssertTrue(saveAndRead.waitForExistence(timeout: 5),
-                      "Save and read button should exist")
-        saveAndRead.tap()
-
-        // Диалог сохранения шаблона — читаем без сохранения.
-        // Идентификатор контейнера диалога наследуется кнопками, поэтому
-        // «без сохранения» ищем по подписи, а не по идентификатору кнопки.
-        let skipByLabel = buttons.matching(NSPredicate(format: "label CONTAINS[c] 'without' OR label CONTAINS[c] 'без'")).firstMatch
-        if skipByLabel.waitForExistence(timeout: 3) {
-            skipByLabel.tap()
-        } else {
-            let alertButtons = buttons.matching(NSPredicate(format: "identifier == 'multi-save-alert'"))
-            if alertButtons.count > 0 {
-                alertButtons.element(boundBy: 0).tap()
-            }
+        if setupPage.waitForExistence(timeout: 5) {
+            // Меню открыло настройку — идём оттуда к чтению.
+            let saveAndRead = buttons["multilingual-save-and-read"]
+            XCTAssertTrue(saveAndRead.waitForExistence(timeout: 5),
+                          "Save and read button should exist")
+            saveAndRead.tap()
+            dismissSaveTemplateAlert()
         }
 
         XCTAssertTrue(readingPage.waitForExistence(timeout: 10),
                       "Multi reading page did not appear")
+    }
+
+    /// Диалог сохранения шаблона: читаем без сохранения.
+    /// Кнопка выбирается строго по идентификатору: обе кнопки ведут к чтению,
+    /// поэтому выбор по позиции или по переводу может остаться зелёным.
+    private func dismissSaveTemplateAlert() {
+        let alert = otherElements["multi-save-alert"]
+        guard alert.waitForExistence(timeout: 5) else {
+            XCTFail("The save template alert should appear")
+            return
+        }
+        let skip = buttons["multi-save-alert-skip"]
+        XCTAssertTrue(skip.waitForExistence(timeout: 5),
+                      "The 'read without saving' button should exist")
+        skip.tap()
     }
 }
 

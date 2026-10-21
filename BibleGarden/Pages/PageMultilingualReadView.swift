@@ -1074,8 +1074,14 @@ struct PageMultilingualReadView: View {
             markCurrentChapterAsRead()
         }
 
+        #if DEBUG
+        // Монотонный счётчик переходов: индекс шага цикличен, а тестам нужно
+        // однозначно знать, что чтение действительно продолжилось.
+        DebugPlaybackRegistry.shared.notePipelineAdvanced()
+        #endif
+
         currentStepIndex += 1
-        
+
         if currentStepIndex >= allSteps.count {
             // Done with all steps for this unit, move to next unit
             moveToNextUnit()

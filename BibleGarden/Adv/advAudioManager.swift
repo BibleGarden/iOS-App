@@ -19,18 +19,26 @@ enum DebugRemoteCommand: String {
 /// Только для отладки — Release эти типы не использует.
 struct DebugPlayerTelemetry: Codable {
     let owner: String
+    /// "playing" / "paused" / "waitingToPlay" / "unknown"
     let timeControlStatus: String
-    let isActuallyPlaying: Bool
+    /// nil — состояние экземпляра ещё неизвестно: отрицательную проверку
+    /// проходить нельзя, пока состояние неизвестно.
+    let isActuallyPlaying: Bool?
     let playingTransitionCount: Int
 }
 
 /// Агрегат по владельцу: все его живые экземпляры.
 /// Экземпляры одного владельца не склеиваются — каждый остаётся в players,
 /// агрегат только считает их.
+/// Владелец публикуется и без живых экземпляров: история запусков переживает
+/// удаление плеера.
 struct DebugOwnerTelemetry: Codable {
+    /// Идентификаторы живых экземпляров. Пусто — экземпляров больше нет.
     let playerIds: [String]
+    /// "playing" / "waitingToPlay" / "paused" / "unknown" / "none"
     let timeControlStatus: String
-    let isActuallyPlaying: Bool
+    /// nil — есть экземпляр с неизвестным состоянием.
+    let isActuallyPlaying: Bool?
     let playingTransitionCount: Int
 }
 
@@ -38,6 +46,9 @@ struct DebugOwnerTelemetry: Codable {
 struct DebugPlaybackTelemetry: Codable {
     let players: [String: DebugPlayerTelemetry]
     let owners: [String: DebugOwnerTelemetry]
+    /// Монотонный счётчик переходов пайплайна чтения: индекс шага цикличен,
+    /// а этот счётчик только растёт.
+    let pipelineAdvanceCount: Int
 }
 
 /// Результат детерминированного воспроизведения гонки #51.
@@ -58,15 +69,20 @@ final class DebugPlaybackRegistry {
     private let lock = NSLock()
     private var registeredPlayers: [UUID: DebugPlaybackOwner] = [:]
     private var activePlayers: [UUID: DebugPlaybackOwner] = [:]
-    /// Фактическое состояние AVPlayer каждого зарегистрированного плеера (timeControlStatus),
-    /// признак реального воспроизведения и число переходов в .playing.
+    /// Фактическое состояние AVPlayer каждого зарегистрированного плеера (timeControlStatus)
+    /// и число переходов в .playing.
+    /// Отсутствие записи означает: состояние экземпляра ещё неизвестно.
     /// Только для отладки — Release не использует эти поля.
     private var playerTimeControlStatus: [UUID: String] = [:]
-    private var playerIsActuallyPlaying: [UUID: Bool] = [:]
     private var playerPlayingTransitionCount: [UUID: Int] = [:]
     /// Число переходов в .playing по владельцам. Не уменьшается при удалении экземпляра:
     /// история запусков переживает пересоздание плеера.
     private var ownerPlayingTransitionCount: [DebugPlaybackOwner: Int] = [:]
+    /// Владельцы, чьи экземпляры регистрировались: их история публикуется,
+    /// даже когда живых экземпляров не осталось.
+    private var knownOwners: Set<DebugPlaybackOwner> = []
+    /// Монотонный счётчик переходов пайплайна чтения.
+    private var pipelineAdvanceCount: Int = 0
     private var lastRemoteCommandStatus: String = "none"
     private var remoteCommandCount: Int = 0
     private var publishedNowPlayingOwner: String?
@@ -120,6 +136,7 @@ final class DebugPlaybackRegistry {
     func registerPlayer(id: UUID, owner: DebugPlaybackOwner) {
         lock.lock()
         registeredPlayers[id] = owner
+        knownOwners.insert(owner)
         persistCountsLocked()
         lock.unlock()
     }
@@ -128,6 +145,7 @@ final class DebugPlaybackRegistry {
         lock.lock()
         if registeredPlayers[id] != nil {
             registeredPlayers[id] = owner
+            knownOwners.insert(owner)
         }
         if activePlayers[id] != nil {
             activePlayers[id] = owner
@@ -152,7 +170,6 @@ final class DebugPlaybackRegistry {
         registeredPlayers.removeValue(forKey: id)
         activePlayers.removeValue(forKey: id)
         playerTimeControlStatus.removeValue(forKey: id)
-        playerIsActuallyPlaying.removeValue(forKey: id)
         playerPlayingTransitionCount.removeValue(forKey: id)
         persistCountsLocked()
         lock.unlock()
@@ -163,9 +180,8 @@ final class DebugPlaybackRegistry {
     /// (независимо от того, PlayerModel так задумывал или нет).
     func setPlayerTimeControlStatus(id: UUID, status: String) {
         lock.lock()
-        let wasPlaying = playerIsActuallyPlaying[id] ?? false
+        let wasPlaying = playerTimeControlStatus[id] == "playing"
         playerTimeControlStatus[id] = status
-        playerIsActuallyPlaying[id] = (status == "playing")
         if status == "playing", !wasPlaying {
             playerPlayingTransitionCount[id, default: 0] += 1
             if let owner = registeredPlayers[id] {
@@ -184,6 +200,22 @@ final class DebugPlaybackRegistry {
         defer { lock.unlock() }
         guard let owner = DebugPlaybackOwner(rawValue: owner) else { return 0 }
         return ownerPlayingTransitionCount[owner] ?? 0
+    }
+
+    /// Счётчик переходов пайплайна чтения: индекс шага цикличен и может
+    /// вернуться к прежнему значению, а этот счётчик только растёт.
+    func pipelineAdvances() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return pipelineAdvanceCount
+    }
+
+    /// Пайплайн чтения перешёл к следующему шагу или юниту.
+    func notePipelineAdvanced() {
+        lock.lock()
+        pipelineAdvanceCount += 1
+        persistCountsLocked()
+        lock.unlock()
     }
 
     /// Публикует результат отладочной команды (гонка #51).
@@ -211,6 +243,11 @@ final class DebugPlaybackRegistry {
 
     /// Собирает снимок телеметрии: записи по UUID (владелец — атрибут записи)
     /// и отдельный агрегат по владельцам. Экземпляры одного владельца не склеиваются.
+    ///
+    /// Неизвестное состояние экземпляра не скрывается за известным: агрегат
+    /// помечается как неизвестный, и отрицательная проверка не может пройти.
+    /// Владелец без живых экземпляров тоже публикуется — история запусков
+    /// переживает удаление плеера.
     private func buildTelemetryLocked() -> DebugPlaybackTelemetry {
         var players: [String: DebugPlayerTelemetry] = [:]
         var instancesByOwner: [DebugPlaybackOwner: [DebugPlayerTelemetry]] = [:]
@@ -218,10 +255,11 @@ final class DebugPlaybackRegistry {
 
         for (id, owner) in registeredPlayers {
             let key = id.uuidString
+            let status = playerTimeControlStatus[id]
             let telemetry = DebugPlayerTelemetry(
                 owner: owner.rawValue,
-                timeControlStatus: playerTimeControlStatus[id] ?? "unknown",
-                isActuallyPlaying: playerIsActuallyPlaying[id] ?? false,
+                timeControlStatus: status ?? "unknown",
+                isActuallyPlaying: status.map { $0 == "playing" },
                 playingTransitionCount: playerPlayingTransitionCount[id] ?? 0
             )
             players[key] = telemetry
@@ -230,26 +268,47 @@ final class DebugPlaybackRegistry {
         }
 
         var owners: [String: DebugOwnerTelemetry] = [:]
-        for (owner, instances) in instancesByOwner {
+        for owner in knownOwners {
+            let instances = instancesByOwner[owner] ?? []
+            let hasUnknown = instances.contains { $0.isActuallyPlaying == nil }
+            let isPlayingNow = instances.contains { $0.isActuallyPlaying == true }
+
             let status: String
-            if instances.contains(where: { $0.isActuallyPlaying }) {
+            if isPlayingNow {
                 status = "playing"
+            } else if hasUnknown {
+                status = "unknown"
             } else if instances.contains(where: { $0.timeControlStatus == "waitingToPlay" }) {
                 status = "waitingToPlay"
             } else if instances.contains(where: { $0.timeControlStatus == "paused" }) {
                 status = "paused"
             } else {
-                status = "unknown"
+                status = "none"
             }
+
+            let isActuallyPlaying: Bool?
+            if instances.isEmpty {
+                // Живых экземпляров нет — звука быть не может.
+                isActuallyPlaying = false
+            } else if isPlayingNow {
+                isActuallyPlaying = true
+            } else if hasUnknown {
+                isActuallyPlaying = nil
+            } else {
+                isActuallyPlaying = false
+            }
+
             owners[owner.rawValue] = DebugOwnerTelemetry(
                 playerIds: (idsByOwner[owner] ?? []).sorted(),
                 timeControlStatus: status,
-                isActuallyPlaying: instances.contains(where: { $0.isActuallyPlaying }),
+                isActuallyPlaying: isActuallyPlaying,
                 playingTransitionCount: ownerPlayingTransitionCount[owner] ?? 0
             )
         }
 
-        return DebugPlaybackTelemetry(players: players, owners: owners)
+        return DebugPlaybackTelemetry(players: players,
+                                      owners: owners,
+                                      pipelineAdvanceCount: pipelineAdvanceCount)
     }
 
     private func persistCountsLocked() {
@@ -702,6 +761,13 @@ class PlayerModel: ObservableObject {
         self.timeObserver = PlayerTimeObserver(player: self.player)
         #if DEBUG
         DebugPlaybackRegistry.shared.registerPlayer(id: debugPlayerID, owner: debugOwner)
+        // Начальное состояние публикуется сразу: до первого события KVO
+        // состояние экземпляра неизвестно, и отрицательная проверка не должна
+        // принимать неизвестное за «не играет».
+        DebugPlaybackRegistry.shared.setPlayerTimeControlStatus(
+            id: debugPlayerID,
+            status: PlayerModel.timeControlStatusName(self.player.timeControlStatus)
+        )
         #endif
         
         self.setupRemoteTransportControls()
