@@ -215,11 +215,23 @@ final class ClassicReadingTests: XCTestCase {
         let initialLabel = speedBtn.label
         XCTAssertFalse(initialLabel.isEmpty, "Speed button should have a label")
 
+        // Цикл скоростей детерминирован (changeSpeed: +0.2 до 2.0, затем 0.6).
+        // После каждого тапа ждём именно ожидаемую метку событийно — фиксированные
+        // задержки не подтверждают, что тап применился.
+        let speedLabels = ["x1", "1.2", "1.4", "1.6", "1.8", "2.0", "0.6", "0.8"]
+        guard var speedIndex = speedLabels.firstIndex(of: initialLabel) else {
+            XCTFail("Unexpected initial speed label: \(initialLabel)")
+            return
+        }
+
         // Tap 8 times to cycle: x1→1.2→1.4→1.6→1.8→2.0→0.6→0.8→x1
         var labels: [String] = [initialLabel]
         for _ in 0..<8 {
             speedBtn.tap()
-            Thread.sleep(forTimeInterval: 0.1)
+            speedIndex = (speedIndex + 1) % speedLabels.count
+            let expectedLabel = speedLabels[speedIndex]
+            XCTAssertTrue(app.waitForLabel(element: speedBtn, toBe: expectedLabel, timeout: 5),
+                          "Speed label should become '\(expectedLabel)' after tap. Got: \(speedBtn.label)")
             labels.append(speedBtn.label)
         }
 
@@ -535,6 +547,8 @@ final class ClassicReadingTests: XCTestCase {
 
     // #26 — Меняем перевод в настройках.
     // Результат: заголовок секции диктора сбрасывается на заглушку.
+    // Контракт тестовых данных: живой API предоставляет ≥2 языка и ≥2 перевода
+    // для языка по умолчанию (en). Меньше — нарушение контракта, а не пропуск.
     @MainActor
     func testSettingsTranslationResetsVoice() throws {
         openSettings()
@@ -542,7 +556,8 @@ final class ClassicReadingTests: XCTestCase {
         // Запоминаем заголовок секции диктора до изменений
         let voiceSection = app.otherElements["setup-voice-section"]
         XCTAssertTrue(voiceSection.waitForExistence(timeout: 5))
-        let voiceHeaderBefore = voiceSection.buttons.element(boundBy: 0).label
+        let voiceHeader = voiceSection.buttons.element(boundBy: 0)
+        let voiceHeaderBefore = voiceHeader.label
 
         // Раскрываем секцию перевода
         let transSection = app.otherElements["setup-translation-section"]
@@ -558,7 +573,8 @@ final class ClassicReadingTests: XCTestCase {
         let translationButtons = transSection.buttons
         guard translationButtons.count >= 3 else {
             closeSettings()
-            throw XCTSkip("Need at least 2 translations (header + 2 options)")
+            XCTFail("Test data contract requires at least 2 translations, got \(translationButtons.count - 1)")
+            return
         }
 
         // Выбираем перевод без checkmark (не текущий)
@@ -574,21 +590,23 @@ final class ClassicReadingTests: XCTestCase {
         }
         guard tappedDifferent else {
             closeSettings()
-            throw XCTSkip("Could not find a different translation")
+            XCTFail("A different translation must be selectable, but every option is marked as the selected one")
+            return
         }
 
-        Thread.sleep(forTimeInterval: 1)
-
-        // После смены перевода диктор сбрасывается — заголовок секции меняется
-        let voiceHeaderAfter = voiceSection.buttons.element(boundBy: 0).label
-        XCTAssertNotEqual(voiceHeaderAfter, voiceHeaderBefore,
-                          "Voice section header should change after translation switch")
+        // После смены перевода диктор сбрасывается — ждём смену заголовка секции событийно
+        XCTAssertTrue(
+            app.waitForLabelChange(element: voiceHeader, from: voiceHeaderBefore, timeout: 10),
+            "Voice section header should change after translation switch"
+        )
 
         closeSettings()
     }
 
     // #27 — Меняем язык в настройках, но НЕ выбираем диктора и закрываем sheet.
     // Результат: перевод остаётся прежним — изменения не сохранились без выбора voice.
+    // Контракт тестовых данных: живой API предоставляет ≥2 языка и ≥2 перевода
+    // для языка по умолчанию (en). Меньше — нарушение контракта, а не пропуск.
     @MainActor
     func testSettingsResetNotPersistedWithoutVoice() throws {
         let translationChip = app.buttons["read-translation-chip"]
@@ -611,8 +629,11 @@ final class ClassicReadingTests: XCTestCase {
         let langButtons = langSection.buttons
         guard langButtons.count >= 3 else {
             closeSettings()
-            throw XCTSkip("Need at least 2 languages")
+            XCTFail("Test data contract requires at least 2 languages, got \(langButtons.count - 1)")
+            return
         }
+        let langHeader = langButtons.element(boundBy: 0)
+        let langHeaderBefore = langHeader.label
 
         // Выбираем язык без checkmark
         var tappedDifferent = false
@@ -627,9 +648,15 @@ final class ClassicReadingTests: XCTestCase {
         }
         guard tappedDifferent else {
             closeSettings()
-            throw XCTSkip("Could not find a different language")
+            XCTFail("A different language must be selectable, but every option is marked as the selected one")
+            return
         }
-        Thread.sleep(forTimeInterval: 1)
+
+        // Подтверждаем выбор: заголовок секции языка меняется на выбранный язык
+        XCTAssertTrue(
+            app.waitForLabelChange(element: langHeader, from: langHeaderBefore, timeout: 10),
+            "Language section header should change after selecting a different language"
+        )
 
         // Close WITHOUT selecting a voice — changes should NOT persist
         closeSettings()

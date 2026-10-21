@@ -11,6 +11,12 @@ struct PageSelectView: View {
     @State private var selectedBiblePartIndex: Int = -1 // 0 - OT, 1 - NT
     @State private var expandedBook: Int = 0
     @State private var needSelectedBookOpen: Bool = true
+    // The auto-scroll is the initial positioning only: the first manual
+    // interaction with the list (book tap, chapter tap, testament switch,
+    // scrolling) cancels it, including the already scheduled callbacks, so a
+    // late list/current-book update can never override the user's position.
+    @State private var isInitialAutoScrollActive: Bool = true
+    @State private var pendingAutoScrollWorkItems: [DispatchWorkItem] = []
     
     @State private var booksInfo: [Components.Schemas.TranslationBookModel] = []
     
@@ -108,6 +114,7 @@ struct PageSelectView: View {
                              baseColor: Color("Mustard"),
                              bgColor: Color("DarkGreen-light")
         ) { selectedIndex in
+            cancelInitialAutoScroll()
             if selectedBiblePartIndex == selectedIndex {
                 // Second tap clears selection
                 selectedBiblePartIndex = -1
@@ -134,6 +141,7 @@ struct PageSelectView: View {
                 
                 Button(action: {
                     // MARK: On chapter selection
+                    cancelInitialAutoScroll()
                     settingsManager.currentExcerpt = "\(book.alias) \(chapter_number)"
                     settingsManager.currentExcerptTitle = book.name
                     settingsManager.currentExcerptSubtitle = "chapter.title".localized(chapter_number)
@@ -236,9 +244,10 @@ struct PageSelectView: View {
 
                                 // Expand / collapse book
                                 Button {
-                                    
+                                    cancelInitialAutoScroll()
+
                                      withAnimation {
-                                         expandedBook = book.book_number
+                                          expandedBook = book.book_number
                                      
                                          if book.book_number != settingsManager.currentBookId {
                                             needSelectedBookOpen = false
@@ -325,13 +334,13 @@ struct PageSelectView: View {
             }
             .frame(maxHeight: .infinity)
             .onAppear {
-                scrollToCurrentBook(proxy: proxy)
+                scheduleInitialAutoScroll(proxy: proxy)
             }
             .onChange(of: booksInfo) { _ in
-                scrollToCurrentBook(proxy: proxy)
+                scheduleInitialAutoScroll(proxy: proxy)
             }
             .onChange(of: settingsManager.currentBookId) { _ in
-                scrollToCurrentBook(proxy: proxy)
+                scheduleInitialAutoScroll(proxy: proxy)
             }
             .onChange(of: scrollToTop) { newValue in
                 if newValue {
@@ -342,24 +351,41 @@ struct PageSelectView: View {
                     scrollToTop = false
                 }
             }
+            .simultaneousGesture(DragGesture(minimumDistance: 12)
+                .onChanged { _ in
+                    cancelInitialAutoScroll()
+                }
+            )
             //Spacer()
         }
     }
 
-    /// Scrolls the book list to the current book.
+    /// Scrolls the book list to the current book at the initial positioning.
     ///
     /// The chapter grid is lazy: its buttons are created only when the book row
-    /// is close to the viewport. When `scrollTo` runs in the same layout pass
-    /// in which the lazy content is inserted, it silently does nothing and the
-    /// sheet stays at the top. The scroll is therefore deferred to the next
-    /// run loop turn and repeated whenever the book list or the current book
-    /// changes, so the current chapter grid is always instantiated.
-    private func scrollToCurrentBook(proxy: ScrollViewProxy) {
-        guard !booksInfo.isEmpty else { return }
+    /// is close to the viewport. A `scrollTo` issued in the same layout pass in
+    /// which the lazy content is inserted may silently do nothing, so the scroll
+    /// is deferred to the next run loop turn and repeated once more shortly
+    /// after — both attempts stay cancelable by the first manual interaction.
+    private func scheduleInitialAutoScroll(proxy: ScrollViewProxy) {
+        guard isInitialAutoScrollActive, !booksInfo.isEmpty else { return }
         let bookId = settingsManager.currentBookId
-        DispatchQueue.main.async {
-            proxy.scrollTo("book_\(bookId)", anchor: .top)
+        pendingAutoScrollWorkItems.forEach { $0.cancel() }
+        pendingAutoScrollWorkItems = []
+        for delay in [0.0, 0.35] {
+            let work = DispatchWorkItem {
+                proxy.scrollTo("book_\(bookId)", anchor: .top)
+            }
+            pendingAutoScrollWorkItems.append(work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
         }
+    }
+
+    /// Cancels the initial auto-scroll together with its scheduled callbacks.
+    private func cancelInitialAutoScroll() {
+        isInitialAutoScrollActive = false
+        pendingAutoScrollWorkItems.forEach { $0.cancel() }
+        pendingAutoScrollWorkItems = []
     }
     
 }

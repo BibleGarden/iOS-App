@@ -517,7 +517,10 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 8))
         // До первой загрузки главы заголовок пуст: кнопка существует, но имеет
         // нулевую ширину и тап по ней невозможен. Ждём наполнения событийно.
-        XCTAssertTrue(app.waitForLabelChange(element: title, from: "", timeout: 60),
+        // Бюджет 20 с по замерам: начальная загрузка главы (один excerpt-запрос)
+        // занимает 2.7-2.9 с на свободном API; замеренный максимум родственных
+        // запросов под параллельной нагрузкой — >8 с.
+        XCTAssertTrue(app.waitForLabelChange(element: title, from: "", timeout: 20),
                       "Chapter title should load before opening the selection sheet")
         let oldTitle = title.label
         title.tap()
@@ -526,24 +529,26 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertTrue(closeBtn.waitForExistence(timeout: 5),
                       "Chapter selection sheet should appear")
 
-        // Грид глав появляется только после ответа API (список книг перевода).
-        // Под нагрузкой ответ легитимно длится дольше фиксированных таймаутов,
-        // поэтому ждём появления кнопки главы событийно, а не закрываем sheet.
+        // Грид глав появляется только после ответа API (список книг перевода),
+        // и его кнопки становятся доступными для тапа после первоначального
+        // скролла к текущей книге — ждём оба условия в одном событийном ожидании.
+        // Бюджет 20 с по замерам: книги+скролл — 0.8-0.9 с свободном API,
+        // 3-5 с под нагрузкой, максимум запроса списка — >8 с под нагрузкой.
         let chapterBtn = app.buttons["2"]
-        XCTAssertTrue(chapterBtn.waitForExistence(timeout: 60),
+        XCTAssertTrue(app.waitForElementHittable(chapterBtn, timeout: 20),
                       "Chapter grid should load in the selection sheet")
-        XCTAssertTrue(chapterBtn.isHittable,
-                      "Chapter button '2' should be visible in the grid")
         chapterBtn.tap()
 
         // Ждём возврат на reading page и смену заголовка.
         // Заголовок обновляется после перезагрузки главы (запрос API).
+        // Бюджет 20 с по замерам: смена — 1.3 с свободном API, ≤5.7 с под
+        // нагрузкой (включая анимацию закрытия sheet).
         let playPause = app.buttons["multi-play-pause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 10),
                       "Should return to reading page after chapter select")
 
         XCTAssertTrue(
-            app.waitForLabelChange(element: title, from: oldTitle, timeout: 60),
+            app.waitForLabelChange(element: title, from: oldTitle, timeout: 20),
             "Chapter title should change after selecting a different chapter (old: \(oldTitle))"
         )
     }

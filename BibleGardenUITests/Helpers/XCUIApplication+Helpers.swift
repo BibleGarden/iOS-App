@@ -47,12 +47,18 @@ extension XCUIApplication {
     ///
     /// Readiness is the `waitingForPlay` state. Terminal outcomes of the
     /// current load attempt end the wait early with "not ready": the audio
-    /// failed (`error` state) or the chapter request itself failed
-    /// (`read-error-text`). The wait is event-based: it returns as soon as the
-    /// state is published. The timeout only bounds a legitimately slow load
-    /// (live API under load); the app's own failure paths end it earlier.
+    /// failed (`error` state / the app's 15s buffering timeout) or the chapter
+    /// request itself failed (`read-error-text`). The wait is event-based: it
+    /// returns as soon as the state is published.
+    ///
+    /// Budget (30s) from measurements: excerpt request + duration probe took
+    /// 1.5-2.2s on an idle API and ≤4.5s under parallel load; the slowest
+    /// observed request of the sibling endpoint (book list) is >8s; the
+    /// duration probe is bounded by the app's own 15s error timeout. 30s covers
+    /// the worst successful composition (~10s request + 15s probe) without
+    /// waiting through failures, which exit early.
     @discardableResult
-    func waitForReadPlaybackReady(timeout: TimeInterval = 60) -> Bool {
+    func waitForReadPlaybackReady(timeout: TimeInterval = 30) -> Bool {
         let stateLabel = staticTexts["read-playback-state"]
         guard stateLabel.waitForExistence(timeout: 5) else { return false }
         let deadline = Date().addingTimeInterval(timeout)
@@ -97,10 +103,15 @@ extension XCUIApplication {
     /// `minimumButtonCount` is 2 for "the list rendered at least one option";
     /// the caller keeps distinguishing data conditions (e.g. a single language)
     /// from the list not loading at all.
+    ///
+    /// Budget (20s) from measurements: the languages/translations lists render
+    /// in 0.4-0.6s after the section is expanded on an idle API (the fetch
+    /// starts when the sheet opens); the slowest observed request of the
+    /// sibling endpoints under parallel load is >8s, so 20s covers it.
     @discardableResult
     func waitForSelectionSectionOptions(in section: XCUIElement,
                                         minimumButtonCount: Int,
-                                        timeout: TimeInterval = 60) -> Bool {
+                                        timeout: TimeInterval = 20) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if section.buttons.count >= minimumButtonCount { return true }
@@ -130,6 +141,22 @@ extension XCUIApplication {
     /// Wait for an element to exist with a timeout, returns Bool
     func waitForElement(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         return element.waitForExistence(timeout: timeout)
+    }
+
+    /// Wait until the element both exists and is hittable.
+    ///
+    /// Existence alone does not mean the element can be tapped: an item of a
+    /// lazy list may already exist but still sit below the fold until the
+    /// initial scroll settles. The wait is event-based: it returns as soon as
+    /// both conditions hold.
+    @discardableResult
+    func waitForElementHittable(_ element: XCUIElement, timeout: TimeInterval = 10) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists && element.isHittable { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return element.exists && element.isHittable
     }
 
     /// Wait for an element's label to change from a known value
