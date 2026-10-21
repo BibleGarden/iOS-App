@@ -205,6 +205,11 @@ struct PageMultilingualSetupView: View {
             if showSaveAlert {
                 Color.black.opacity(0.4)
                     .edgesIgnoringSafeArea(.all)
+                    // Идентификатор диалога живёт на подложке: иначе он
+                    // наследуется кнопками и стирает их собственные
+                    // идентификаторы — «без сохранения» и «сохранить» стали бы
+                    // неразличимы.
+                    .accessibilityIdentifier("multi-save-alert")
                     .onTapGesture {
                         // Optional: dismiss on tap outside? Better not to avoid accidents.
                     }
@@ -258,7 +263,6 @@ struct PageMultilingualSetupView: View {
                         .disabled(templateName.isEmpty)
                     }
                 }
-                .accessibilityIdentifier("multi-save-alert")
                 .padding(25)
                 .background(Color("DarkGreen").brightness(0.1))
                 .cornerRadius(15)

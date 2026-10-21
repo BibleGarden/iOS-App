@@ -423,6 +423,8 @@ struct SkeletonView: View {
     @AppStorage("debugRemotePauseCommandEnabled") private var debugRemotePauseCommandEnabled: Int = 0
     @AppStorage("debugRemoteCommandStatus") private var debugRemoteCommandStatus: String = "none"
     @AppStorage("debugRemoteCommandCount") private var debugRemoteCommandCount: Int = 0
+    @AppStorage("debugPlayerSnapshot") private var debugPlayerSnapshotJSON: String = "{}"
+    @AppStorage("debugPlaybackRaceResult") private var debugPlaybackRaceResultJSON: String = "{}"
     #endif
     
     // Not relevant here
@@ -562,6 +564,10 @@ struct SkeletonView: View {
                         .accessibilityIdentifier("debug-remote-command-status")
                     Text("\(debugRemoteCommandCount)")
                         .accessibilityIdentifier("debug-remote-command-count")
+                    Text(debugPlayerSnapshotJSON)
+                        .accessibilityIdentifier("debug-player-snapshot")
+                    Text(debugPlaybackRaceResultJSON)
+                        .accessibilityIdentifier("debug-playback-race-result")
                 }
                 .font(.system(size: 1))
                 .foregroundStyle(.clear)

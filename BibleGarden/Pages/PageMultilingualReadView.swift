@@ -352,6 +352,14 @@ struct PageMultilingualReadView: View {
                             .font(.system(size: 8))
                             .frame(width: 40, height: 12)
                             .accessibilityIdentifier("debug-remote-play")
+                            Button {
+                                DebugPlaybackRace.shared.start()
+                            } label: {
+                                Text("race")
+                            }
+                            .font(.system(size: 8))
+                            .frame(width: 40, height: 12)
+                            .accessibilityIdentifier("debug-race-51")
                         }
                         .foregroundStyle(.clear)
                     }
@@ -1066,8 +1074,14 @@ struct PageMultilingualReadView: View {
             markCurrentChapterAsRead()
         }
 
+        #if DEBUG
+        // Монотонный счётчик переходов: индекс шага цикличен, а тестам нужно
+        // однозначно знать, что чтение действительно продолжилось.
+        DebugPlaybackRegistry.shared.notePipelineAdvanced()
+        #endif
+
         currentStepIndex += 1
-        
+
         if currentStepIndex >= allSteps.count {
             // Done with all steps for this unit, move to next unit
             moveToNextUnit()
