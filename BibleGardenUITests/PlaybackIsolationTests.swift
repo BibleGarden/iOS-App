@@ -264,8 +264,13 @@ final class PlaybackIsolationTests: XCTestCase {
                       "No playback should remain active on the main page")
 
         // Историю запусков фиксируем до возврата: сам возврат не должен
-        // добавить ни одного запуска воспроизведения.
-        let transitionsBeforeReturn = app.debugPlayingTransitionCount(forOwner: "multilingualRead")
+        // добавить ни одного запуска воспроизведения. Счётчики обязательны:
+        // baseline, снятый позже, скрыл бы запуск в слепом окне.
+        guard let transitionsBeforeReturn = app.debugPlayingTransitionCount(forOwner: "multilingualRead"),
+              let totalTransitionsBeforeReturn = app.debugTotalPlayingTransitionCount() else {
+            XCTFail("The playback telemetry should be available before the return")
+            return
+        }
 
         // Возврат к мультичтению — без перезапуска приложения: перезапуск убил бы
         // старые плееры и отложенные callback'и, а тест проверяет именно возврат
@@ -284,7 +289,7 @@ final class PlaybackIsolationTests: XCTestCase {
 
         // Старый pipeline не должен просыпаться в фоне: за интервал наблюдения
         // не было ни одного нового запуска воспроизведения.
-        XCTAssertTrue(app.assertNoPlayerStartedPlaying(duration: 5),
+        XCTAssertTrue(app.assertNoPlayerStartedPlaying(since: totalTransitionsBeforeReturn, duration: 5),
                       "Old multilingual pipeline should not wake up in the background")
         XCTAssertEqual(app.debugPlayingTransitionCount(forOwner: "multilingualRead"), transitionsBeforeReturn,
                        "Old multilingual pipeline should not wake up in the background")

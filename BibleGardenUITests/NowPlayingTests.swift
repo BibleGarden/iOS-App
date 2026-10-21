@@ -184,6 +184,13 @@ final class NowPlayingOwnershipTests: XCTestCase {
         // 4. Команда Play с экрана блокировки ничего не запускает
         app.openMenu()
 
+        // Счётчик запусков фиксируется ДО команды: короткий запуск, успевший
+        // завершиться до чтения baseline, иначе остался бы незамеченным.
+        guard let transitionsBeforePlay = app.debugTotalPlayingTransitionCount() else {
+            XCTFail("The playback telemetry should be available before the remote play command")
+            return
+        }
+
         let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-menu-remote-play")
         XCTAssertEqual(playStatus, "noActionableNowPlayingItem",
                        "Remote play without an owner should be reported as not actionable. status=\(playStatus ?? "nil")")
@@ -191,7 +198,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
         // и по истории переходов: отложенный запуск не должен остаться незамеченным.
         XCTAssertTrue(app.assertNoPlayerIsActuallyPlaying("Remote play should not start any player"),
                       "Remote play should not start any player")
-        XCTAssertTrue(app.assertNoPlayerStartedPlaying(duration: 5),
+        XCTAssertTrue(app.assertNoPlayerStartedPlaying(since: transitionsBeforePlay, duration: 5),
                       "Remote play should not start any player")
         XCTAssertTrue(app.waitForDebugNowPlayingOwner("none", timeout: 5),
                       "Remote play should not claim the Now Playing session")

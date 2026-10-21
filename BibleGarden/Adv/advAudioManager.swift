@@ -241,6 +241,18 @@ final class DebugPlaybackRegistry {
         return text
     }
 
+    /// Фактическое воспроизведение по опубликованному статусу AVPlayer.
+    /// nil — статус неизвестен (в том числе "unknown" из @unknown default
+    /// или ещё не опубликованная запись): неизвестное состояние не равно
+    /// «не играет», поэтому отрицательная проверка его не удовлетворяет.
+    private static func isActuallyPlaying(forStatus status: String?) -> Bool? {
+        switch status {
+        case "playing": return true
+        case "paused", "waitingToPlay": return false
+        default: return nil
+        }
+    }
+
     /// Собирает снимок телеметрии: записи по UUID (владелец — атрибут записи)
     /// и отдельный агрегат по владельцам. Экземпляры одного владельца не склеиваются.
     ///
@@ -259,7 +271,7 @@ final class DebugPlaybackRegistry {
             let telemetry = DebugPlayerTelemetry(
                 owner: owner.rawValue,
                 timeControlStatus: status ?? "unknown",
-                isActuallyPlaying: status.map { $0 == "playing" },
+                isActuallyPlaying: DebugPlaybackRegistry.isActuallyPlaying(forStatus: status),
                 playingTransitionCount: playerPlayingTransitionCount[id] ?? 0
             )
             players[key] = telemetry

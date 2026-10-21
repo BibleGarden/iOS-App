@@ -307,14 +307,13 @@ extension XCUIApplication {
         return total
     }
 
-    /// За интервал ни один экземпляр не перешёл в воспроизведение:
-    /// накопленное число переходов в .playing не выросло.
+    /// За интервал ни один экземпляр не перешёл в воспроизведение.
+    ///
+    /// `since` — счётчик переходов, зафиксированный ДО команды. Baseline,
+    /// снятый внутри интервала, скрыл бы короткий запуск, который успел
+    /// завершиться до его чтения, поэтому счётчик передаётся явно.
     @discardableResult
-    func assertNoPlayerStartedPlaying(duration: TimeInterval, pollInterval: TimeInterval = 0.5) -> Bool {
-        guard let baseline = debugTotalPlayingTransitionCount() else {
-            XCTFail("The playback telemetry is not available")
-            return false
-        }
+    func assertNoPlayerStartedPlaying(since baseline: Int, duration: TimeInterval, pollInterval: TimeInterval = 0.5) -> Bool {
         let deadline = Date().addingTimeInterval(duration)
         while Date() < deadline {
             guard let current = debugTotalPlayingTransitionCount() else {
@@ -487,8 +486,15 @@ extension XCUIApplication {
     /// и идентичность экземпляров: пересоздание плеера обнуляет счётчик,
     /// поэтому такой случай — ошибка, а не «тишина».
     /// Неизвестное состояние экземпляра проверку не удовлетворяет.
+    ///
+    /// `upperBound` — счётчик переходов, зафиксированный ДО команды. Всё, что
+    /// больше, означает запуск, случившийся в слепом окне между командой и
+    /// чтением baseline внутри интервала.
     @discardableResult
-    func assertDebugPlayerDidNotStartPlaying(forOwner owner: String, duration: TimeInterval, pollInterval: TimeInterval = 1.0) -> Bool {
+    func assertDebugPlayerDidNotStartPlaying(forOwner owner: String,
+                                             upperBound: Int? = nil,
+                                             duration: TimeInterval,
+                                             pollInterval: TimeInterval = 1.0) -> Bool {
         guard let baseline = debugOwnerTelemetry(forOwner: owner) else {
             XCTFail("No telemetry for '\(owner)' — the player instance is gone, that is not a pause")
             return false
@@ -507,7 +513,7 @@ extension XCUIApplication {
                 XCTFail("The telemetry of '\(owner)' disappeared during the pause interval")
                 return false
             }
-            if let failure = debugPauseIntervalFailure(owner: owner, baseline: baseline, current: current) {
+            if let failure = debugPauseIntervalFailure(owner: owner, baseline: baseline, current: current, upperBound: upperBound) {
                 XCTFail(failure)
                 return false
             }
@@ -518,14 +524,17 @@ extension XCUIApplication {
             XCTFail("The telemetry of '\(owner)' disappeared at the end of the pause interval")
             return false
         }
-        if let failure = debugPauseIntervalFailure(owner: owner, baseline: baseline, current: final) {
+        if let failure = debugPauseIntervalFailure(owner: owner, baseline: baseline, current: final, upperBound: upperBound) {
             XCTFail(failure)
             return false
         }
         return true
     }
 
-    private func debugPauseIntervalFailure(owner: String, baseline: DebugOwnerTelemetry, current: DebugOwnerTelemetry) -> String? {
+    private func debugPauseIntervalFailure(owner: String,
+                                           baseline: DebugOwnerTelemetry,
+                                           current: DebugOwnerTelemetry,
+                                           upperBound: Int?) -> String? {
         if current.isActuallyPlaying == true {
             return "The AVPlayer of '\(owner)' started playing during the pause interval"
         }
@@ -534,6 +543,9 @@ extension XCUIApplication {
         }
         if current.playingTransitionCount > baseline.playingTransitionCount {
             return "The AVPlayer of '\(owner)' started playing during the pause interval (transitions \(baseline.playingTransitionCount) → \(current.playingTransitionCount))"
+        }
+        if let upperBound, current.playingTransitionCount > upperBound {
+            return "The AVPlayer of '\(owner)' started playing before the observation started (transitions \(upperBound) → \(current.playingTransitionCount))"
         }
         if current.playingTransitionCount < baseline.playingTransitionCount {
             return "The play-start history of '\(owner)' was reset during the pause interval (\(baseline.playingTransitionCount) → \(current.playingTransitionCount))"
