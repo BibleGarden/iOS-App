@@ -17,6 +17,13 @@ struct PageReadView: View {
     @State private var pageLifecycleSessionID: UUID = UUID()
     @State private var isUpdatingExcerpt: Bool = false
     @State private var hasStartedPlaybackInSession: Bool = false
+    // The reading was stopped by the user (on screen or remotely) — it stays stopped until an explicit Play.
+    @State private var isPausing: Bool = false
+    // Pause between the chapters before the auto-started chapter begins to play.
+    @State private var isAutopausing: Bool = false
+    // The chapter that has to start playing as soon as its audio is ready.
+    @State private var chapterAutoStartSessionID: UUID? = nil
+    @State private var pendingChapterStartWorkItem: DispatchWorkItem? = nil
     @State private var completionHandledForSession: Bool = true
     @State private var completionGuardStartTime: Date = .distantPast
     @State private var currentAudioVerseIndex: Int = -1
@@ -254,6 +261,8 @@ struct PageReadView: View {
                 pageLifecycleSessionID = pageSessionID
                 pageSetupTask?.cancel()
 
+                installRemoteCommandHandlers()
+
                 pageSetupTask = Task {
                     self.audiopleer.onEndVerse = onEndVerse
                     self.audiopleer.onStartVerse = onStartVerse
@@ -288,9 +297,17 @@ struct PageReadView: View {
     }
 
     // MARK: After selection
-    func updateExcerpt(proxy: ScrollViewProxy) async {
+    /// Loads the current excerpt.
+    /// `autoStart` marks the chapter as the one requested by the auto-transition:
+    /// it has to start playing as soon as its audio is ready.
+    @MainActor
+    func updateExcerpt(proxy: ScrollViewProxy, autoStart: Bool = false) async {
         isUpdatingExcerpt = true
-        playbackPipelineSessionID = UUID()
+        let sessionID = UUID()
+        playbackPipelineSessionID = sessionID
+        // A manual chapter change cancels the auto-start of the previous chapter.
+        chapterAutoStartSessionID = nil
+        cancelPendingChapterStart()
         invalidateAudioCompletionTracking()
         invalidateTextReadingTracking()
         defer { isUpdatingExcerpt = false }
@@ -353,7 +370,12 @@ struct PageReadView: View {
                 
                 let playerItem = AVPlayerItem(url: url)
                 audiopleer.setItem(playerItem: playerItem, periodFrom: isSingleChapter ? 0 : from, periodTo: isSingleChapter ? 0 : to, audioVerses: audioVerses, itemTitle: settingsManager.currentExcerptTitle, itemSubtitle: settingsManager.currentExcerptSubtitle)
-                
+
+                // The auto-start belongs to the chapter that is loaded now, not to the one that has just ended.
+                if autoStart {
+                    chapterAutoStartSessionID = sessionID
+                }
+
                 self.hasAudio = true
                 self.errorDescription = ""
                 beginAudioCompletionTracking(audioVerseCount: audioVerses.count)
@@ -480,6 +502,45 @@ struct PageReadView: View {
         }
     }
 
+    // MARK: Playback control
+
+    /// Toggles the playback. An explicit action of the user always wins over the pending auto-start.
+    private func togglePlayPause() {
+        if audiopleer.state == .playing {
+            // The user stops the reading — a pending auto-start is cancelled.
+            isPausing = true
+        } else {
+            // The user starts the reading — the chapter starts as soon as it is ready.
+            isPausing = false
+        }
+        cancelPendingChapterStart()
+        audiopleer.doPlayOrPause()
+    }
+
+    // MARK: Remote transport commands
+
+    /// Routes the transport commands from the lock screen / Control Center to the same
+    /// logic as the on-screen player controls.
+    private func installRemoteCommandHandlers() {
+        audiopleer.onRemotePlay = {
+            self.isPausing = false
+            self.cancelPendingChapterStart()
+            self.audiopleer.playSimple()
+        }
+        audiopleer.onRemotePause = {
+            // The reading stays stopped until an explicit Play, even when the pause
+            // arrives while the chapter is still loading.
+            self.isPausing = true
+            self.cancelPendingChapterStart()
+            self.audiopleer.pauseSimple()
+        }
+    }
+
+    private func uninstallRemoteCommandHandlers() {
+        audiopleer.onRemotePlay = nil
+        audiopleer.onRemotePause = nil
+    }
+
     // MARK: Audio completion observer setup
     private func setupAudioCompletionObserver(proxy: ScrollViewProxy) {
         audioStateObserver = audiopleer.$state
@@ -488,6 +549,11 @@ struct PageReadView: View {
                 let pipelineSessionID = self.playbackPipelineSessionID
                 if newState == .playing {
                     self.hasStartedPlaybackInSession = true
+                }
+
+                // The chapter starts playing as soon as its audio is ready.
+                if newState == .waitingForPlay {
+                    self.startAutoStartedChapterIfNeeded()
                 }
 
                 if self.isUpdatingExcerpt {
@@ -513,30 +579,64 @@ struct PageReadView: View {
                         // Small delay for better UX
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             guard self.playbackPipelineSessionID == pipelineSessionID else { return }
-                            Task {
-                                self.settingsManager.currentExcerpt = self.nextExcerpt
-                                await self.updateExcerpt(proxy: proxy)
-                                
-                                // Determine needed pause between chapters and auto-play flag
-                                let (pauseDelay, shouldAutoPlay) = self.calculateChapterTransitionPause()
-                                
-                                // Show autopausing state when pause is long enough
-                                if pauseDelay > 0.3 && shouldAutoPlay {
-                                    self.audiopleer.state = .autopausing
-                                }
-                                
-                                // Auto-start playback once pause ends (if required)
-                                if shouldAutoPlay {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + pauseDelay) {
-                                        guard self.playbackPipelineSessionID == pipelineSessionID else { return }
-                                        self.audiopleer.doPlayOrPause()
-                                    }
-                                }
+                            let nextExcerpt = self.nextExcerpt
+                            Task { @MainActor in
+                                self.settingsManager.currentExcerpt = nextExcerpt
+                                // The auto-start belongs to the new chapter, not to the session that has just ended.
+                                await self.updateExcerpt(proxy: proxy, autoStart: true)
                             }
                         }
                     }
                 }
             }
+    }
+
+    // MARK: Auto-start of the next chapter
+
+    /// Starts the chapter requested by the auto-transition as soon as its audio is ready.
+    /// The pause between the chapters is respected, and a pause of the user cancels the auto-start.
+    private func startAutoStartedChapterIfNeeded() {
+        guard let autoStartSessionID = chapterAutoStartSessionID else { return }
+        guard autoStartSessionID == playbackPipelineSessionID else { return }
+        chapterAutoStartSessionID = nil
+
+        // The reading was stopped by the user — it stays stopped until an explicit Play.
+        guard !isPausing else { return }
+        guard audiopleer.state != .playing else { return }
+
+        // Determine needed pause between chapters and auto-play flag
+        let (pauseDelay, shouldAutoPlay) = calculateChapterTransitionPause()
+        guard shouldAutoPlay else { return }
+
+        // Show the pause between the chapters when it is long enough
+        if pauseDelay > 0.3 {
+            isAutopausing = true
+        }
+
+        // Start the playback once the pause between the chapters is over
+        let sessionID = playbackPipelineSessionID
+        let workItem = DispatchWorkItem {
+            guard self.playbackPipelineSessionID == sessionID else { return }
+            guard !self.isPausing else {
+                self.isAutopausing = false
+                return
+            }
+            guard self.audiopleer.state != .playing else {
+                self.isAutopausing = false
+                return
+            }
+            self.isAutopausing = false
+            self.audiopleer.doPlayOrPause()
+        }
+        pendingChapterStartWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + pauseDelay, execute: workItem)
+    }
+
+    /// Cancels the scheduled start of the auto-started chapter.
+    private func cancelPendingChapterStart() {
+        pendingChapterStartWorkItem?.cancel()
+        pendingChapterStartWorkItem = nil
+        isAutopausing = false
     }
 
     private func beginAudioCompletionTracking(audioVerseCount: Int) {
@@ -603,10 +703,14 @@ struct PageReadView: View {
         pageSetupTask?.cancel()
         pageSetupTask = nil
         playbackPipelineSessionID = UUID()
+        chapterAutoStartSessionID = nil
+        cancelPendingChapterStart()
+        isPausing = false
         audioStateObserver?.cancel()
         audioStateObserver = nil
         audiopleer.onStartVerse = nil
         audiopleer.onEndVerse = nil
+        uninstallRemoteCommandHandlers()
         audiopleer.shutdown()
         #if DEBUG
         audiopleer.debugOwner = .other
@@ -630,7 +734,7 @@ struct PageReadView: View {
         guard hasText else { return }
         guard !isUpdatingExcerpt else { return }
 
-        if isAudioActiveForTextReadingTimer(state) {
+        if isAutopausing || isAudioActiveForTextReadingTimer(state) {
             pauseTextReadingTimer()
         } else {
             resumeTextReadingTimerIfNeeded()
@@ -715,7 +819,7 @@ struct PageReadView: View {
         
         // New chapter counts as new verse and new paragraph
         // Check if it also starts a new fragment (title before verse)
-        let isNewFragment = !textVerses.first!.beforeTitles.isEmpty
+        let isNewFragment = textVerses.first.map { !$0.beforeTitles.isEmpty } ?? false
         
         // Decide if pause is required based on settings
         let shouldPause: Bool
@@ -1164,6 +1268,7 @@ struct PageReadView: View {
 
     #if DEBUG
     private var playbackStateName: String {
+        if isAutopausing { return "autopausing" }
         switch audiopleer.state {
         case .waitingForSelection: return "waitingForSelection"
         case .waitingForPlay: return "waitingForPlay"
@@ -1248,19 +1353,23 @@ struct PageReadView: View {
                 if activeVerseIndex > 0 && audiopleer.state != .playing {
                     audiopleer.seekToVerseIndex(activeVerseIndex)
                 }
-                audiopleer.doPlayOrPause()
+                togglePlayPause()
             } label: {
 
                 HStack {
-                    switch audiopleer.state {
-                    case .playing:
-                        Image(systemName: "pause.circle.fill")
-                    case .autopausing:
+                    if isAutopausing {
                         Image(systemName: "hourglass.circle.fill")
-                    case .error:
-                        Image(systemName: "arrow.clockwise.circle.fill")
-                    default:
-                        Image(systemName: "play.circle.fill")
+                    } else {
+                        switch audiopleer.state {
+                        case .playing:
+                            Image(systemName: "pause.circle.fill")
+                        case .autopausing:
+                            Image(systemName: "hourglass.circle.fill")
+                        case .error:
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                        default:
+                            Image(systemName: "play.circle.fill")
+                        }
                     }
                 }
                     .font(.system(size: 55))

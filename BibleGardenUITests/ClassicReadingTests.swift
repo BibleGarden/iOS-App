@@ -1157,9 +1157,20 @@ final class ClassicReadingAudioEndProgressTests: XCTestCase {
 final class ClassicReadingAutoNextTests: XCTestCase {
 
     private var app: XCUIApplication!
+    private static var apiChecked = false
+    private static var apiAvailable = true
 
     override func tearDownWithError() throws {
         app = nil
+    }
+
+    /// Проверка доступности API с повторными попытками (один раз на запуск тестов).
+    private func requireAvailableAPI() throws {
+        if !Self.apiChecked {
+            Self.apiChecked = true
+            Self.apiAvailable = checkAPIAvailability()
+        }
+        try XCTSkipUnless(Self.apiAvailable, "API unavailable — skipping the auto-next chapter test")
     }
 
     // #18 — Открываем короткий Псалом 117, дослушиваем до конца с autoNextChapter=true.
@@ -1212,6 +1223,66 @@ final class ClassicReadingAutoNextTests: XCTestCase {
         XCTAssertTrue(
             app.waitForLabelChange(element: title, from: originalTitle, timeout: 40),
             "Chapter title should change after audio finishes with autoNextChapter enabled. Was: \(originalTitle)")
+    }
+
+    // #55 — Открываем короткий Псалом 117, дослушиваем до конца с autoNextChapter=true.
+    // Результат: следующая глава не только открывается, но и реально играет —
+    // состояние переходит в "playing" без нажатия Play.
+    @MainActor
+    func testAutoNextChapterStartsPlayingTheNextChapter() throws {
+        try requireAvailableAPI()
+
+        app = XCUIApplication()
+        app.launchArguments = [
+            "--uitesting",
+            "--start-excerpt", "psa 117"
+        ]
+        app.launch()
+        app.navigateToReadingPage()
+
+        // Ждём загрузку аудио
+        let stateLabel = app.staticTexts["read-playback-state"]
+        guard stateLabel.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Playback state label not found — cannot verify")
+        }
+        let waitingPredicate = NSPredicate(format: "label == %@", "waitingForPlay")
+        let waitExp = XCTNSPredicateExpectation(predicate: waitingPredicate, object: stateLabel)
+        _ = XCTWaiter.wait(for: [waitExp], timeout: 15)
+
+        // Запоминаем текущий заголовок главы
+        let title = app.buttons["read-chapter-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        let originalTitle = title.label
+
+        // Устанавливаем скорость 2x для ускорения
+        let speedBtn = app.buttons["read-speed"]
+        XCTAssertTrue(speedBtn.waitForExistence(timeout: 3))
+        for _ in 0..<5 { speedBtn.tap() }
+
+        // Запускаем воспроизведение
+        let playPause = app.buttons["read-play-pause"]
+        playPause.tap()
+
+        let playingPredicate = NSPredicate(format: "label == %@", "playing")
+        let playExp = XCTNSPredicateExpectation(predicate: playingPredicate, object: stateLabel)
+        _ = XCTWaiter.wait(for: [playExp], timeout: 10)
+
+        // Псалом 117 — 2 стиха. Прокликиваем «следующий стих» чтобы быстрее дойти до конца.
+        let nextVerse = app.buttons["read-next-verse"]
+        if nextVerse.waitForExistence(timeout: 3) {
+            Thread.sleep(forTimeInterval: 1)
+            nextVerse.tap()
+        }
+
+        // Ждём смены заголовка главы (autoNextChapter открывает следующую главу)
+        XCTAssertTrue(
+            app.waitForLabelChange(element: title, from: originalTitle, timeout: 60),
+            "Chapter title should change after audio finishes with autoNextChapter enabled. Was: \(originalTitle)")
+
+        // Ключевая проверка: следующая глава должна сама начать играть.
+        XCTAssertTrue(
+            app.waitForLabel(element: stateLabel, toBe: "playing", timeout: 30),
+            "The next chapter should start playing on its own. state=\(stateLabel.label)")
     }
 
     // #19 — Открываем Псалом 117 с --no-auto-next-chapter, дослушиваем до конца.

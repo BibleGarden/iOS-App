@@ -892,15 +892,19 @@ class PlayerModel: ObservableObject {
         }
     }
     
-    private func playSimple() {
+    /// Starts the playback immediately, without the smooth pause.
+    /// A screen that drives its own playback flow uses it for the transport
+    /// commands of the lock screen / Control Center.
+    func playSimple() {
         cancelSmoothPause()
         claimNowPlaying()
         self.player.play()
         self.state = .playing
         self.isBufferingLong = false
     }
-    
-    private func pauseSimple() {
+
+    /// Stops the playback immediately, without the smooth pause.
+    func pauseSimple() {
         cancelSmoothPause()
         self.player.pause()
         self.state = .pausing
