@@ -569,6 +569,8 @@ struct SkeletonView: View {
                         .accessibilityIdentifier("debug-player-snapshot")
                     Text(debugPlaybackRaceResultJSON)
                         .accessibilityIdentifier("debug-playback-race-result")
+                    Text(settingsManager.voiceMusic ? "1" : "0")
+                        .accessibilityIdentifier("debug-voice-music")
                 }
                 .font(.system(size: 1))
                 .foregroundStyle(.clear)
