@@ -769,8 +769,10 @@ class PlayerModel: ObservableObject {
         }
     }
     
-    /// Immediately stop playback (used before chapter switch to prevent old audio leaking)
-    func stop() {
+    /// Immediately stops the playback, but keeps the Now Playing session.
+    /// The owner of the session stays the owner, so the transport commands of the
+    /// lock screen / Control Center stay available while the next chapter is loading.
+    func stopPlayback() {
         cancelSmoothPause()
         player.pause()
         if state == .playing
@@ -785,6 +787,12 @@ class PlayerModel: ObservableObject {
         bufferingTimeoutWork?.cancel()
         bufferingIndicatorWork?.cancel()
         stalledSetWork?.cancel()
+    }
+
+    /// Immediately stops the playback and releases the Now Playing session.
+    /// Used when the screen that owns the playback is left.
+    func stop() {
+        stopPlayback()
         releaseNowPlaying()
     }
 

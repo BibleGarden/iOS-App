@@ -24,6 +24,9 @@ struct PageReadView: View {
     // The chapter that has to start playing as soon as its audio is ready.
     @State private var chapterAutoStartSessionID: UUID? = nil
     @State private var pendingChapterStartWorkItem: DispatchWorkItem? = nil
+    // The scheduled transition to the next chapter after the end of the current one.
+    @State private var pendingChapterTransitionWorkItem: DispatchWorkItem? = nil
+    @State private var chapterTransitionTask: Task<Void, Never>? = nil
     @State private var completionHandledForSession: Bool = true
     @State private var completionGuardStartTime: Date = .distantPast
     @State private var currentAudioVerseIndex: Int = -1
@@ -302,9 +305,15 @@ struct PageReadView: View {
     /// it has to start playing as soon as its audio is ready.
     @MainActor
     func updateExcerpt(proxy: ScrollViewProxy, autoStart: Bool = false) async {
+        // A manual chapter change cancels the scheduled transition to the next chapter.
+        if !autoStart {
+            cancelPendingChapterTransition()
+        }
+
         isUpdatingExcerpt = true
         let sessionID = UUID()
         playbackPipelineSessionID = sessionID
+        let lifecycleID = pageLifecycleSessionID
         // A manual chapter change cancels the auto-start of the previous chapter.
         chapterAutoStartSessionID = nil
         cancelPendingChapterStart()
@@ -312,8 +321,11 @@ struct PageReadView: View {
         invalidateTextReadingTracking()
         defer { isUpdatingExcerpt = false }
 
-        // Stop current audio immediately before loading new chapter
-        audiopleer.stop()
+        // Stop current audio immediately before loading new chapter.
+        // The Now Playing session stays owned by this screen, so the transport
+        // commands of the lock screen / Control Center keep working while the
+        // next chapter is loading.
+        audiopleer.stopPlayback()
         self.hasAudio = false
 
         do {
@@ -328,6 +340,11 @@ struct PageReadView: View {
 
             let (thisTextVerses, audioVerses, firstUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(excerpts: settingsManager.currentExcerpt, client: settingsManager.client, translation: settingsManager.translation, voice: settingsManager.voice)
             guard !Task.isCancelled else { return }
+            // Another chapter was requested while the request was in flight —
+            // its result wins, this one is outdated.
+            guard self.playbackPipelineSessionID == sessionID else { return }
+            // The page was left while the request was in flight — nothing to show anymore.
+            guard self.pageLifecycleSessionID == lifecycleID else { return }
 
             // UI Testing: simulate no audio
             let effectiveFirstUrl = TestingEnvironment.forceNoAudio ? "" : firstUrl
@@ -384,6 +401,9 @@ struct PageReadView: View {
                 self.errorDescription = "Invalid audio file URL"
             }
         } catch {
+            // An outdated request must not overwrite the state of a newer chapter.
+            guard self.playbackPipelineSessionID == sessionID else { return }
+            guard self.pageLifecycleSessionID == lifecycleID else { return }
             print("[PageReadView] Failed to load excerpt: \(error)")
             self.textVerses = []
             self.errorDescription = userFacingLoadingErrorMessage(for: error)
@@ -577,15 +597,20 @@ struct PageReadView: View {
                     
                     if self.settingsManager.autoNextChapter && !self.nextExcerpt.isEmpty {
                         // Small delay for better UX
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            guard self.playbackPipelineSessionID == pipelineSessionID else { return }
+                        let sessionID = pipelineSessionID
+                        let workItem = DispatchWorkItem {
+                            guard self.playbackPipelineSessionID == sessionID else { return }
                             let nextExcerpt = self.nextExcerpt
-                            Task { @MainActor in
+                            self.pendingChapterTransitionWorkItem = nil
+                            self.chapterTransitionTask?.cancel()
+                            self.chapterTransitionTask = Task { @MainActor in
                                 self.settingsManager.currentExcerpt = nextExcerpt
                                 // The auto-start belongs to the new chapter, not to the session that has just ended.
                                 await self.updateExcerpt(proxy: proxy, autoStart: true)
                             }
                         }
+                        self.pendingChapterTransitionWorkItem = workItem
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
                     }
                 }
             }
@@ -637,6 +662,16 @@ struct PageReadView: View {
         pendingChapterStartWorkItem?.cancel()
         pendingChapterStartWorkItem = nil
         isAutopausing = false
+    }
+
+    /// Cancels the scheduled transition to the next chapter.
+    /// It is called when the page is left and when the chapter is changed manually,
+    /// so a late transition cannot overwrite the chapter of the user.
+    private func cancelPendingChapterTransition() {
+        pendingChapterTransitionWorkItem?.cancel()
+        pendingChapterTransitionWorkItem = nil
+        chapterTransitionTask?.cancel()
+        chapterTransitionTask = nil
     }
 
     private func beginAudioCompletionTracking(audioVerseCount: Int) {
@@ -705,6 +740,7 @@ struct PageReadView: View {
         playbackPipelineSessionID = UUID()
         chapterAutoStartSessionID = nil
         cancelPendingChapterStart()
+        cancelPendingChapterTransition()
         isPausing = false
         audioStateObserver?.cancel()
         audioStateObserver = nil

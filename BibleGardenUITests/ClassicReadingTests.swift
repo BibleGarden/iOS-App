@@ -1227,7 +1227,7 @@ final class ClassicReadingAutoNextTests: XCTestCase {
 
     // #55 — Открываем короткий Псалом 117, дослушиваем до конца с autoNextChapter=true.
     // Результат: следующая глава не только открывается, но и реально играет —
-    // состояние переходит в "playing" без нажатия Play.
+    // открыт Псалом 118 и состояние переходит в "playing" без нажатия Play.
     @MainActor
     func testAutoNextChapterStartsPlayingTheNextChapter() throws {
         try requireAvailableAPI()
@@ -1245,14 +1245,18 @@ final class ClassicReadingAutoNextTests: XCTestCase {
         guard stateLabel.waitForExistence(timeout: 10) else {
             throw XCTSkip("Playback state label not found — cannot verify")
         }
-        let waitingPredicate = NSPredicate(format: "label == %@", "waitingForPlay")
-        let waitExp = XCTNSPredicateExpectation(predicate: waitingPredicate, object: stateLabel)
-        _ = XCTWaiter.wait(for: [waitExp], timeout: 15)
+
+        // Обязательно дожидаемся готовности исходной главы: иначе смена заголовка
+        // может оказаться обычной загрузкой Псалма 117, а не переходом на следующую главу.
+        XCTAssertTrue(app.waitForReadPlaybackState("waitingForPlay", timeout: 20),
+                      "The initial chapter should become ready for playback")
 
         // Запоминаем текущий заголовок главы
         let title = app.buttons["read-chapter-title"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         let originalTitle = title.label
+        XCTAssertTrue(originalTitle.contains("117"),
+                      "The initial chapter should be Psalm 117. Was: \(originalTitle)")
 
         // Устанавливаем скорость 2x для ускорения
         let speedBtn = app.buttons["read-speed"]
@@ -1278,6 +1282,10 @@ final class ClassicReadingAutoNextTests: XCTestCase {
         XCTAssertTrue(
             app.waitForLabelChange(element: title, from: originalTitle, timeout: 60),
             "Chapter title should change after audio finishes with autoNextChapter enabled. Was: \(originalTitle)")
+
+        // Открыта именно следующая глава, а не та же самая
+        XCTAssertTrue(title.label.contains("118"),
+                      "The next chapter (Psalm 118) should be open. Was: \(title.label)")
 
         // Ключевая проверка: следующая глава должна сама начать играть.
         XCTAssertTrue(
