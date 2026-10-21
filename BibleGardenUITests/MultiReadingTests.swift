@@ -515,6 +515,10 @@ final class MultiReadingTests: XCTestCase {
     func testChapterSelectFromTitle() {
         let title = app.buttons["multi-chapter-title"]
         XCTAssertTrue(title.waitForExistence(timeout: 8))
+        // До первой загрузки главы заголовок пуст: кнопка существует, но имеет
+        // нулевую ширину и тап по ней невозможен. Ждём наполнения событийно.
+        XCTAssertTrue(app.waitForLabelChange(element: title, from: "", timeout: 60),
+                      "Chapter title should load before opening the selection sheet")
         let oldTitle = title.label
         title.tap()
 
@@ -522,24 +526,26 @@ final class MultiReadingTests: XCTestCase {
         XCTAssertTrue(closeBtn.waitForExistence(timeout: 5),
                       "Chapter selection sheet should appear")
 
-        // Ищем кнопку с номером главы, отличающимся от текущей.
-        // По умолчанию открывается Ин.1 — тапаем «2» или «3» из грида.
+        // Грид глав появляется только после ответа API (список книг перевода).
+        // Под нагрузкой ответ легитимно длится дольше фиксированных таймаутов,
+        // поэтому ждём появления кнопки главы событийно, а не закрываем sheet.
         let chapterBtn = app.buttons["2"]
-        if chapterBtn.waitForExistence(timeout: 5) && chapterBtn.isHittable {
-            chapterBtn.tap()
-        } else {
-            // Если «2» не видна — просто закрываем sheet
-            closeBtn.tap()
-        }
+        XCTAssertTrue(chapterBtn.waitForExistence(timeout: 60),
+                      "Chapter grid should load in the selection sheet")
+        XCTAssertTrue(chapterBtn.isHittable,
+                      "Chapter button '2' should be visible in the grid")
+        chapterBtn.tap()
 
-        // Ждём возврат на reading page и смену заголовка
+        // Ждём возврат на reading page и смену заголовка.
+        // Заголовок обновляется после перезагрузки главы (запрос API).
         let playPause = app.buttons["multi-play-pause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 10),
                       "Should return to reading page after chapter select")
 
-        _ = app.waitForLabelChange(element: title, from: oldTitle, timeout: 10)
-        XCTAssertNotEqual(title.label, oldTitle,
-                          "Chapter title should change after selecting a different chapter")
+        XCTAssertTrue(
+            app.waitForLabelChange(element: title, from: oldTitle, timeout: 60),
+            "Chapter title should change after selecting a different chapter (old: \(oldTitle))"
+        )
     }
 
     // MARK: - Навигация по юнитам (#22-#27)

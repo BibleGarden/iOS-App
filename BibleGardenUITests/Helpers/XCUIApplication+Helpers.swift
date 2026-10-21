@@ -43,6 +43,28 @@ extension XCUIApplication {
         return waitForLabel(element: stateLabel, toBe: state, timeout: timeout)
     }
 
+    /// Wait until the classic reading audio is ready to play.
+    ///
+    /// Readiness is the `waitingForPlay` state. Terminal outcomes of the
+    /// current load attempt end the wait early with "not ready": the audio
+    /// failed (`error` state) or the chapter request itself failed
+    /// (`read-error-text`). The wait is event-based: it returns as soon as the
+    /// state is published. The timeout only bounds a legitimately slow load
+    /// (live API under load); the app's own failure paths end it earlier.
+    @discardableResult
+    func waitForReadPlaybackReady(timeout: TimeInterval = 60) -> Bool {
+        let stateLabel = staticTexts["read-playback-state"]
+        guard stateLabel.waitForExistence(timeout: 5) else { return false }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let label = stateLabel.label
+            if label == "waitingForPlay" { return true }
+            if label == "error" || staticTexts["read-error-text"].exists { return false }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return false
+    }
+
     func waitForReadHighlightedVerse(_ verseID: String, timeout: TimeInterval = 10) -> Bool {
         let webView = webViews.firstMatch
         if webView.waitForExistence(timeout: 3) {
@@ -63,6 +85,28 @@ extension XCUIApplication {
         let label = staticTexts["read-highlighted-verse-id"]
         guard label.waitForExistence(timeout: 3) else { return nil }
         return label.label
+    }
+
+    // MARK: - Settings sheet
+
+    /// Wait until an accordion section of the reading settings sheet shows its
+    /// option list. While the list is loading, the section contains only its
+    /// header button, so the wait resolves the descendant button count until
+    /// the options appear. Event-based: returns as soon as the count is reached.
+    ///
+    /// `minimumButtonCount` is 2 for "the list rendered at least one option";
+    /// the caller keeps distinguishing data conditions (e.g. a single language)
+    /// from the list not loading at all.
+    @discardableResult
+    func waitForSelectionSectionOptions(in section: XCUIElement,
+                                        minimumButtonCount: Int,
+                                        timeout: TimeInterval = 60) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if section.buttons.count >= minimumButtonCount { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return section.buttons.count >= minimumButtonCount
     }
 
     // MARK: - Text content

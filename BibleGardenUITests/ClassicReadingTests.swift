@@ -38,9 +38,11 @@ final class ClassicReadingTests: XCTestCase {
         return app.waitForLabel(element: stateLabel, toBe: state, timeout: timeout)
     }
 
-    /// Wait for audio to become ready for playback
-    private func waitForAudioReady() {
-        _ = waitForPlaybackState("waitingForPlay")
+    /// Wait for audio to become ready for playback.
+    /// False means the audio never became ready (still loading, or a terminal error).
+    @discardableResult
+    private func waitForAudioReady() -> Bool {
+        app.waitForReadPlaybackReady()
     }
 
     /// Open the settings sheet from the reading page
@@ -107,7 +109,8 @@ final class ClassicReadingTests: XCTestCase {
     func testPlayAndPause() {
         let playPause = app.buttons["read-play-pause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        waitForAudioReady()
+        XCTAssertTrue(waitForAudioReady(),
+                      "Audio should become ready before play. state=\(app.staticTexts["read-playback-state"].label)")
 
         // Play
         playPause.tap()
@@ -206,6 +209,8 @@ final class ClassicReadingTests: XCTestCase {
     func testSpeedCycleAndWrapAround() {
         let speedBtn = app.buttons["read-speed"]
         XCTAssertTrue(speedBtn.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForAudioReady(),
+                      "Audio should become ready before cycling speeds. state=\(app.staticTexts["read-playback-state"].label)")
 
         let initialLabel = speedBtn.label
         XCTAssertFalse(initialLabel.isEmpty, "Speed button should have a label")
@@ -543,9 +548,13 @@ final class ClassicReadingTests: XCTestCase {
         let transSection = app.otherElements["setup-translation-section"]
         XCTAssertTrue(transSection.waitForExistence(timeout: 5))
         transSection.tap()
-        Thread.sleep(forTimeInterval: 1)
 
-        // transSection.buttons: index 0 — заголовок, index 1+ — опции перевода
+        // transSection.buttons: index 0 — заголовок, index 1+ — опции перевода.
+        // Список появляется после ответа API — ждём его событийно, а не фиксированное время.
+        XCTAssertTrue(
+            app.waitForSelectionSectionOptions(in: transSection, minimumButtonCount: 2),
+            "Translation list should load in the settings sheet (buttons: \(transSection.buttons.count))"
+        )
         let translationButtons = transSection.buttons
         guard translationButtons.count >= 3 else {
             closeSettings()
@@ -592,9 +601,13 @@ final class ClassicReadingTests: XCTestCase {
         let langSection = app.otherElements["setup-language-section"]
         XCTAssertTrue(langSection.waitForExistence(timeout: 5))
         langSection.tap()
-        Thread.sleep(forTimeInterval: 0.5)
 
-        // langSection.buttons: index 0 — заголовок, index 1+ — опции
+        // langSection.buttons: index 0 — заголовок, index 1+ — опции.
+        // Список появляется после ответа API — ждём его событийно, а не фиксированное время.
+        XCTAssertTrue(
+            app.waitForSelectionSectionOptions(in: langSection, minimumButtonCount: 2),
+            "Language list should load in the settings sheet (buttons: \(langSection.buttons.count))"
+        )
         let langButtons = langSection.buttons
         guard langButtons.count >= 3 else {
             closeSettings()

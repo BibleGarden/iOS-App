@@ -325,7 +325,13 @@ struct PageSelectView: View {
             }
             .frame(maxHeight: .infinity)
             .onAppear {
-                proxy.scrollTo("book_\(settingsManager.currentBookId)", anchor: .top)
+                scrollToCurrentBook(proxy: proxy)
+            }
+            .onChange(of: booksInfo) { _ in
+                scrollToCurrentBook(proxy: proxy)
+            }
+            .onChange(of: settingsManager.currentBookId) { _ in
+                scrollToCurrentBook(proxy: proxy)
             }
             .onChange(of: scrollToTop) { newValue in
                 if newValue {
@@ -337,6 +343,22 @@ struct PageSelectView: View {
                 }
             }
             //Spacer()
+        }
+    }
+
+    /// Scrolls the book list to the current book.
+    ///
+    /// The chapter grid is lazy: its buttons are created only when the book row
+    /// is close to the viewport. When `scrollTo` runs in the same layout pass
+    /// in which the lazy content is inserted, it silently does nothing and the
+    /// sheet stays at the top. The scroll is therefore deferred to the next
+    /// run loop turn and repeated whenever the book list or the current book
+    /// changes, so the current chapter grid is always instantiated.
+    private func scrollToCurrentBook(proxy: ScrollViewProxy) {
+        guard !booksInfo.isEmpty else { return }
+        let bookId = settingsManager.currentBookId
+        DispatchQueue.main.async {
+            proxy.scrollTo("book_\(bookId)", anchor: .top)
         }
     }
     
