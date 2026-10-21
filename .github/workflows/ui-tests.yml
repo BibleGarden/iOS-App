@@ -1,0 +1,113 @@
+name: UI tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app
+  DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.2
+  DERIVED_DATA: build/DerivedData
+  RESULT_BUNDLE: build/UITests.xcresult
+
+jobs:
+  # Secrets are not passed to workflows triggered from forks, so UI tests
+  # cannot reach the test API there. The skip is stated explicitly instead of
+  # letting the job fail or silently pass without tests.
+  fork-notice:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain skipped UI tests
+        run: echo "::notice title=UI tests skipped::Pull requests from forks have no access to the test API secrets. A maintainer runs UI tests after moving the branch into BibleGarden/iOS-App."
+
+  ui-tests:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Write Debug.xcconfig from secrets
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if [ -z "$API_BASE_URL" ] || [ -z "$API_KEY" ]; then
+            echo "::error::Repository secrets API_BASE_URL and API_KEY must be set."
+            exit 1
+          fi
+          # xcconfig treats // as a comment; $() breaks the sequence.
+          {
+            echo "API_BASE_URL = ${API_BASE_URL/:\/\//:/\$()/}"
+            echo "API_KEY = $API_KEY"
+          } > BibleGarden/Debug.xcconfig
+
+      - name: Check test API health
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+            -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/health") || status=unreachable
+          if [ "$status" != "200" ]; then
+            echo "::error title=Test API unavailable::GET /api/health returned $status. UI tests skip themselves without the API, so the job stops here."
+            exit 1
+          fi
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes iOS
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project BibleGarden.xcodeproj \
+            -scheme BibleGarden \
+            -testPlan BibleGarden \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -skipPackagePluginValidation \
+            | xcbeautify --renderer github-actions
+
+      - name: Run UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project BibleGarden.xcodeproj \
+            -scheme BibleGarden \
+            -testPlan BibleGarden \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            -skip-testing:BibleGardenUITests/DemoRecordingTests \
+            | xcbeautify --renderer github-actions
+
+      - name: Summarize test results
+        if: always() && hashFiles('build/UITests.xcresult/Info.plist') != ''
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RESULT_BUNDLE" --compact \
+            | jq -r '"| Result | Passed | Failed | Skipped | Total |", "|---|---|---|---|---|",
+                     "| \(.result) | \(.passedTests) | \(.failedTests) | \(.skippedTests) | \(.totalTestCount) |"' \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload result bundle
+        if: failure() && hashFiles('build/UITests.xcresult/Info.plist') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: UITests-xcresult-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/UITests.xcresult
+          retention-days: 14
