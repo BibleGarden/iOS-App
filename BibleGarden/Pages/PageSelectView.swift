@@ -17,6 +17,8 @@ struct PageSelectView: View {
     @State private var isLoading = false
     @State private var loadingError = ""
 
+    private static let oldTestamentBookCount = 39
+
     var body: some View {
         
         ZStack {
@@ -223,7 +225,7 @@ struct PageSelectView: View {
                     
                     if !self.booksInfo.isEmpty {
                         ForEach(self.booksInfo, id: \.code) { book in
-                            if (selectedBiblePartIndex == 0 && book.book_number < 39) || (selectedBiblePartIndex == 1 && book.book_number >= 39) || selectedBiblePartIndex == -1 {
+                            if (selectedBiblePartIndex == 0 && book.book_number <= Self.oldTestamentBookCount) || (selectedBiblePartIndex == 1 && book.book_number > Self.oldTestamentBookCount) || selectedBiblePartIndex == -1 {
                                 
                                 let chaptersWithoutTextCount = book.chapters_without_text?.count ?? 0
                                 let hasNoTextForWholeBook = chaptersWithoutTextCount == book.chapters_count
@@ -308,6 +310,7 @@ struct PageSelectView: View {
                                     .id("book_\(book.book_number)")
                                 }
                                 .disabled(hasNoTextForWholeBook)
+                                .accessibilityIdentifier("book_\(book.book_number)")
 
                                 if !hasNoTextForWholeBook && (expandedBook == book.book_number || (settingsManager.currentBookId == book.book_number && needSelectedBookOpen)) {
                                     viewChaptersList(book)
