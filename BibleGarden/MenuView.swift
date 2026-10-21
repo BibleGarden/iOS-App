@@ -193,6 +193,37 @@ struct MenuView: View {
                 .padding(.bottom, max(safeArea.bottom, 16))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .overlay(alignment: .topLeading) {
+                #if DEBUG
+                if TestingEnvironment.isUITesting {
+                    // Debug triggers for the transport commands of the lock screen / Control Center.
+                    // They live in the menu, so a command can be sent from any screen —
+                    // also when no reading screen is open.
+                    // The overlay keeps them independent of the menu items layout.
+                    VStack(spacing: 0) {
+                        Button {
+                            DebugPlaybackRegistry.shared.sendRemoteCommand(.pause)
+                        } label: {
+                            Text("pause")
+                        }
+                        .font(.system(size: 8))
+                        .frame(width: 40, height: 12)
+                        .accessibilityIdentifier("debug-menu-remote-pause")
+                        Button {
+                            DebugPlaybackRegistry.shared.sendRemoteCommand(.play)
+                        } label: {
+                            Text("play")
+                        }
+                        .font(.system(size: 8))
+                        .frame(width: 40, height: 12)
+                        .accessibilityIdentifier("debug-menu-remote-play")
+                    }
+                    .foregroundStyle(.clear)
+                    .padding(.leading, 22)
+                    .padding(.top, 8)
+                }
+                #endif
+            }
             .frame(maxWidth: min(containerSize.width, 500))
             .clipShape(MenuShape(value: 0))
             .contentShape(MenuShape(value: 0))

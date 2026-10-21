@@ -185,6 +185,120 @@ extension XCUIApplication {
         }
         return false
     }
+
+    // MARK: - Now Playing debug helpers
+
+    /// Read a debug value published by the app
+    func debugValue(_ identifier: String) -> String? {
+        let label = staticTexts[identifier]
+        guard label.waitForExistence(timeout: 3) else { return nil }
+        return label.label
+    }
+
+    /// Wait for the owner of the Now Playing session ("none", "classicRead", "multilingualRead", "other")
+    func waitForDebugNowPlayingOwner(_ owner: String, timeout: TimeInterval = 10) -> Bool {
+        let label = staticTexts["debug-now-playing-owner"]
+        guard label.waitForExistence(timeout: 3) else { return false }
+        return waitForLabel(element: label, toBe: owner, timeout: timeout)
+    }
+
+    /// Wait for the presence of the Now Playing info
+    func waitForDebugNowPlayingInfoPresent(_ isPresent: Bool, timeout: TimeInterval = 10) -> Bool {
+        let label = staticTexts["debug-now-playing-info-present"]
+        guard label.waitForExistence(timeout: 3) else { return false }
+        return waitForLabel(element: label, toBe: isPresent ? "1" : "0", timeout: timeout)
+    }
+
+    /// Wait for the state of the play/pause commands of the lock screen / Control Center
+    func waitForDebugRemoteCommandEnabled(_ isEnabled: Bool, timeout: TimeInterval = 10) -> Bool {
+        let playLabel = staticTexts["debug-remote-play-enabled"]
+        let pauseLabel = staticTexts["debug-remote-pause-enabled"]
+        guard playLabel.waitForExistence(timeout: 3),
+              pauseLabel.waitForExistence(timeout: 3) else { return false }
+        let expected = isEnabled ? "1" : "0"
+        return waitForLabel(element: playLabel, toBe: expected, timeout: timeout)
+            && waitForLabel(element: pauseLabel, toBe: expected, timeout: timeout)
+    }
+
+    /// Wait for the status of the last remote transport command
+    func waitForDebugRemoteCommandStatus(_ status: String, timeout: TimeInterval = 10) -> Bool {
+        let label = staticTexts["debug-remote-command-status"]
+        guard label.waitForExistence(timeout: 3) else { return false }
+        return waitForLabel(element: label, toBe: status, timeout: timeout)
+    }
+
+    /// Wait until more remote transport commands were emulated than before
+    @discardableResult
+    func waitForDebugRemoteCommandCount(greaterThan count: Int, timeout: TimeInterval = 15) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let rawValue = debugValue("debug-remote-command-count"),
+               let value = Int(rawValue),
+               value > count {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The remote transport command should be handled within \(Int(timeout))s")
+        return false
+    }
+
+    /// Emulate a remote transport command and wait until it was handled.
+    /// Returns the status that the command handler reported.
+    @discardableResult
+    func sendDebugRemoteCommand(buttonIdentifier: String, timeout: TimeInterval = 15) -> String? {
+        let button = buttons[buttonIdentifier]
+        guard button.waitForExistence(timeout: 5) else {
+            XCTFail("Debug remote command button '\(buttonIdentifier)' should exist")
+            return nil
+        }
+        guard let rawCount = debugValue("debug-remote-command-count"),
+              let handledBefore = Int(rawCount) else {
+            XCTFail("The debug remote command counter should be published by the app")
+            return nil
+        }
+        button.tap()
+        guard waitForDebugRemoteCommandCount(greaterThan: handledBefore, timeout: timeout) else {
+            return nil
+        }
+        return debugValue("debug-remote-command-status")
+    }
+
+    /// Wait until the state of the player that owns the Now Playing session
+    /// reaches the given state.
+    @discardableResult
+    func waitForDebugNowPlayingState(_ state: String, timeout: TimeInterval = 15) -> Bool {
+        let label = staticTexts["debug-now-playing-state"]
+        guard label.waitForExistence(timeout: 3) else {
+            XCTFail("The debug Now Playing state should be published by the app")
+            return false
+        }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if label.label == state { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The Now Playing state should become '\(state)' within \(Int(timeout))s, got '\(label.label)'")
+        return false
+    }
+
+    /// Wait until the state of the player that owns the Now Playing session is
+    /// not one of the given states (for example while a smooth pause is over).
+    @discardableResult
+    func waitForDebugNowPlayingState(excluding states: [String], timeout: TimeInterval = 15) -> Bool {
+        let label = staticTexts["debug-now-playing-state"]
+        guard label.waitForExistence(timeout: 3) else {
+            XCTFail("The debug Now Playing state should be published by the app")
+            return false
+        }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !states.contains(label.label) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The Now Playing state should leave \(states.joined(separator: ", ")) within \(Int(timeout))s, got '\(label.label)'")
+        return false
+    }
 }
 
 // MARK: - Shared API Health Check
