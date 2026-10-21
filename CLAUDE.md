@@ -18,15 +18,24 @@ BibleGarden (display name "Bible Garden") is an iOS SwiftUI app for listening to
 ### Configuration (required before building)
 
 API credentials are injected via xcconfig files that are **gitignored**:
-- `Bible/Debug.xcconfig` — debug API URL + key
-- `Bible/Release.xcconfig` — production API URL + key
-- Example files: `Bible/Debug.xcconfig.example`, `Bible/Release.xcconfig.example`
+- `BibleGarden/Debug.xcconfig` — test API URL + key
+- `BibleGarden/Release.xcconfig` — production API URL + key
+- Example files: `BibleGarden/Debug.xcconfig.example`, `BibleGarden/Release.xcconfig.example`
 
 These values surface through `Info.plist` → `Config.swift` (`Config.baseURL`, `Config.apiKey`).
 
+### CI
+
+`.github/workflows/ui-tests.yml` runs the UI tests on every pull request and on push to `main` (GitHub-hosted `macos-26`, Xcode 26.3, iPhone 17 simulator with iOS 26.2):
+- `BibleGarden/Debug.xcconfig` is written from repository secrets `API_BASE_URL` (plain URL such as `https://host`) and `API_KEY` of the **test** Bible-API; production is never used by CI.
+- The job fails before building when `GET /api/health` does not answer 200: the tests skip themselves without the API, so a run without this check would be green and prove nothing.
+- `build-for-testing` uses only the committed `Package.resolved`; `test-without-building` runs test plan `BibleGarden` without `DemoRecordingTests` (an App Store preview script, not a test).
+- On failure `UITests.xcresult` is uploaded as an artifact; pass/fail/skip counts go to the job summary. Investigate the result bundle instead of re-running a red job.
+- Pull requests from forks get no secrets, so their UI tests are skipped with a notice.
+
 ### OpenAPI Client Generation
 
-The API client is auto-generated from `Bible/openapi.yaml` using Apple's Swift OpenAPI Generator plugin (config: `Bible/openapi-generator-config.yml`). Generated types live under `Components.Schemas.*` and the client protocol is `APIProtocol`. Regeneration happens automatically via the Xcode build plugin.
+The API client is auto-generated from `BibleGarden/openapi.yaml` using Apple's Swift OpenAPI Generator plugin (config: `BibleGarden/openapi-generator-config.yml`). Generated types live under `Components.Schemas.*` and the client protocol is `APIProtocol`. Regeneration happens automatically via the Xcode build plugin.
 
 ## Architecture
 
@@ -47,7 +56,7 @@ The API client is auto-generated from `Bible/openapi.yaml` using Apple's Swift O
 ### Key Directories
 
 ```
-Bible/
+BibleGarden/
 ├── BibleGardenApp.swift      # @main entry point
 ├── SkeletonView.swift         # Root view, SettingsManager, navigation logic
 ├── MenuView.swift             # Slide-out menu, MenuItem enum
@@ -67,7 +76,8 @@ Bible/
 │   ├── advUtility.swift       # Utility helpers
 │   ├── advExtensions.swift    # Swift extensions
 │   ├── advCornerRadius.swift  # Custom corner radius modifier
-│   └── advHTMLTextView.swift  # HTML rendering in SwiftUI
+│   ├── advHTMLTextView.swift  # HTML rendering in SwiftUI
+│   └── advTapIndicator.swift  # Tap overlay for demo recordings
 ├── {ru,en,uk}.lproj/          # Localizable.strings per language
 ├── openapi.yaml               # API spec
 └── openapi-generator-config.yml
