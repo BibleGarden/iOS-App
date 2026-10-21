@@ -8,6 +8,7 @@ struct HTMLTextView: UIViewRepresentable {
     var onScrollMetricsChanged: ((Double, Bool) -> Void)? = nil
     var onHighlightedVerseChanged: ((String) -> Void)? = nil
     var accessibilityIdentifier: String? = nil
+    var localizedPauseUnit: String? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -78,6 +79,7 @@ struct HTMLTextView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.parent = self
+        context.coordinator.updatePauseUnit(in: webView)
         // If scrollToVerse changes and webView is loaded, execute JavaScript
         if let verse = scrollToVerse, context.coordinator.webViewLoaded {
             let elementID = verse <= 0 ? "top" : "verse-\(verse)"
@@ -96,6 +98,7 @@ struct HTMLTextView: UIViewRepresentable {
         weak var webView: WKWebView?
         private var lastSentProgress: Double = -1
         private var lastSentAtBottom: Bool = false
+        private var displayedPauseUnit: String?
         private let highlightedVerseQuery = """
             (function() {
                 var current = document.querySelector('.highlighted-verse');
@@ -105,6 +108,22 @@ struct HTMLTextView: UIViewRepresentable {
 
         init(_ parent: HTMLTextView) {
             self.parent = parent
+            self.displayedPauseUnit = parent.localizedPauseUnit
+        }
+
+        func updatePauseUnit(in webView: WKWebView) {
+            guard webViewLoaded, let unit = parent?.localizedPauseUnit,
+                  unit != displayedPauseUnit else { return }
+            let encodedUnit = String(data: try! JSONEncoder().encode(unit), encoding: .utf8)!
+            let script = """
+                document.querySelectorAll('[data-pause-seconds]').forEach(function(span) {
+                    span.textContent = span.dataset.pauseSeconds + ' ' + \(encodedUnit);
+                });
+                """
+            webView.evaluateJavaScript(script) { _, error in
+                if let error { assertionFailure("Failed to update pause label: \(error)") }
+            }
+            displayedPauseUnit = unit
         }
 
         func detach() {
@@ -116,6 +135,7 @@ struct HTMLTextView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             guard let parent = parent else { return }
             webViewLoaded = true
+            updatePauseUnit(in: webView)
 
             // If scrollToVerse is set, execute JavaScript to scroll
             if let verse = parent.scrollToVerse {
