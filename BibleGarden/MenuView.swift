@@ -199,9 +199,10 @@ struct MenuView: View {
                 // also when no reading screen is open. They are pinned to the empty lower
                 // part of the panel as a separate ZStack child: the menu items above do not
                 // depend on them, so the visible layout stays untouched. The buttons exist
-                // and respond to taps only in UI tests (value-based gating — a structural
-                // `if` around debug content corrupts layout geometry, see the overlay
-                // regression), and the whole block is compiled out of Release.
+                // and respond to taps only in UI tests (value-based gating). An earlier
+                // `.overlay` with a structural `if` shifted the menu panel halfway down
+                // the screen on iOS 26.3; the exact cause is not isolated. The whole
+                // block is compiled out of Release.
                 VStack(spacing: 0) {
                     Button {
                         DebugPlaybackRegistry.shared.sendRemoteCommand(.pause)
