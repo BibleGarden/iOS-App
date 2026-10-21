@@ -33,7 +33,7 @@ final class BookSelectTests: XCTestCase {
         app = nil
     }
 
-    // MARK: - Ветхий / Новый Завет
+    // MARK: - Ветхий / Новый Завет / все книги
 
     @MainActor
     func testBookSelectTestamentFilter() {
@@ -48,24 +48,34 @@ final class BookSelectTests: XCTestCase {
         XCTAssertTrue(selector.waitForExistence(timeout: 5),
                       "Testament selector should appear in book select sheet")
 
-        let malachi = app.buttons["book_39"]
-        let matthew = app.buttons["book_40"]
-
-        // MARK: Ветхий Завет — Малахия (39) есть, Матфея (40) нет
+        // MARK: Ветхий Завет — книги 1…39 есть, 40…66 нет
         tapTestamentSegment(on: selector, segment: 0)
 
-        XCTAssertTrue(malachi.waitForExistence(timeout: 8),
-                      "Malachi (book 39) should be shown in Old Testament")
-        XCTAssertTrue(matthew.waitForNonExistence(timeout: 5),
-                      "Matthew (book 40) should not be shown in Old Testament")
+        for n in 1...39 {
+            waitForBookPresent(n)
+        }
+        for n in 40...66 {
+            XCTAssertFalse(app.buttons["book_\(n)"].exists,
+                           "Книга book_\(n) не должна быть видна во Ветхом Завете")
+        }
 
-        // MARK: Новый Завет — Матфея (40) есть, Малахии (39) нет
+        // MARK: Новый Завет — книги 40…66 есть, 1…39 нет
         tapTestamentSegment(on: selector, segment: 1)
 
-        XCTAssertTrue(matthew.waitForExistence(timeout: 8),
-                      "Matthew (book 40) should be shown in New Testament")
-        XCTAssertTrue(malachi.waitForNonExistence(timeout: 5),
-                      "Malachi (book 39) should not be shown in New Testament")
+        for n in 40...66 {
+            waitForBookPresent(n)
+        }
+        for n in 1...39 {
+            XCTAssertFalse(app.buttons["book_\(n)"].exists,
+                           "Книга book_\(n) не должна быть видна в Новом Завете")
+        }
+
+        // MARK: Повторный тап по НЗ снимает фильтр — книги обоих Заветов видны
+        tapTestamentSegment(on: selector, segment: 1)
+
+        for n in [1, 39, 40, 66] {
+            waitForBookPresent(n)
+        }
 
         // Закрываем sheet
         app.buttons["select-close"].tap()
@@ -73,10 +83,28 @@ final class BookSelectTests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Тапает сегмент selector-а testament (0 — ВЗ слева, 1 — НЗ справа) по координате.
+    /// Тапает сегмент testament (0 — ВЗ слева, 1 — НЗ справа) по координате.
     private func tapTestamentSegment(on selector: XCUIElement, segment: Int) {
         let normalizedX = segment == 0 ? 0.25 : 0.75
         selector.coordinate(withNormalizedOffset: CGVector(dx: normalizedX, dy: 0.5)).tap()
-        Thread.sleep(forTimeInterval: 0.6) // анимация и перерисовка фильтра книг
+    }
+
+    /// Прокручивает список книг вниз. Ожидание результата — проверка présence элемента,
+    /// без фиксированного sleep.
+    private func dragBooksDown() {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        start.press(forDuration: 0.1, thenDragTo: end)
+    }
+
+    /// Ждёт появления книги в списке, прокручивая вниз до дедлайна.
+    private func waitForBookPresent(_ n: Int) {
+        let btn = app.buttons["book_\(n)"]
+        let deadline = Date().addingTimeInterval(25)
+        while Date() < deadline {
+            if btn.exists { return }
+            dragBooksDown()
+        }
+        XCTFail("Книга book_\(n) не видна в списке после прокрутки")
     }
 }
