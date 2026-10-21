@@ -166,6 +166,7 @@
 "multilingual.select_translation" = "Выберите перевод";
 "multilingual.pause" = "Пауза";
 "multilingual.seconds" = "сек.";
+"multilingual.delete_step" = "Удалить шаг";
 "multilingual.config.title" = "Настройка чтения";
 
 "multilingual.library.title" = "Библиотека шаблонов";

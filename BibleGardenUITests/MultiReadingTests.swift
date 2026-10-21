@@ -90,29 +90,36 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(addPause.waitForExistence(timeout: 5))
         addPause.tap()
 
-        Thread.sleep(forTimeInterval: 1)
+        // Кнопки +/− имеют собственные identifier: multi-pause-plus-0 и multi-pause-minus-0.
+        // Первая добавленная пауза — первая строка списка (index 0).
+        let pausePlus = app.buttons["multi-pause-plus-0"]
+        let pauseMinus = app.buttons["multi-pause-minus-0"]
+        XCTAssertTrue(pausePlus.waitForExistence(timeout: 5), "Plus button should exist")
+        XCTAssertTrue(pauseMinus.waitForExistence(timeout: 3), "Minus button should exist")
 
-        // Кнопки +/− внутри строки степа наследуют identifier от родителя (multi-step-row-0).
-        // SF Symbols «plus» и «minus» получают label «Add» и «Remove» автоматически.
-        let rowPredicate = NSPredicate(format: "identifier == 'multi-step-row-0'")
-        let pausePlus = app.buttons.matching(rowPredicate).matching(NSPredicate(format: "label == 'Add'")).firstMatch
-        let pauseMinus = app.buttons.matching(rowPredicate).matching(NSPredicate(format: "label == 'Remove'")).firstMatch
-        XCTAssertTrue(pausePlus.waitForExistence(timeout: 3), "Plus button should exist")
-        XCTAssertTrue(pauseMinus.waitForExistence(timeout: 1), "Minus button should exist")
+        // Отображаемая длительность — accessibilityValue строки паузы (multi-step-row-0).
+        let pauseRow = app.descendants(matching: .any).matching(identifier: "multi-step-row-0").firstMatch
+        XCTAssertTrue(pauseRow.waitForExistence(timeout: 3), "Pause row should exist")
+        XCTAssertEqual(pauseRow.value as? String, "2",
+                       "Default pause duration should be 2. Got: \(pauseRow.value ?? "nil")")
 
-        // По умолчанию 2с → +1 = 3с → −1 = 2с → −1 = 1с → ещё −1 → остаётся 1с (минимум)
+        // 2с → +1 = 3с → −1 = 2с → −1 = 1с → ещё −1 → остаётся 1с (минимум)
         pausePlus.tap()
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "3", timeout: 3),
+                      "Duration should be 3 after plus tap. Got: \(pauseRow.value ?? "nil")")
         pauseMinus.tap()
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "2", timeout: 3),
+                      "Duration should be 2 after minus tap. Got: \(pauseRow.value ?? "nil")")
         pauseMinus.tap()
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "1", timeout: 3),
+                      "Duration should be 1 after second minus tap. Got: \(pauseRow.value ?? "nil")")
         pauseMinus.tap()
-        // Краш не произошёл — тест пройден
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "1", timeout: 3),
+                      "Duration should stay 1 at minimum after extra minus tap. Got: \(pauseRow.value ?? "nil")")
     }
 
     // #6 — Тап на кнопку удаления (xmark) удаляет степ из списка.
-    // Результат: строка степа исчезает, кнопка удаления больше не существует.
+    // Результат: строка степа и кнопка удаления исчезают.
     @MainActor
     func testDeleteStep() {
         app.navigateToMultiSetupPage()
@@ -120,16 +127,31 @@ final class MultiReadingSetupTests: XCTestCase {
         XCTAssertTrue(addPause.waitForExistence(timeout: 5))
         addPause.tap()
 
-        // Кнопка удаления (xmark) внутри строки степа наследует identifier от родителя.
-        // SF Symbol «xmark» получает label «Close».
-        let rowPredicate = NSPredicate(format: "identifier == 'multi-step-row-0'")
-        let deleteBtn = app.buttons.matching(rowPredicate).matching(NSPredicate(format: "label == 'Close'")).firstMatch
-        XCTAssertTrue(deleteBtn.waitForExistence(timeout: 3), "Delete button should exist")
+        // До удаления: дожидаемся строки паузы и проверяем её начальное значение (2 сек).
+        let stepRow = app.descendants(matching: .any).matching(identifier: "multi-step-row-0").firstMatch
+        XCTAssertTrue(stepRow.waitForExistence(timeout: 5), "Pause row should exist")
+        XCTAssertEqual(stepRow.value as? String, "2",
+                       "Initial pause duration should be 2. Got: \(stepRow.value ?? "nil")")
+
+        // Кнопка удаления — только по собственному identifier,
+        // ждём exists && isHittable через predicate expectation.
+        let deleteBtn = app.buttons["multi-step-delete-0"]
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND isHittable == true"),
+            object: deleteBtn)
+        XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
+                       "Delete button should be visible and hittable")
         deleteBtn.tap()
 
-        Thread.sleep(forTimeInterval: 0.5)
-        let stepRow = app.buttons.matching(rowPredicate).firstMatch
-        XCTAssertFalse(stepRow.exists, "Step should be deleted")
+        // После удаления исчезают и строка, и кнопка удаления.
+        let rowGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                object: stepRow)
+        XCTAssertEqual(XCTWaiter.wait(for: [rowGone], timeout: 5), .completed,
+                       "Step should be deleted")
+        let buttonGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                   object: deleteBtn)
+        XCTAssertEqual(XCTWaiter.wait(for: [buttonGone], timeout: 5), .completed,
+                       "Delete button should be gone")
     }
 
     // #7 — Picker режима чтения (verse/paragraph/fragment/chapter) существует.
@@ -1616,7 +1638,6 @@ final class MultiReadingTemplateCRUDTests: XCTestCase {
         let addPause = app.buttons["multi-add-pause-step"]
         XCTAssertTrue(addPause.waitForExistence(timeout: 5))
         addPause.tap()
-        Thread.sleep(forTimeInterval: 1)
 
         // Find the pause row via accessibilityValue (set to duration for pause steps).
         // Row may resolve as button/otherElement/cell depending on SwiftUI/List context,
@@ -1633,22 +1654,20 @@ final class MultiReadingTemplateCRUDTests: XCTestCase {
                        "Initial pause duration should be 2. Got: \(pauseRow.value ?? "nil")")
 
         // Tap the plus button 3 times to change duration from 2 → 5.
-        // Use label-based search within the row (proven approach from existing test #5).
-        let rowPred = NSPredicate(format: "identifier == %@", pauseRow.identifier)
-        let pausePlus = app.buttons.matching(rowPred)
-            .matching(NSPredicate(format: "label == 'Add'")).firstMatch
+        // Plus button has its own identifier: multi-pause-plus-<row index>.
+        let rowIndex = pauseRow.identifier.components(separatedBy: "-").last ?? "0"
+        let pausePlus = app.buttons["multi-pause-plus-\(rowIndex)"]
         XCTAssertTrue(pausePlus.waitForExistence(timeout: 3), "Plus button should exist")
 
         pausePlus.tap()
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "3", timeout: 3),
+                      "Duration should be 3 after first tap. Got: \(pauseRow.value ?? "nil")")
         pausePlus.tap()
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "4", timeout: 3),
+                      "Duration should be 4 after second tap. Got: \(pauseRow.value ?? "nil")")
         pausePlus.tap()
-        Thread.sleep(forTimeInterval: 0.5)
-
-        // Verify the row's accessibilityValue updated to "5" before relaunch.
         XCTAssertTrue(app.waitForValue(element: pauseRow, toBe: "5", timeout: 3),
-                      "Duration should be 5 after 3 taps. Got: \(pauseRow.value ?? "nil")")
+                      "Duration should be 5 after third tap. Got: \(pauseRow.value ?? "nil")")
 
         // Terminate and relaunch WITHOUT --uitesting to preserve UserDefaults
         app.terminate()
