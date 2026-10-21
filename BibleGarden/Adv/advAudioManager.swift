@@ -276,6 +276,11 @@ class PlayerModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var isStalled: Bool = false
     @Published var isBufferingLong: Bool = false
+
+    /// True when the player holds an audio item that can be played.
+    var hasCurrentItem: Bool {
+        player.currentItem != nil
+    }
     
     private var oldState = PlaybackState.waitingForSelection
     private var audioVerses: [BibleAcousticalVerseFull] = []
@@ -796,10 +801,12 @@ class PlayerModel: ObservableObject {
         releaseNowPlaying()
     }
 
-    func shutdown() {
-        stop()
-        pauseTimer?.invalidate()
-        pauseTimer = nil
+    /// Removes the current audio from the player, but keeps the Now Playing session.
+    /// The old track can not be resumed any more and its verse callbacks are gone,
+    /// so a chapter that is replaced never plays the audio of the previous one.
+    func detachCurrentItem() {
+        stopPlayback()
+        deleteObservation()
         player.replaceCurrentItem(with: nil)
         currentItemURL = nil
         audioVerses = []
@@ -811,6 +818,12 @@ class PlayerModel: ObservableObject {
         errorMessage = nil
         oldState = .waitingForSelection
         state = .waitingForSelection
+    }
+
+    func shutdown() {
+        detachCurrentItem()
+        pauseTimer?.invalidate()
+        pauseTimer = nil
         releaseNowPlaying()
     }
 
