@@ -1293,6 +1293,73 @@ final class ClassicReadingAutoNextTests: XCTestCase {
             "The next chapter should start playing on its own. state=\(stateLabel.label)")
     }
 
+    // #56 — Во время загрузки следующей главы пользователь нажимает Play (remote).
+    // Результат: запрос пользователя не перезаписывается запросом автоперехода —
+    // Псалом 118 играет, хотя тип паузы ".full" запрещает автозапуск.
+    @MainActor
+    func testUserPlayDuringChapterLoadSurvivesTheAutoTransition() throws {
+        try requireAvailableAPI()
+
+        app = XCUIApplication()
+        app.launchArguments = [
+            "--uitesting",
+            "--pause-type", "full",
+            "--pause-block", "verse",
+            // Задержка загрузки делает окно «глава грузится» наблюдаемым для теста.
+            "--chapter-load-delay", "8",
+            "--start-excerpt", "psa 117"
+        ]
+        app.launch()
+        app.navigateToReadingPage()
+
+        let stateLabel = app.staticTexts["read-playback-state"]
+        guard stateLabel.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Playback state label not found — cannot verify")
+        }
+        XCTAssertTrue(app.waitForReadPlaybackState("waitingForPlay", timeout: 40),
+                      "The initial chapter should become ready for playback")
+
+        let title = app.buttons["read-chapter-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        let originalTitle = title.label
+        XCTAssertTrue(originalTitle.contains("117"),
+                      "The initial chapter should be Psalm 117. Was: \(originalTitle)")
+
+        // Запускаем чтение
+        let playPause = app.buttons["read-play-pause"]
+        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
+        playPause.tap()
+        XCTAssertTrue(app.waitForReadPlaybackState("playing", timeout: 15),
+                      "The chapter should start playing")
+
+        // Тип паузы ".full" останавливает чтение на границе стиха — продолжаем чтение.
+        XCTAssertTrue(app.waitForReadPlaybackState("pausing", timeout: 40),
+                      "The full pause should stop the reading at the verse border")
+        playPause.tap()
+        XCTAssertTrue(app.waitForReadPlaybackState("playing", timeout: 15),
+                      "The reading should continue after the full pause")
+
+        // Ждём следующую главу: автопереход открывает Псалом 118, но он ещё грузится.
+        XCTAssertTrue(
+            app.waitForLabelChange(element: title, from: originalTitle, timeout: 60),
+            "Chapter title should change after audio finishes with autoNextChapter enabled. Was: \(originalTitle)")
+        XCTAssertTrue(title.label.contains("118"),
+                      "The next chapter (Psalm 118) should be open. Was: \(title.label)")
+
+        // Пользователь нажимает Play, пока глава ещё грузится. Remote Pause/Play
+        // доступны во время загрузки — владение Now Playing не отпускается.
+        app.openMenu()
+        let playStatus = app.sendDebugRemoteCommand(buttonIdentifier: "debug-menu-remote-play")
+        XCTAssertEqual(playStatus, "success",
+                       "The remote play should be handled while the chapter is loading. status=\(playStatus ?? "nil")")
+
+        // Ключевая проверка: глава играет по запросу пользователя, хотя ".full"
+        // запрещает автозапуск — запрос автоперехода не должен был его ослабить.
+        XCTAssertTrue(
+            app.waitForReadPlaybackState("playing", timeout: 40),
+            "The chapter should start playing after the user request. state=\(stateLabel.label)")
+    }
+
     // #19 — Открываем Псалом 117 с --no-auto-next-chapter, дослушиваем до конца.
     // Результат: заголовок главы НЕ меняется — автопереход отключён.
     @MainActor

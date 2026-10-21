@@ -56,6 +56,14 @@ enum TestingEnvironment {
               idx + 1 < CommandLine.arguments.count else { return nil }
         return CommandLine.arguments[idx + 1]
     }()
+    /// Delays the load of a chapter after its text arrived, so the window while
+    /// the chapter is loading can be observed by a UI test.
+    static let chapterLoadDelay: Double? = {
+        guard let idx = CommandLine.arguments.firstIndex(of: "--chapter-load-delay"),
+              idx + 1 < CommandLine.arguments.count,
+              let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
+        return value
+    }()
     /// One-shot: consumed after first use
     static var loadErrorOnceConsumed = false
     static var shouldForceLoadError: Bool {

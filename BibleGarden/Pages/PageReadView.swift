@@ -387,7 +387,16 @@ struct PageReadView: View {
             withAnimation {
                 proxy.scrollTo("top", anchor: .top)
             }
-            
+
+            // UI Testing: delay the load of the audio, so the window while the
+            // chapter is loading can be observed by a test.
+            if let delay = TestingEnvironment.chapterLoadDelay, delay > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                guard self.playbackPipelineSessionID == sessionID else { return }
+                guard self.pageLifecycleSessionID == lifecycleID else { return }
+            }
+
             // Check for audio availability
             if effectiveFirstUrl.isEmpty {
                 self.hasAudio = false
@@ -551,7 +560,13 @@ struct PageReadView: View {
 
     /// Remembers that the chapter of the current session has to start playing
     /// as soon as its audio is ready.
+    /// The request of the user has priority: the auto-transition must not weaken it.
     private func requestPlayWhenChapterIsReady(isUserRequest: Bool) {
+        // The request of the user is not replaced by the auto-transition: it must
+        // neither be delayed by the pause between the chapters nor be dropped by it.
+        if !isUserRequest, pendingPlayRequest?.isUserRequest == true {
+            return
+        }
         pendingPlayRequest = PendingPlayRequest(sessionID: playbackPipelineSessionID, isUserRequest: isUserRequest)
     }
 
