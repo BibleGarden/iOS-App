@@ -22,7 +22,7 @@ private enum LanguageDefaults {
 
     static var translation: Int {
         switch systemLanguage {
-        case "ru": return 1
+        case "ru": return 11
         case "uk": return 20
         default: return 16
         }
@@ -30,7 +30,7 @@ private enum LanguageDefaults {
 
     static var translationName: String {
         switch systemLanguage {
-        case "ru": return "SYNO"
+        case "ru": return "BTI"
         case "uk": return "UBH"
         default: return "BSB"
         }
@@ -38,7 +38,7 @@ private enum LanguageDefaults {
 
     static var voice: Int {
         switch systemLanguage {
-        case "ru": return 1
+        case "ru": return 123
         case "uk": return 130
         default: return 151
         }
@@ -46,14 +46,15 @@ private enum LanguageDefaults {
 
     static var voiceName: String {
         switch systemLanguage {
-        case "ru": return "Alexander Bondarenko"
+        case "ru": return "Никита Семёнов-Прозоровский"
         case "uk": return "Igor Kozlov"
         default: return "Bob Souer"
         }
     }
 
     static var voiceMusic: Bool {
-        systemLanguage == "ru"
+        // ru: Никита Семёнов-Прозоровский (voice 123) читает без музыки
+        false
     }
 }
 

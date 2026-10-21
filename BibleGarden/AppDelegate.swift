@@ -18,11 +18,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 switch langCode {
                 case "ru":
                     UserDefaults.standard.set("ru", forKey: "language")
-                    UserDefaults.standard.set(1, forKey: "translation")
-                    UserDefaults.standard.set("SYNO", forKey: "translationName")
-                    UserDefaults.standard.set(1, forKey: "voice")
-                    UserDefaults.standard.set("Alexander Bondarenko", forKey: "voiceName")
-                    UserDefaults.standard.set(true, forKey: "voiceMusic")
+                    UserDefaults.standard.set(11, forKey: "translation")
+                    UserDefaults.standard.set("BTI", forKey: "translationName")
+                    UserDefaults.standard.set(123, forKey: "voice")
+                    UserDefaults.standard.set("Никита Семёнов-Прозоровский", forKey: "voiceName")
+                    UserDefaults.standard.set(false, forKey: "voiceMusic")
                 case "uk":
                     UserDefaults.standard.set("uk", forKey: "language")
                     UserDefaults.standard.set(20, forKey: "translation")
