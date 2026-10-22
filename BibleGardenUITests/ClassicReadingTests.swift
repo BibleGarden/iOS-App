@@ -1552,6 +1552,10 @@ final class ClassicReadingPauseTests: XCTestCase {
 
     private var app: XCUIApplication!
 
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
     override func tearDownWithError() throws {
         app = nil
     }
@@ -1641,7 +1645,7 @@ final class ClassicReadingPauseTests: XCTestCase {
     func testPauseTimedVerse() throws {
         launchWithPause(type: "time", block: "verse")
 
-        XCTAssertTrue(waitForPlaybackState("waitingForPlay"), "Audio should be ready to play")
+        XCTAssertTrue(app.waitForReadPlaybackReady(), "Audio should be ready to play")
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()
@@ -1662,7 +1666,7 @@ final class ClassicReadingPauseTests: XCTestCase {
     func testPauseFullVerse() throws {
         launchWithPause(type: "full", block: "verse")
 
-        _ = waitForPlaybackState("waitingForPlay")
+        XCTAssertTrue(app.waitForReadPlaybackReady(), "Audio should be ready to play")
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()
@@ -1694,7 +1698,7 @@ final class ClassicReadingPauseTests: XCTestCase {
     func testPauseTimedParagraph() throws {
         launchWithPause(type: "time", block: "paragraph")
 
-        XCTAssertTrue(waitForPlaybackState("waitingForPlay"), "Audio should be ready to play")
+        XCTAssertTrue(app.waitForReadPlaybackReady(), "Audio should be ready to play")
 
         // Ускоряем до 2x чтобы быстрее дойти до границы абзаца
         let speedBtn = app.buttons["read-speed"]
@@ -1721,7 +1725,7 @@ final class ClassicReadingPauseTests: XCTestCase {
     func testPauseTimedVerseInBackground() throws {
         launchWithPause(type: "time", block: "verse")
 
-        _ = waitForPlaybackState("waitingForPlay")
+        XCTAssertTrue(app.waitForReadPlaybackReady(), "Audio should be ready to play")
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()

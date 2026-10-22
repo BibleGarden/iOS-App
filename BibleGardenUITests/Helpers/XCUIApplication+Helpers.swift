@@ -12,13 +12,29 @@ extension XCUIApplication {
 
         let sideMenu = otherElements["side-menu"]
         XCTAssertTrue(sideMenu.waitForExistence(timeout: 3), "Side menu did not appear")
+        XCTAssertTrue(waitForFrameToSettle(sideMenu, timeout: 5), "Side menu did not finish opening")
     }
 
-    /// Tap a menu item by its accessibility identifier
+    /// Tap a menu item by its accessibility identifier.
+    /// The menu slides in with a spring animation; a tap that lands while it is
+    /// still moving is cancelled by UIKit, so `openMenu` waits for the frame to settle.
     func tapMenuItem(_ identifier: String) {
         let item = buttons[identifier]
-        XCTAssertTrue(item.waitForExistence(timeout: 3), "Menu item '\(identifier)' not found")
+        XCTAssertTrue(waitForElementHittable(item, timeout: 3), "Menu item '\(identifier)' not hittable")
         item.tap()
+    }
+
+    /// Wait until the element's frame stops changing between two checks 0.2 s apart.
+    func waitForFrameToSettle(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var previous = element.frame
+        while Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            let current = element.frame
+            if current == previous { return true }
+            previous = current
+        }
+        return false
     }
 
     /// Open menu and navigate to a page via menu item identifier
