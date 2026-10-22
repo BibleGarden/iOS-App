@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 45
     env:
       DERIVED_DATA: build/DerivedData
-      SHARDS: 4
+      SHARDS: 5
     outputs:
       shards: ${{ steps.shard.outputs.shards }}
     steps:
