@@ -110,11 +110,13 @@ final class BookSelectTests: XCTestCase {
 
     // MARK: - Повторное открытие во время загрузки выбранной главы
 
-    /// Сценарий: выбрана глава другой книги (Псалтирь), excerpt-запрос удерживается
-    /// DEBUG-барьером (--excerpt-request-barrier + кнопка debug-menu-release-excerpt),
-    /// поэтому currentExcerpt уже указывает на новую книгу, а currentBookId ещё на
-    /// старую (Ин.) — это проверяется по наблюдаемым debug-меткам. Повторное
-    /// открытие выбора должно ставить список на новую книгу и раскрывать её главы.
+    /// Сценарий: выбрана глава другой книги (Лука, book_42 — прямо над Ин.),
+    /// excerpt-запрос удерживается DEBUG-барьером (--excerpt-request-barrier +
+    /// кнопка debug-menu-release-excerpt), поэтому currentExcerpt уже указывает
+    /// на новую книгу, а currentBookId ещё на старую (Ин., book_43) — это
+    /// проверяется по наблюдаемым debug-меткам. Повторное открытие выбора должно
+    /// ставить список на новую книгу, раскрывать её главы, а ручной тап по книге
+    /// должен отключать автораскрытие.
     @MainActor
     func testReopenWhileChapterLoadingPositionsAtNewBook() {
         app.terminate()
@@ -141,24 +143,21 @@ final class BookSelectTests: XCTestCase {
         XCTAssertTrue(app.waitForElementHittable(app.buttons["book_43"], timeout: 20),
                       "First open should position the list at the current book (John)")
 
-        // Прокручиваем список к началу до Псалтири (book_19). Тап по книге
-        // сворачивает грид Ин., поэтому кнопка главы "1" однозначна.
-        let psalms = app.buttons["book_19"]
-        var swipes = 0
-        while !(psalms.exists && psalms.isHittable) && swipes < 6 {
-            app.swipeDown()
-            swipes += 1
-        }
-        XCTAssertTrue(psalms.isHittable, "Psalms row should be scrolled into view")
-        psalms.tap()
-
-        let psalmsChapterOne = app.buttons["1"]
-        XCTAssertTrue(app.waitForElementHittable(psalmsChapterOne, timeout: 10),
-                      "Psalms chapter grid should appear")
-        psalmsChapterOne.tap()
+        // Лука (book_42) — прямо над Ин.: строка Ин. выровнена по верху списка,
+        // поэтому чуть прокручиваем вверх. Тап по Лк. сворачивает грид Ин.,
+        // поэтому кнопка главы "22" (в Ин. только 21 глава) однозначна.
+        app.swipeDown()
+        let luke = app.buttons["book_42"]
+        XCTAssertTrue(app.waitForElementHittable(luke, timeout: 10),
+                      "The book above John should be visible after scrolling up")
+        luke.tap()
+        let lukeChapter = app.buttons["22"]
+        XCTAssertTrue(app.waitForElementHittable(lukeChapter, timeout: 10),
+                      "Luke's chapter grid should appear")
+        lukeChapter.tap()
 
         // Окно гонки открыто ровно столько, сколько нужно тесту:
-        // запрос главы Псалтири удержан барьером, book id ещё старый.
+        // запрос главы Луки удержан барьером, book id ещё старый.
         let barrierHeld = app.staticTexts["debug-excerpt-barrier-held"]
         XCTAssertTrue(barrierHeld.waitForExistence(timeout: 5))
         XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 5),
@@ -166,16 +165,31 @@ final class BookSelectTests: XCTestCase {
         XCTAssertEqual(app.debugValue("debug-current-book-id"), "43",
                        "The stale book id (John) proves the race window is open")
 
-        // Повторное открытие выбора: список должен стоять на выбранной книге
-        // и раскрывать её главы, а не устаревшей книги.
+        // Повторное открытие выбора: список стоит на выбранной книге (Лука)
+        // и раскрывает её главы, а не устаревшей (Ин.).
         XCTAssertTrue(titleBtn.waitForExistence(timeout: 5))
         titleBtn.tap()
         XCTAssertTrue(app.buttons["select-close"].waitForExistence(timeout: 5),
                       "Chapter selection sheet should reappear")
-        XCTAssertTrue(app.waitForElementHittable(psalms, timeout: 10),
-                      "Reopened list should stand on the newly selected book (Psalms), not on the stale one (John)")
-        XCTAssertTrue(app.waitForElementHittable(psalmsChapterOne, timeout: 10),
-                      "Chapters of the newly selected book (Psalms) should be expanded, not the stale book's (John)")
+        XCTAssertTrue(app.waitForElementHittable(luke, timeout: 10),
+                      "Reopened list should stand on the newly selected book (Luke), not on the stale one (John)")
+        XCTAssertTrue(app.waitForElementHittable(lukeChapter, timeout: 10),
+                      "Chapters of the newly selected book (Luke) should be expanded, not the stale book's (John)")
+
+        // Ручной выбор книги всегда в приоритете: тап по Ин. (устаревший book id)
+        // должен раскрыть её грид и закрыть грид Луки — иначе раскрыты обе.
+        let john = app.buttons["book_43"]
+        XCTAssertTrue(app.waitForElementHittable(john, timeout: 10),
+                      "John's row should be visible below the expanded Luke grid")
+        john.tap()
+        XCTAssertTrue(app.waitForElementHittable(app.buttons["1"], timeout: 10),
+                      "The manually tapped book's grid (John) should open")
+        // Обе строки книг всегда есть в иерархии (список не ленив), поэтому
+        // расстояние между ними — наблюдаемый признак раскрытого грида Лк.:
+        // он занимает ~200pt между строками, закрытый грид — почти ничего.
+        let gapAfterManualTap = john.frame.minY - luke.frame.maxY
+        XCTAssertLessThanOrEqual(gapAfterManualTap, 100,
+                                 "The manual tap on John must close the auto-expanded Luke grid (gap \(gapAfterManualTap)pt means both grids are expanded)")
 
         // Отпускаем барьер: удерживаемый запрос завершается, book id обновляется.
         let bookIdLabel = app.staticTexts["debug-current-book-id"]
@@ -185,7 +199,46 @@ final class BookSelectTests: XCTestCase {
         app.openMenu()
         releaseButton.tap()
         app.tapMenuItem("menu-read")
-        XCTAssertTrue(app.waitForLabel(element: bookIdLabel, toBe: "19", timeout: 30),
-                      "The held Psalms request should complete and update the book id after the release")
+        XCTAssertTrue(app.waitForLabel(element: bookIdLabel, toBe: "42", timeout: 30),
+                      "The held Luke request should complete and update the book id after the release")
+    }
+
+    /// Жизненный цикл барьера: удерживаемый excerpt-запрос должен сниматься
+    /// при уходе со страницы чтения. Запрос задачи onAppear снимается отменой
+    /// задачи (withTaskCancellationHandler), а запрос по кнопке «следующая
+    /// глава» никто не отменяет — его снимает только инвалидация сессии
+    /// (cancelAll в shutdownPlaybackPipeline).
+    @MainActor
+    func testHeldExcerptRequestIsReleasedWhenLeavingReadPage() {
+        app.terminate()
+        app.launchArguments = ["--uitesting", "--excerpt-request-barrier"]
+        app.launch()
+        app.navigateToReadingPage()
+
+        // Начальный запрос (задача onAppear) удержан барьером — отпускаем его.
+        let barrierHeld = app.staticTexts["debug-excerpt-barrier-held"]
+        XCTAssertTrue(barrierHeld.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 10),
+                      "The initial excerpt request should be held by the barrier")
+        app.openMenu()
+        let releaseButton = app.buttons["debug-menu-release-excerpt"]
+        XCTAssertTrue(releaseButton.waitForExistence(timeout: 5))
+        releaseButton.tap()
+        app.tapMenuItem("menu-read")
+        XCTAssertTrue(app.waitForReadPlaybackReady(),
+                      "Initial chapter should load after the barrier release")
+
+        // Запрос по кнопке «следующая глава» тоже удерживается барьером.
+        let nextButton = app.buttons["read-next-chapter"]
+        XCTAssertTrue(nextButton.waitForExistence(timeout: 5))
+        nextButton.tap()
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 10),
+                      "The next-chapter request should be held by the barrier")
+
+        // Уход со страницы чтения снимает и это ожидание: задача кнопки
+        // не отменяется никем — её снимает только инвалидация сессии.
+        app.navigateViaMenu(to: "menu-main")
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "0", timeout: 10),
+                      "Leaving the reading page should resume the held request instead of leaving it suspended")
     }
 }

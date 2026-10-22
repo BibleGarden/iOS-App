@@ -351,9 +351,12 @@ struct PageReadView: View {
             // UI Testing: hold the excerpt request until the test releases it
             // via the `debug-menu-release-excerpt` debug button, so the window
             // in which the excerpt is already new while the book id is not is
-            // controlled by the test instead of timing.
+            // controlled by the test instead of timing. A newer request
+            // invalidates the waits of the older sessions; the guards below
+            // make the superseded request exit without loading anything.
             #if DEBUG
             if TestingEnvironment.isUITesting, TestingEnvironment.excerptRequestBarrier {
+                DebugExcerptBarrier.shared.cancelAll()
                 await DebugExcerptBarrier.shared.wait()
                 guard !Task.isCancelled else { return }
                 guard self.playbackPipelineSessionID == sessionID else { return }
@@ -827,6 +830,10 @@ struct PageReadView: View {
         pageLifecycleSessionID = UUID()
         pageSetupTask?.cancel()
         pageSetupTask = nil
+        #if DEBUG
+        // The reading page is gone — no session can consume the held requests.
+        DebugExcerptBarrier.shared.cancelAll()
+        #endif
         playbackPipelineSessionID = UUID()
         pendingPlayRequest = nil
         cancelPendingChapterStart()

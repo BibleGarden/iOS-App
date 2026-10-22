@@ -96,30 +96,69 @@ let globalBasePadding = 22.0
 /// book id is still old" is held open indefinitely. The held state is mirrored
 /// into UserDefaults (`debugExcerptBarrierHeld`), so a test can observe that
 /// the barrier is actually engaged.
+///
+/// Every wait has an identifier, and a suspended wait is resumed exactly once:
+/// by the release button (`release`), by the invalidation of its session
+/// (`cancelAll` — a newer request or the teardown of the reading page), or by
+/// the cancellation of its task (`withTaskCancellationHandler`). All three
+/// paths resume through removal from the pending list, so a double resume is
+/// impossible.
 @MainActor
 final class DebugExcerptBarrier {
     static let shared = DebugExcerptBarrier()
 
-    private var continuations: [CheckedContinuation<Void, Never>] = []
+    private struct PendingWait {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private var pendingWaits: [PendingWait] = []
 
     private init() {}
 
-    var isWaiting: Bool { !continuations.isEmpty }
+    var isWaiting: Bool { !pendingWaits.isEmpty }
 
-    /// Suspends the caller until `release()`.
+    /// Suspends the caller until `release()`, `cancelAll()` or the task
+    /// cancellation resumes it.
     func wait() async {
-        await withCheckedContinuation { continuation in
-            continuations.append(continuation)
-            UserDefaults.standard.set(1, forKey: "debugExcerptBarrierHeld")
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                pendingWaits.append(PendingWait(id: id, continuation: continuation))
+                refreshHeldFlag()
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.cancelWait(id: id)
+            }
         }
     }
 
-    /// Resumes every waiting request.
+    /// Resumes every waiting request (the debug release button).
     func release() {
-        let waiting = continuations
-        continuations = []
-        UserDefaults.standard.set(0, forKey: "debugExcerptBarrierHeld")
-        waiting.forEach { $0.resume() }
+        cancelAll()
+    }
+
+    /// Resumes every waiting request — called when the session that could
+    /// still consume the results is invalidated: a newer excerpt request or
+    /// the teardown of the reading page.
+    func cancelAll() {
+        guard !pendingWaits.isEmpty else { return }
+        let waits = pendingWaits
+        pendingWaits = []
+        refreshHeldFlag()
+        waits.forEach { $0.continuation.resume() }
+    }
+
+    private func cancelWait(id: UUID) {
+        guard let index = pendingWaits.firstIndex(where: { $0.id == id }) else { return }
+        let wait = pendingWaits.remove(at: index)
+        refreshHeldFlag()
+        wait.continuation.resume()
+    }
+
+    private func refreshHeldFlag() {
+        UserDefaults.standard.set(pendingWaits.isEmpty ? 0 : 1, forKey: "debugExcerptBarrierHeld")
     }
 }
 #endif

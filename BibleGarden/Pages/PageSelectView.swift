@@ -259,14 +259,16 @@ struct PageSelectView: View {
 
                                      withAnimation {
                                           expandedBook = book.book_number
-                                     
-                                         if book.book_number != settingsManager.currentBookId {
-                                            needSelectedBookOpen = false
-                                         }
-                                     
-                                         proxy.scrollTo("book_\(book.book_number)", anchor: .top)
-                                     }
-                                     
+
+                                          // Any manual book tap takes priority over the
+                                          // auto-expansion of the target book: without this,
+                                          // a tap on the stale `currentBookId` book would
+                                          // leave both grids expanded in the race window.
+                                          needSelectedBookOpen = false
+
+                                          proxy.scrollTo("book_\(book.book_number)", anchor: .top)
+                                      }
+
                                 } label: {
                                     HStack(spacing: 12) {
                                         Text(book.name)
