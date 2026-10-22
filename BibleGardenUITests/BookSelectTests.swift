@@ -108,6 +108,44 @@ final class BookSelectTests: XCTestCase {
         XCTFail("Книга book_\(n) не видна в списке после прокрутки")
     }
 
+    /// Максимум жестов прокрутки, за который целевая книга обязана стать
+    /// hittable: один свайп сдвигает список на несколько сотен точек, а цель
+    /// стоит вплотную над строкой текущей книги.
+    private static let maxBookListScrollGestures = 6
+
+    /// Прокручивает список книг, пока `target` не станет hittable, но не более
+    /// `maxBookListScrollGestures` жестов; затем — явный провал.
+    ///
+    /// Жесты выполняются по контейнеру списка книг (`scrollViews.firstMatch` —
+    /// единственный scroll view экрана), а не по всему приложению: свайп по
+    /// всему приложению имеет случайный размах и может начаться как жест
+    /// закрытия листа. Направление каждого жеста выбирается по факту: если
+    /// цель ушла под нижний край списка — свайп вверх возвращает её в кадр,
+    /// иначе — свайп вниз (цель стоит над строкой текущей книги, вне кадра
+    /// сверху, поэтому список в этой зоне всегда может прокрутиться и жест
+    /// не превращается в закрытие листа). Проверка после каждого жеста —
+    /// событийная, без sleep.
+    ///
+    /// `press(forDuration:thenDragTo:)` здесь неприменим: синтетический drag,
+    /// начавшийся на строке-кнопке, распознаётся как тап — тап по главе
+    /// закрывает лист, тап по книге прокручивает список к ней же (кнопка
+    /// выравнивается по верху), то есть не двигает список к цели.
+    private func scrollBookListUpUntilHittable(_ target: XCUIElement) {
+        let list = app.scrollViews.firstMatch
+        for gesture in 1...Self.maxBookListScrollGestures {
+            if app.waitForElementHittable(target, timeout: 2) { return }
+            XCTAssertTrue(app.buttons["select-close"].exists,
+                          "The book select sheet must stay open during list scrolling (gesture \(gesture))")
+            let overscrolled = target.exists && target.frame.minY > list.frame.maxY - 80
+            if overscrolled {
+                list.swipeUp()
+            } else {
+                list.swipeDown()
+            }
+        }
+        XCTFail("\(target.identifier) should become hittable after at most \(Self.maxBookListScrollGestures) scroll gestures of the book list (sheet open: \(app.buttons["select-close"].exists))")
+    }
+
     // MARK: - Повторное открытие во время загрузки выбранной главы
 
     /// Сценарий: выбрана глава другой книги (Лука, book_42 — прямо над Ин.),
@@ -144,12 +182,10 @@ final class BookSelectTests: XCTestCase {
                       "First open should position the list at the current book (John)")
 
         // Лука (book_42) — прямо над Ин.: строка Ин. выровнена по верху списка,
-        // поэтому чуть прокручиваем вверх. Тап по Лк. сворачивает грид Ин.,
-        // поэтому кнопка главы "22" (в Ин. только 21 глава) однозначна.
-        app.swipeDown()
+        // поэтому список надо чуть прокрутить к началу. Тап по Лк. сворачивает
+        // грид Ин., поэтому кнопка главы "22" (в Ин. только 21 глава) однозначна.
         let luke = app.buttons["book_42"]
-        XCTAssertTrue(app.waitForElementHittable(luke, timeout: 10),
-                      "The book above John should be visible after scrolling up")
+        scrollBookListUpUntilHittable(luke)
         luke.tap()
         let lukeChapter = app.buttons["22"]
         XCTAssertTrue(app.waitForElementHittable(lukeChapter, timeout: 10),
