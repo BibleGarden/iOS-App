@@ -1557,10 +1557,13 @@ final class ClassicReadingPauseTests: XCTestCase {
     }
 
     /// Запустить приложение с заданными настройками паузы и перейти на страницу чтения.
+    /// Язык закреплён: от него зависят перевод и диктор, а значит, длительности
+    /// стихов и границы абзацев, на которые опираются тесты (Иоанна 1, BSB).
     private func launchWithPause(type: String, block: String) {
         app = XCUIApplication()
         app.launchArguments = [
             "--uitesting",
+            "--app-language", "en",
             "--pause-type", type,
             "--pause-block", block
         ]
@@ -1575,25 +1578,97 @@ final class ClassicReadingPauseTests: XCTestCase {
         return app.waitForLabel(element: stateLabel, toBe: state, timeout: timeout)
     }
 
+    /// Индекс звучащего стиха (read-verse-counter, с нуля; -1 — ещё ни одного).
+    private func currentVerseIndex(_ counter: XCUIElement) -> Int? {
+        guard let index = Int(counter.label) else {
+            XCTFail("The verse counter should be an integer, got '\(counter.label)'")
+            return nil
+        }
+        return index
+    }
+
+    /// Ждёт, пока чтение само дойдёт до стиха с индексом `index`.
+    /// Автопауза, замеченная на стихе раньше `earliestPauseIndex`, — ошибка.
+    ///
+    /// Состояние читается до счётчика: счётчик только растёт, поэтому
+    /// автопауза на правильной границе не может показаться более ранней.
+    private func waitForVerseIndex(atLeast index: Int,
+                                   earliestPauseIndex: Int = 0,
+                                   timeout: TimeInterval) -> Bool {
+        let stateLabel = app.staticTexts["read-playback-state"]
+        let counter = app.staticTexts["read-verse-counter"]
+        guard stateLabel.waitForExistence(timeout: 3), counter.waitForExistence(timeout: 3) else {
+            XCTFail("The playback state and the verse counter should be published")
+            return false
+        }
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "none"
+        while Date() < deadline {
+            let state = stateLabel.label
+            guard let current = currentVerseIndex(counter) else { return false }
+            lastKnown = "\(current)"
+            if state == "autopausing" && current < earliestPauseIndex {
+                XCTFail("Autopause started at verse index \(current), before verse index \(earliestPauseIndex)")
+                return false
+            }
+            if current >= index { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("Reading should reach verse index \(index) within \(Int(timeout))s, got '\(lastKnown)'")
+        return false
+    }
+
+    /// Переходы AVPlayer классического чтения в .playing. Приложение запускается
+    /// заново в каждом тесте, поэтому счётчик идёт с нуля.
+    private func classicPlayingTransitions() -> Int? {
+        guard let transitions = app.debugPlayingTransitionCount(forOwner: "classicRead") else {
+            XCTFail("The playback telemetry of the classic reading should be published")
+            return nil
+        }
+        return transitions
+    }
+
+    /// Ждёт, пока AVPlayer классического чтения перейдёт в .playing не меньше
+    /// `count` раз. Счётчик монотонный: короткое воспроизведение не проскакивает
+    /// между опросами, как мгновенное состояние.
+    private func waitForClassicPlayingTransitions(atLeast count: Int, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "no telemetry"
+        while Date() < deadline {
+            if let current = app.debugPlayingTransitionCount(forOwner: "classicRead") {
+                lastKnown = "\(current)"
+                if current >= count { return true }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The classic AVPlayer should start playing at least \(count) times within \(Int(timeout))s, got '\(lastKnown)'")
+        return false
+    }
+
     // #20 — Запускаем с pauseType=time + pauseBlock=verse.
-    // Результат: после стиха плеер переходит в "autopausing", затем сам возобновляется.
+    // Результат: после каждого стиха плеер встаёт на паузу и сам возобновляется.
+    //
+    // Пауза длится 3 с — опрос мгновенного состояния на медленном CI в неё
+    // не попадает, поэтому проверяются монотонные счётчики. Каждая пауза
+    // с возобновлением — новый переход AVPlayer в .playing. Чтобы зазвучал
+    // стих с индексом 3, паузы после стихов 0 и 1 обязаны закончиться
+    // (пауза после стиха 2 может ещё идти): переходов не меньше 3. Без пауз
+    // переход один, сколько бы стихов ни прозвучало.
     @MainActor
     func testPauseTimedVerse() throws {
         launchWithPause(type: "time", block: "verse")
 
-        _ = waitForPlaybackState("waitingForPlay")
+        XCTAssertTrue(waitForPlaybackState("waitingForPlay"), "Audio should be ready to play")
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()
-        XCTAssertTrue(waitForPlaybackState("playing"), "Should start playing")
+        XCTAssertTrue(waitForClassicPlayingTransitions(atLeast: 1, timeout: 10), "Should start playing")
 
-        // С pauseBlock=verse autopause должна случиться после первого стиха
-        let gotAutopause = waitForPlaybackState("autopausing", timeout: 30)
-        XCTAssertTrue(gotAutopause, "Should enter autopausing after verse ends")
-
-        // После timed-паузы плеер должен сам возобновить воспроизведение
-        XCTAssertTrue(waitForPlaybackState("playing", timeout: 15),
-                      "Should auto-resume after timed pause")
+        XCTAssertTrue(waitForVerseIndex(atLeast: 3, timeout: 45),
+                      "Reading should go on by itself through the pauses between verses")
+        guard let transitions = classicPlayingTransitions() else { return }
+        XCTAssertGreaterThanOrEqual(transitions, 3,
+                                    "Each verse should end with a timed pause and an automatic resume")
 
         playPause.tap() // stop
     }
@@ -1624,14 +1699,19 @@ final class ClassicReadingPauseTests: XCTestCase {
     }
 
     // #22 — Запускаем с pauseType=time + pauseBlock=paragraph, скорость 2x.
-    // Результат: плеер доигрывает до границы абзаца и переходит в "autopausing".
-    // С pauseBlock=verse autopausing случилась бы раньше (после первого стиха),
-    // а с paragraph — позже (только на границе абзаца).
+    // Результат: плеер доигрывает до границы абзаца, встаёт на паузу и сам
+    // возобновляется. С pauseBlock=verse пауза случилась бы раньше (после
+    // первого стиха), а с paragraph — только на границе абзаца.
+    //
+    // В Иоанна 1 (глава по умолчанию) стихи 1-5 — один абзац, первая граница —
+    // перед стихом 6 (индекс 5). Пауза начинается вместе с этим стихом, и стих
+    // с индексом 6 зазвучит, только когда она закончится: переходов AVPlayer
+    // в .playing не меньше 2. Без пауз переход один.
     @MainActor
     func testPauseTimedParagraph() throws {
         launchWithPause(type: "time", block: "paragraph")
 
-        _ = waitForPlaybackState("waitingForPlay")
+        XCTAssertTrue(waitForPlaybackState("waitingForPlay"), "Audio should be ready to play")
 
         // Ускоряем до 2x чтобы быстрее дойти до границы абзаца
         let speedBtn = app.buttons["read-speed"]
@@ -1640,19 +1720,13 @@ final class ClassicReadingPauseTests: XCTestCase {
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()
-        XCTAssertTrue(waitForPlaybackState("playing"), "Should start playing")
+        XCTAssertTrue(waitForClassicPlayingTransitions(atLeast: 1, timeout: 10), "Should start playing")
 
-        // Ждём autopausing на границе абзаца (до 60 сек на 2x).
-        // В Бытие 1 первая граница абзаца — перед стихом 3 (стихи 1-2 = один абзац).
-        let gotAutopause = waitForPlaybackState("autopausing", timeout: 60)
-        XCTAssertTrue(gotAutopause,
-                      "Should reach autopausing at paragraph boundary")
-
-        // После timed-паузы плеер должен сам возобновить воспроизведение
-        if gotAutopause {
-            XCTAssertTrue(waitForPlaybackState("playing", timeout: 15),
-                          "Should auto-resume after paragraph pause")
-        }
+        XCTAssertTrue(waitForVerseIndex(atLeast: 6, earliestPauseIndex: 5, timeout: 60),
+                      "Reading should go on by itself through the paragraph pause")
+        guard let transitions = classicPlayingTransitions() else { return }
+        XCTAssertGreaterThanOrEqual(transitions, 2,
+                                    "The paragraph should end with a timed pause and an automatic resume")
 
         playPause.tap() // stop
     }

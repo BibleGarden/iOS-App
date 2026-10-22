@@ -5,6 +5,7 @@ import XCTest
 final class AboutTests: XCTestCase {
 
     private var app: XCUIApplication!
+    private let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
     private static var apiChecked = false
     private static var apiAvailable = true
 
@@ -28,6 +29,14 @@ final class AboutTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        // Ссылка открывается в Safari поверх приложения. Уборка здесь, а не в теле
+        // теста: при падении тело до неё не доходит, и следующий тест не может
+        // завершить приложение, оставшееся в фоне за Safari.
+        // app == nil — тест пропущен до запуска, ссылку он не открывал.
+        if app != nil, safari.state != .notRunning {
+            safari.terminate()
+            app.activate()
+        }
         app = nil
     }
 
@@ -62,7 +71,9 @@ final class AboutTests: XCTestCase {
     }
 
     // #4 — Тап по кнопке Telegram открывает внешнюю ссылку.
-    // Результат: приложение уходит в background (URL открылся в браузере/Telegram).
+    // Результат: ссылка t.me открывается в Safari (Telegram в симуляторе не установлен).
+    // Проверяется Safari, а не состояние приложения: в фоне iOS быстро замораживает
+    // приложение, и короткое `runningBackground` опрос может не застать.
     @MainActor
     func testTelegramButtonOpensLink() {
         let telegram = app.buttons["contacts-telegram"]
@@ -70,10 +81,8 @@ final class AboutTests: XCTestCase {
 
         telegram.tap()
 
-        let wentToBackground = app.wait(for: .runningBackground, timeout: 5)
-            || app.wait(for: .notRunning, timeout: 2)
-        XCTAssertTrue(wentToBackground, "App should go to background after opening Telegram link")
-
-        app.activate()
+        // Первый запуск Safari на CI занимает до ~6 с.
+        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 10),
+                      "Safari should open the Telegram link")
     }
 }
