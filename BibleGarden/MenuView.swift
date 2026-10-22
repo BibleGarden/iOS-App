@@ -192,36 +192,43 @@ struct MenuView: View {
                 .padding(.top, topInset + appHeaderTopPadding(for: topInset))
                 .padding(.bottom, max(safeArea.bottom, 16))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .overlay(alignment: .topLeading) {
+
                 #if DEBUG
-                if TestingEnvironment.isUITesting {
-                    // Debug triggers for the transport commands of the lock screen / Control Center.
-                    // They live in the menu, so a command can be sent from any screen —
-                    // also when no reading screen is open.
-                    // The overlay keeps them independent of the menu items layout.
-                    VStack(spacing: 0) {
-                        Button {
-                            DebugPlaybackRegistry.shared.sendRemoteCommand(.pause)
-                        } label: {
-                            Text("pause")
-                        }
-                        .font(.system(size: 8))
-                        .frame(width: 40, height: 12)
-                        .accessibilityIdentifier("debug-menu-remote-pause")
-                        Button {
-                            DebugPlaybackRegistry.shared.sendRemoteCommand(.play)
-                        } label: {
-                            Text("play")
-                        }
-                        .font(.system(size: 8))
-                        .frame(width: 40, height: 12)
-                        .accessibilityIdentifier("debug-menu-remote-play")
+                // Debug triggers for the transport commands of the lock screen / Control Center.
+                // They live in the menu panel, so a command can be sent from any screen —
+                // also when no reading screen is open. They are pinned to the empty lower
+                // part of the panel as a separate ZStack child: the menu items above do not
+                // depend on them, so the visible layout stays untouched. The buttons exist
+                // and respond to taps only in UI tests (value-based gating). An earlier
+                // `.overlay` with a structural `if` shifted the menu panel halfway down
+                // the screen on iOS 26.3; the exact cause is not isolated. The whole
+                // block is compiled out of Release.
+                VStack(spacing: 0) {
+                    Button {
+                        DebugPlaybackRegistry.shared.sendRemoteCommand(.pause)
+                    } label: {
+                        Text("pause")
                     }
-                    .foregroundStyle(.clear)
-                    .padding(.leading, 22)
-                    .padding(.top, 8)
+                    .font(.system(size: 8))
+                    .frame(width: 40, height: 12)
+                    .opacity(TestingEnvironment.isUITesting ? 1 : 0)
+                    .accessibilityHidden(!TestingEnvironment.isUITesting)
+                    .accessibilityIdentifier("debug-menu-remote-pause")
+                    Button {
+                        DebugPlaybackRegistry.shared.sendRemoteCommand(.play)
+                    } label: {
+                        Text("play")
+                    }
+                    .font(.system(size: 8))
+                    .frame(width: 40, height: 12)
+                    .opacity(TestingEnvironment.isUITesting ? 1 : 0)
+                    .accessibilityHidden(!TestingEnvironment.isUITesting)
+                    .accessibilityIdentifier("debug-menu-remote-play")
                 }
+                .foregroundStyle(.clear)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(.leading, 22)
+                .padding(.bottom, 40)
                 #endif
             }
             .frame(maxWidth: min(containerSize.width, 500))
