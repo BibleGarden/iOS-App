@@ -17,8 +17,8 @@ env:
   API_BASE_URL: https://test-api.bible.garden
   DEVELOPER_DIR: /Applications/Xcode_26.3.app
   DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.2
-  DERIVED_DATA: build/DerivedData
-  RESULT_BUNDLE: build/UITests.xcresult
+  # App Store preview recording script, not a test.
+  SKIPPED_CLASSES: DemoRecordingTests
 
 jobs:
   # Secrets are not passed to workflows triggered from forks, so UI tests
@@ -31,10 +31,15 @@ jobs:
       - name: Explain skipped UI tests
         run: echo "::notice title=UI tests skipped::Pull requests from forks have no access to the test API secrets. A maintainer runs UI tests after moving the branch into BibleGarden/iOS-App."
 
-  ui-tests:
+  build:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: macos-26
-    timeout-minutes: 120
+    timeout-minutes: 45
+    env:
+      DERIVED_DATA: build/DerivedData
+      SHARDS: 4
+    outputs:
+      shards: ${{ steps.shard.outputs.shards }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -52,17 +57,6 @@ jobs:
             echo "API_BASE_URL = ${API_BASE_URL/:\/\//:/\$()/}"
             echo "API_KEY = $API_KEY"
           } > BibleGarden/Debug.xcconfig
-
-      - name: Check test API health
-        env:
-          API_KEY: ${{ secrets.API_KEY }}
-        run: |
-          status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
-            -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/health") || status=unreachable
-          if [ "$status" != "200" ]; then
-            echo "::error title=Test API unavailable::GET $API_BASE_URL/api/health returned $status. UI tests skip themselves without the API, so the job stops here."
-            exit 1
-          fi
 
       - name: Show toolchain
         run: |
@@ -82,31 +76,112 @@ jobs:
             -skipPackagePluginValidation \
             | xcbeautify --renderer github-actions
 
-      - name: Run UI tests
+      # Every test class of the plan goes to exactly one shard, so a new class
+      # is never left out. Classes are spread by test count, largest first.
+      - name: Split test classes into shards
+        id: shard
         run: |
           set -o pipefail
+          xctestrun=$(ls "$DERIVED_DATA"/Build/Products/*.xctestrun)
           xcodebuild test-without-building \
-            -project BibleGarden.xcodeproj \
-            -scheme BibleGarden \
-            -testPlan BibleGarden \
+            -xctestrun "$xctestrun" \
             -destination "$DESTINATION" \
-            -derivedDataPath "$DERIVED_DATA" \
+            -enumerate-tests \
+            -test-enumeration-style hierarchical \
+            -test-enumeration-format json \
+            -test-enumeration-output-path build/tests.json \
+            | xcbeautify
+          jq -e '.errors == []' build/tests.json > /dev/null || { jq '.errors' build/tests.json; exit 1; }
+          shards=$(jq -c --argjson n "$SHARDS" --arg skipped "$SKIPPED_CLASSES" '
+            ($skipped | split(" ")) as $skip
+            | [ .values[].children[] as $target
+                | $target.children[]
+                | select(.kind == "class" and (.name | IN($skip[]) | not))
+                | {id: "\($target.name)/\(.name)", tests: (.children | length)} ]
+            | if length == 0 then error("no test classes enumerated") else . end
+            | sort_by(-.tests)
+            | reduce .[] as $class ([range($n) | {tests: 0, ids: []}];
+                (to_entries | min_by(.value.tests) | .key) as $i
+                | .[$i].tests += $class.tests
+                | .[$i].ids += [$class.id])
+            | to_entries
+            | map({index: (.key + 1), tests: .value.tests,
+                   only_testing: (.value.ids | map("-only-testing:" + .) | join(" "))})' build/tests.json)
+          echo "$shards" | jq -r '.[] | "Shard \(.index): \(.tests) tests"'
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
+
+      - name: Pack test products
+        run: |
+          cd "$DERIVED_DATA/Build/Products"
+          tar -czf "$GITHUB_WORKSPACE/build/products.tar.gz" ./*.xctestrun Debug-iphonesimulator
+
+      - name: Upload test products
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-products
+          path: build/products.tar.gz
+          retention-days: 1
+
+  test:
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 60
+    name: test (${{ matrix.shard.index }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.build.outputs.shards) }}
+    env:
+      RESULT_BUNDLE: build/UITests-${{ matrix.shard.index }}.xcresult
+    steps:
+      - name: Check test API health
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+            -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/health") || status=unreachable
+          if [ "$status" != "200" ]; then
+            echo "::error title=Test API unavailable::GET $API_BASE_URL/api/health returned $status. UI tests skip themselves without the API, so the job stops here."
+            exit 1
+          fi
+
+      - name: Download test products
+        uses: actions/download-artifact@v8
+        with:
+          name: test-products
+          path: build
+
+      - name: Unpack test products
+        run: |
+          mkdir -p build/Products
+          tar -xzf build/products.tar.gz -C build/Products
+
+      - name: Run UI tests
+        env:
+          ONLY_TESTING: ${{ matrix.shard.only_testing }}
+        run: |
+          set -o pipefail
+          # ONLY_TESTING is a space-separated list of -only-testing options.
+          # shellcheck disable=SC2086
+          xcodebuild test-without-building \
+            -xctestrun "$(ls build/Products/*.xctestrun)" \
+            -destination "$DESTINATION" \
             -resultBundlePath "$RESULT_BUNDLE" \
-            -skip-testing:BibleGardenUITests/DemoRecordingTests \
+            $ONLY_TESTING \
             | xcbeautify --renderer github-actions
 
       - name: Summarize test results
-        if: always() && hashFiles('build/UITests.xcresult/Info.plist') != ''
+        if: always() && hashFiles(format('{0}/Info.plist', env.RESULT_BUNDLE)) != ''
         run: |
           xcrun xcresulttool get test-results summary --path "$RESULT_BUNDLE" --compact \
-            | jq -r '"| Result | Passed | Failed | Skipped | Total |", "|---|---|---|---|---|",
-                     "| \(.result) | \(.passedTests) | \(.failedTests) | \(.skippedTests) | \(.totalTestCount) |"' \
+            | jq -r '"| Shard | Result | Passed | Failed | Skipped | Total |", "|---|---|---|---|---|---|",
+                     "| ${{ matrix.shard.index }} | \(.result) | \(.passedTests) | \(.failedTests) | \(.skippedTests) | \(.totalTestCount) |"' \
             >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload result bundle
-        if: failure() && hashFiles('build/UITests.xcresult/Info.plist') != ''
+        if: failure() && hashFiles(format('{0}/Info.plist', env.RESULT_BUNDLE)) != ''
         uses: actions/upload-artifact@v7
         with:
-          name: UITests-xcresult-${{ github.run_id }}-${{ github.run_attempt }}
-          path: build/UITests.xcresult
+          name: UITests-xcresult-${{ matrix.shard.index }}-${{ github.run_attempt }}
+          path: ${{ env.RESULT_BUNDLE }}
           retention-days: 14
