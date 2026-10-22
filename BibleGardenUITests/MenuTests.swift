@@ -50,6 +50,25 @@ final class MenuTests: XCTestCase {
         XCTAssertTrue(menuDisappeared, "Side menu should close after tapping an item")
     }
 
+    // MARK: - Debug API URL
+
+    @MainActor
+    func testDebugApiURLShownInMenu() {
+        app.openMenu()
+
+        let apiURLText = app.staticTexts["menu-api-url"]
+        XCTAssertTrue(apiURLText.waitForExistence(timeout: 3),
+                      "Debug API URL should exist in the menu")
+        XCTAssertTrue(apiURLText.isHittable,
+                      "Debug API URL should be visible in the menu")
+        XCTAssertEqual(apiURLText.label, TestConfig.baseURL,
+                       "Debug API URL should match TestConfig.baseURL")
+
+        let contactsItem = app.buttons["menu-contacts"]
+        XCTAssertTrue(contactsItem.waitForExistence(timeout: 3),
+                      "Contacts menu item should remain accessible")
+    }
+
     // MARK: - Navigation (order matches menu items)
 
     // 1. Multilingual

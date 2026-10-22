@@ -178,6 +178,14 @@ struct MenuView: View {
                                 Text("\("menu.version".localized) \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
                                     .font(.system(size: 13))
                                     .foregroundColor(colorFor(.contacts).opacity(0.5))
+                                #if DEBUG
+                                Text(Config.baseURL)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(colorFor(.contacts).opacity(0.5))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .accessibilityIdentifier("menu-api-url")
+                                #endif
                             }
                         }
                     }
