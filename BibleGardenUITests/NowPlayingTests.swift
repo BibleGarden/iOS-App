@@ -43,7 +43,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
     @MainActor
     func testClassicReadingEnablesRemoteCommandsAndControlsPlayback() {
         app.navigateToReadingPage()
-        XCTAssertTrue(app.waitForReadPlaybackState("waitingForPlay", timeout: 20),
+        XCTAssertTrue(app.waitForReadPlaybackReady(),
                       "Classic playback should become ready before starting")
 
         let readPlayPause = app.buttons["read-play-pause"]
@@ -135,7 +135,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
     func testRemotePlayDoesNothingAfterLeavingReading() {
         // 1. Обычное чтение забирает Now Playing
         app.navigateToReadingPage()
-        XCTAssertTrue(app.waitForReadPlaybackState("waitingForPlay", timeout: 20),
+        XCTAssertTrue(app.waitForReadPlaybackReady(),
                       "Classic playback should become ready before starting")
 
         let readPlayPause = app.buttons["read-play-pause"]

@@ -348,6 +348,22 @@ struct PageReadView: View {
                 throw NSError(domain: "UITesting", code: 500, userInfo: [NSLocalizedDescriptionKey: "Simulated load error for UI testing"])
             }
 
+            // UI Testing: hold the excerpt request until the test releases it
+            // via the `debug-menu-release-excerpt` debug button, so the window
+            // in which the excerpt is already new while the book id is not is
+            // controlled by the test instead of timing. A newer request
+            // invalidates the waits of the older sessions; the guards below
+            // make the superseded request exit without loading anything.
+            #if DEBUG
+            if TestingEnvironment.isUITesting, TestingEnvironment.excerptRequestBarrier {
+                DebugExcerptBarrier.shared.cancelAll()
+                await DebugExcerptBarrier.shared.wait()
+                guard !Task.isCancelled else { return }
+                guard self.playbackPipelineSessionID == sessionID else { return }
+                guard self.pageLifecycleSessionID == lifecycleID else { return }
+            }
+            #endif
+
             let (thisTextVerses, audioVerses, firstUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(excerpts: settingsManager.currentExcerpt, client: settingsManager.client, translation: settingsManager.translation, voice: settingsManager.voice)
             guard !Task.isCancelled else { return }
             // Another chapter was requested while the request was in flight —
@@ -814,6 +830,10 @@ struct PageReadView: View {
         pageLifecycleSessionID = UUID()
         pageSetupTask?.cancel()
         pageSetupTask = nil
+        #if DEBUG
+        // The reading page is gone — no session can consume the held requests.
+        DebugExcerptBarrier.shared.cancelAll()
+        #endif
         playbackPipelineSessionID = UUID()
         pendingPlayRequest = nil
         cancelPendingChapterStart()

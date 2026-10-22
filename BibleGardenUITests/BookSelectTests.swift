@@ -107,4 +107,174 @@ final class BookSelectTests: XCTestCase {
         }
         XCTFail("Книга book_\(n) не видна в списке после прокрутки")
     }
+
+    /// Максимум жестов прокрутки, за который целевая книга обязана стать
+    /// hittable: один свайп сдвигает список на несколько сотен точек, а цель
+    /// стоит вплотную над строкой текущей книги.
+    private static let maxBookListScrollGestures = 6
+
+    /// Прокручивает список книг, пока `target` не станет hittable, но не более
+    /// `maxBookListScrollGestures` жестов; затем — явный провал.
+    ///
+    /// Жесты выполняются по контейнеру списка книг (`scrollViews.firstMatch` —
+    /// единственный scroll view экрана), а не по всему приложению: свайп по
+    /// всему приложению имеет случайный размах и может начаться как жест
+    /// закрытия листа. Направление каждого жеста выбирается по факту: если
+    /// цель ушла под нижний край списка — свайп вверх возвращает её в кадр,
+    /// иначе — свайп вниз (цель стоит над строкой текущей книги, вне кадра
+    /// сверху, поэтому список в этой зоне всегда может прокрутиться и жест
+    /// не превращается в закрытие листа). Проверка после каждого жеста —
+    /// событийная, без sleep.
+    ///
+    /// `press(forDuration:thenDragTo:)` здесь неприменим: синтетический drag,
+    /// начавшийся на строке-кнопке, распознаётся как тап — тап по главе
+    /// закрывает лист, тап по книге прокручивает список к ней же (кнопка
+    /// выравнивается по верху), то есть не двигает список к цели.
+    private func scrollBookListUpUntilHittable(_ target: XCUIElement) {
+        let list = app.scrollViews.firstMatch
+        for gesture in 1...Self.maxBookListScrollGestures {
+            if app.waitForElementHittable(target, timeout: 2) { return }
+            XCTAssertTrue(app.buttons["select-close"].exists,
+                          "The book select sheet must stay open during list scrolling (gesture \(gesture))")
+            let overscrolled = target.exists && target.frame.minY > list.frame.maxY - 80
+            if overscrolled {
+                list.swipeUp()
+            } else {
+                list.swipeDown()
+            }
+        }
+        XCTFail("\(target.identifier) should become hittable after at most \(Self.maxBookListScrollGestures) scroll gestures of the book list (sheet open: \(app.buttons["select-close"].exists))")
+    }
+
+    // MARK: - Повторное открытие во время загрузки выбранной главы
+
+    /// Сценарий: выбрана глава другой книги (Лука, book_42 — прямо над Ин.),
+    /// excerpt-запрос удерживается DEBUG-барьером (--excerpt-request-barrier +
+    /// кнопка debug-menu-release-excerpt), поэтому currentExcerpt уже указывает
+    /// на новую книгу, а currentBookId ещё на старую (Ин., book_43) — это
+    /// проверяется по наблюдаемым debug-меткам. Повторное открытие выбора должно
+    /// ставить список на новую книгу, раскрывать её главы, а ручной тап по книге
+    /// должен отключать автораскрытие.
+    @MainActor
+    func testReopenWhileChapterLoadingPositionsAtNewBook() {
+        app.terminate()
+        app.launchArguments = ["--uitesting", "--excerpt-request-barrier"]
+        app.launch()
+        app.navigateToReadingPage()
+
+        // Начальный запрос главы Ин. удерживается барьером — отпускаем его.
+        app.openMenu()
+        let releaseButton = app.buttons["debug-menu-release-excerpt"]
+        XCTAssertTrue(releaseButton.waitForExistence(timeout: 5),
+                      "The barrier release button should exist in the menu")
+        releaseButton.tap()
+        app.tapMenuItem("menu-read")
+        XCTAssertTrue(app.waitForReadPlaybackReady(),
+                      "Initial chapter (John) should load after the barrier release")
+
+        // Первый визит: список загружается и встаёт на текущую книгу (Ин., book_43)
+        let titleBtn = app.buttons["read-chapter-title"]
+        XCTAssertTrue(titleBtn.waitForExistence(timeout: 5))
+        titleBtn.tap()
+        XCTAssertTrue(app.buttons["select-close"].waitForExistence(timeout: 5),
+                      "Chapter selection sheet should appear")
+        XCTAssertTrue(app.waitForElementHittable(app.buttons["book_43"], timeout: 20),
+                      "First open should position the list at the current book (John)")
+
+        // Лука (book_42) — прямо над Ин.: строка Ин. выровнена по верху списка,
+        // поэтому список надо чуть прокрутить к началу. Тап по Лк. сворачивает
+        // грид Ин., поэтому кнопка главы "22" (в Ин. только 21 глава) однозначна.
+        let luke = app.buttons["book_42"]
+        scrollBookListUpUntilHittable(luke)
+        luke.tap()
+        let lukeChapter = app.buttons["22"]
+        XCTAssertTrue(app.waitForElementHittable(lukeChapter, timeout: 10),
+                      "Luke's chapter grid should appear")
+        lukeChapter.tap()
+
+        // Окно гонки открыто ровно столько, сколько нужно тесту:
+        // запрос главы Луки удержан барьером, book id ещё старый.
+        let barrierHeld = app.staticTexts["debug-excerpt-barrier-held"]
+        XCTAssertTrue(barrierHeld.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 5),
+                      "The excerpt request should be held by the barrier")
+        XCTAssertEqual(app.debugValue("debug-current-book-id"), "43",
+                       "The stale book id (John) proves the race window is open")
+
+        // Повторное открытие выбора: список стоит на выбранной книге (Лука)
+        // и раскрывает её главы, а не устаревшей (Ин.).
+        XCTAssertTrue(titleBtn.waitForExistence(timeout: 5))
+        titleBtn.tap()
+        XCTAssertTrue(app.buttons["select-close"].waitForExistence(timeout: 5),
+                      "Chapter selection sheet should reappear")
+        XCTAssertTrue(app.waitForElementHittable(luke, timeout: 10),
+                      "Reopened list should stand on the newly selected book (Luke), not on the stale one (John)")
+        XCTAssertTrue(app.waitForElementHittable(lukeChapter, timeout: 10),
+                      "Chapters of the newly selected book (Luke) should be expanded, not the stale book's (John)")
+
+        // Ручной выбор книги всегда в приоритете: тап по Ин. (устаревший book id)
+        // должен раскрыть её грид и закрыть грид Луки — иначе раскрыты обе.
+        let john = app.buttons["book_43"]
+        XCTAssertTrue(app.waitForElementHittable(john, timeout: 10),
+                      "John's row should be visible below the expanded Luke grid")
+        john.tap()
+        XCTAssertTrue(app.waitForElementHittable(app.buttons["1"], timeout: 10),
+                      "The manually tapped book's grid (John) should open")
+        // Обе строки книг всегда есть в иерархии (список не ленив), поэтому
+        // расстояние между ними — наблюдаемый признак раскрытого грида Лк.:
+        // он занимает ~200pt между строками, закрытый грид — почти ничего.
+        let gapAfterManualTap = john.frame.minY - luke.frame.maxY
+        XCTAssertLessThanOrEqual(gapAfterManualTap, 100,
+                                 "The manual tap on John must close the auto-expanded Luke grid (gap \(gapAfterManualTap)pt means both grids are expanded)")
+
+        // Отпускаем барьер: удерживаемый запрос завершается, book id обновляется.
+        let bookIdLabel = app.staticTexts["debug-current-book-id"]
+        let closeButton = app.buttons["select-close"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
+        closeButton.tap()
+        app.openMenu()
+        releaseButton.tap()
+        app.tapMenuItem("menu-read")
+        XCTAssertTrue(app.waitForLabel(element: bookIdLabel, toBe: "42", timeout: 30),
+                      "The held Luke request should complete and update the book id after the release")
+    }
+
+    /// Жизненный цикл барьера: удерживаемый excerpt-запрос должен сниматься
+    /// при уходе со страницы чтения. Запрос задачи onAppear снимается отменой
+    /// задачи (withTaskCancellationHandler), а запрос по кнопке «следующая
+    /// глава» никто не отменяет — его снимает только инвалидация сессии
+    /// (cancelAll в shutdownPlaybackPipeline).
+    @MainActor
+    func testHeldExcerptRequestIsReleasedWhenLeavingReadPage() {
+        app.terminate()
+        app.launchArguments = ["--uitesting", "--excerpt-request-barrier"]
+        app.launch()
+        app.navigateToReadingPage()
+
+        // Начальный запрос (задача onAppear) удержан барьером — отпускаем его.
+        let barrierHeld = app.staticTexts["debug-excerpt-barrier-held"]
+        XCTAssertTrue(barrierHeld.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 10),
+                      "The initial excerpt request should be held by the barrier")
+        app.openMenu()
+        let releaseButton = app.buttons["debug-menu-release-excerpt"]
+        XCTAssertTrue(releaseButton.waitForExistence(timeout: 5))
+        releaseButton.tap()
+        app.tapMenuItem("menu-read")
+        XCTAssertTrue(app.waitForReadPlaybackReady(),
+                      "Initial chapter should load after the barrier release")
+
+        // Запрос по кнопке «следующая глава» тоже удерживается барьером.
+        let nextButton = app.buttons["read-next-chapter"]
+        XCTAssertTrue(nextButton.waitForExistence(timeout: 5))
+        nextButton.tap()
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 10),
+                      "The next-chapter request should be held by the barrier")
+
+        // Уход со страницы чтения снимает и это ожидание: задача кнопки
+        // не отменяется никем — её снимает только инвалидация сессии.
+        app.navigateViaMenu(to: "menu-main")
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "0", timeout: 10),
+                      "Leaving the reading page should resume the held request instead of leaving it suspended")
+    }
 }

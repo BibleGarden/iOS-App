@@ -66,6 +66,12 @@ enum TestingEnvironment {
               let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
         return value
     }()
+    /// Holds every excerpt request until the test explicitly releases it via
+    /// the `debug-menu-release-excerpt` debug button (see `DebugExcerptBarrier`),
+    /// so the window in which `currentExcerpt` already points to the newly
+    /// selected chapter while `currentBookId` still holds the previous book is
+    /// fully controlled by the test, not by timing.
+    static let excerptRequestBarrier = CommandLine.arguments.contains("--excerpt-request-barrier")
     #endif
     /// One-shot: consumed after first use
     static var loadErrorOnceConsumed = false
@@ -80,6 +86,83 @@ enum TestingEnvironment {
 }
 
 let globalBasePadding = 22.0
+
+#if DEBUG
+/// Debug barrier that holds excerpt requests until a UI test releases them.
+///
+/// The waiting is implemented with continuations, not with blocking: the
+/// request task suspends while the app stays responsive, so the test can keep
+/// interacting with the UI while the window "the excerpt is already new, the
+/// book id is still old" is held open indefinitely. The held state is mirrored
+/// into UserDefaults (`debugExcerptBarrierHeld`), so a test can observe that
+/// the barrier is actually engaged.
+///
+/// Every wait has an identifier, and a suspended wait is resumed exactly once:
+/// by the release button (`release`), by the invalidation of its session
+/// (`cancelAll` — a newer request or the teardown of the reading page), or by
+/// the cancellation of its task (`withTaskCancellationHandler`). All three
+/// paths resume through removal from the pending list, so a double resume is
+/// impossible.
+@MainActor
+final class DebugExcerptBarrier {
+    static let shared = DebugExcerptBarrier()
+
+    private struct PendingWait {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private var pendingWaits: [PendingWait] = []
+
+    private init() {}
+
+    var isWaiting: Bool { !pendingWaits.isEmpty }
+
+    /// Suspends the caller until `release()`, `cancelAll()` or the task
+    /// cancellation resumes it.
+    func wait() async {
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                pendingWaits.append(PendingWait(id: id, continuation: continuation))
+                refreshHeldFlag()
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.cancelWait(id: id)
+            }
+        }
+    }
+
+    /// Resumes every waiting request (the debug release button).
+    func release() {
+        cancelAll()
+    }
+
+    /// Resumes every waiting request — called when the session that could
+    /// still consume the results is invalidated: a newer excerpt request or
+    /// the teardown of the reading page.
+    func cancelAll() {
+        guard !pendingWaits.isEmpty else { return }
+        let waits = pendingWaits
+        pendingWaits = []
+        refreshHeldFlag()
+        waits.forEach { $0.continuation.resume() }
+    }
+
+    private func cancelWait(id: UUID) {
+        guard let index = pendingWaits.firstIndex(where: { $0.id == id }) else { return }
+        let wait = pendingWaits.remove(at: index)
+        refreshHeldFlag()
+        wait.continuation.resume()
+    }
+
+    private func refreshHeldFlag() {
+        UserDefaults.standard.set(pendingWaits.isEmpty ? 0 : 1, forKey: "debugExcerptBarrierHeld")
+    }
+}
+#endif
+
 let globalCornerRadius = 6.0
 /// How many seconds earlier to start verse playback (clamped to previous verse end)
 let globalVerseEarlyStartSeconds = 0.2

@@ -11,6 +11,12 @@ struct PageSelectView: View {
     @State private var selectedBiblePartIndex: Int = -1 // 0 - OT, 1 - NT
     @State private var expandedBook: Int = 0
     @State private var needSelectedBookOpen: Bool = true
+    // The auto-scroll is the initial positioning only: the first manual
+    // interaction with the list (book tap, chapter tap, testament switch,
+    // scrolling) cancels it, so a late list/current-book update can never
+    // override the user's position. The positioning itself is one-shot and
+    // driven by the layout signal of the current book's row, not by timers.
+    @State private var isInitialAutoScrollActive: Bool = true
     
     @State private var booksInfo: [Components.Schemas.TranslationBookModel] = []
     
@@ -108,6 +114,7 @@ struct PageSelectView: View {
                              baseColor: Color("Mustard"),
                              bgColor: Color("DarkGreen-light")
         ) { selectedIndex in
+            cancelInitialAutoScroll()
             if selectedBiblePartIndex == selectedIndex {
                 // Second tap clears selection
                 selectedBiblePartIndex = -1
@@ -134,6 +141,7 @@ struct PageSelectView: View {
                 
                 Button(action: {
                     // MARK: On chapter selection
+                    cancelInitialAutoScroll()
                     settingsManager.currentExcerpt = "\(book.alias) \(chapter_number)"
                     settingsManager.currentExcerptTitle = book.name
                     settingsManager.currentExcerptSubtitle = "chapter.title".localized(chapter_number)
@@ -217,6 +225,17 @@ struct PageSelectView: View {
     // MARK: Book list
     @ViewBuilder fileprivate func viewBooksList() -> ScrollViewReader<some View> {
         ScrollViewReader { proxy in
+            // The positioning and the auto-expansion target the same book,
+            // derived from `currentExcerpt`, not from `currentBookId`: the
+            // excerpt switches to the newly selected book immediately, while
+            // the book id is updated only when the chapter response arrives.
+            // Deriving the target from the book id would let the stale book
+            // consume the one-shot positioning and keep the wrong grid expanded.
+            // A manual `expandedBook` tap keeps its priority over the target.
+            let targetBookAlias = settingsManager.currentExcerpt
+                .split(separator: " ")
+                .first
+                .map { String($0).lowercased() } ?? ""
             ScrollView() {
                 VStack(alignment: .leading) {
                     Color.clear
@@ -236,17 +255,20 @@ struct PageSelectView: View {
 
                                 // Expand / collapse book
                                 Button {
-                                    
+                                    cancelInitialAutoScroll()
+
                                      withAnimation {
-                                         expandedBook = book.book_number
-                                     
-                                         if book.book_number != settingsManager.currentBookId {
-                                            needSelectedBookOpen = false
-                                         }
-                                     
-                                         proxy.scrollTo("book_\(book.book_number)", anchor: .top)
-                                     }
-                                     
+                                          expandedBook = book.book_number
+
+                                          // Any manual book tap takes priority over the
+                                          // auto-expansion of the target book: without this,
+                                          // a tap on the stale `currentBookId` book would
+                                          // leave both grids expanded in the race window.
+                                          needSelectedBookOpen = false
+
+                                          proxy.scrollTo("book_\(book.book_number)", anchor: .top)
+                                      }
+
                                 } label: {
                                     HStack(spacing: 12) {
                                         Text(book.name)
@@ -308,11 +330,21 @@ struct PageSelectView: View {
                                     .padding(.vertical, 10)
                                     .opacity(hasNoTextForWholeBook ? 0.3 : 1)
                                     .id("book_\(book.book_number)")
+                                    .background(
+                                        GeometryReader { geo in
+                                            Color.clear.preference(
+                                                key: CurrentBookRowGeometryKey.self,
+                                                value: book.alias.lowercased() == targetBookAlias && geo.size.width > 0
+                                                    ? book.book_number
+                                                    : nil
+                                            )
+                                        }
+                                    )
                                 }
                                 .disabled(hasNoTextForWholeBook)
                                 .accessibilityIdentifier("book_\(book.book_number)")
 
-                                if !hasNoTextForWholeBook && (expandedBook == book.book_number || (settingsManager.currentBookId == book.book_number && needSelectedBookOpen)) {
+                                if !hasNoTextForWholeBook && (expandedBook == book.book_number || (book.alias.lowercased() == targetBookAlias && needSelectedBookOpen)) {
                                     viewChaptersList(book)
                                 }
                             }
@@ -324,8 +356,8 @@ struct PageSelectView: View {
                 
             }
             .frame(maxHeight: .infinity)
-            .onAppear {
-                proxy.scrollTo("book_\(settingsManager.currentBookId)", anchor: .top)
+            .onPreferenceChange(CurrentBookRowGeometryKey.self) { bookNumber in
+                positionInitially(atBook: bookNumber, proxy: proxy)
             }
             .onChange(of: scrollToTop) { newValue in
                 if newValue {
@@ -336,12 +368,69 @@ struct PageSelectView: View {
                     scrollToTop = false
                 }
             }
+            .simultaneousGesture(DragGesture(minimumDistance: 12)
+                .onChanged { _ in
+                    cancelInitialAutoScroll()
+                }
+            )
             //Spacer()
         }
+    }
+
+    /// One-shot initial positioning of the book list.
+    ///
+    /// It runs on the layout signal of the row of the currently selected book,
+    /// not on a timer: the book list is a plain (non-lazy) VStack, so every row
+    /// receives geometry in the first layout pass, and `onPreferenceChange`
+    /// fires after that pass. The scroll target is therefore guaranteed to be
+    /// laid out, which is exactly what a `scrollTo` from `onAppear` cannot
+    /// promise. Performed at most once per presentation; a manual interaction
+    /// cancels it beforehand.
+    ///
+    /// The signal row is the book of the current `currentExcerpt` — the excerpt
+    /// is updated the moment a chapter is selected, while `currentBookId`
+    /// follows only after the chapter response arrives. This keeps the
+    /// positioning from being consumed by the stale book's geometry when the
+    /// sheet is reopened while the new chapter is still loading.
+    ///
+    /// Note on cleanup: the positioning has no deferred work (no timers, no
+    /// scheduled callbacks), so `onDisappear` has nothing to cancel — and a
+    /// flag reset there is actively wrong: right after the loading spinner the
+    /// empty list renders once and is then replaced by the filled one, and
+    /// that subtree replacement fires `onDisappear` before the row signal
+    /// arrives. The `isInitialAutoScrollActive` flag is scoped by `@State` to
+    /// the lifetime of the whole sheet presentation.
+    private func positionInitially(atBook bookNumber: Int?, proxy: ScrollViewProxy) {
+        guard isInitialAutoScrollActive, let bookNumber else { return }
+        isInitialAutoScrollActive = false
+        proxy.scrollTo("book_\(bookNumber)", anchor: .top)
+    }
+
+    /// Cancels the initial auto-scroll.
+    private func cancelInitialAutoScroll() {
+        isInitialAutoScrollActive = false
     }
     
 }
 
+
+/// Layout signal of the currently selected book's row inside the book list.
+///
+/// The list itself is a plain (non-lazy) VStack, so all book rows get geometry
+/// in the first layout pass; only the chapter grids inside rows are lazy. The
+/// row of the selected book (by `currentExcerpt` alias — always current, unlike
+/// `currentBookId` which lags behind until the chapter response arrives)
+/// reports its number once it actually has geometry — `onPreferenceChange`
+/// runs after that layout pass, which makes it a reliable "the scroll target is
+/// laid out" signal. A new number is reported when the selected book changes;
+/// `nil` is reported while there is no matching row.
+private struct CurrentBookRowGeometryKey: PreferenceKey {
+    static let defaultValue: Int? = nil
+
+    static func reduce(value: inout Int?, nextValue: () -> Int?) {
+        value = nextValue() ?? value
+    }
+}
 
 struct TestPageSelectView: View {
     
