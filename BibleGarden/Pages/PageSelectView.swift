@@ -225,12 +225,13 @@ struct PageSelectView: View {
     // MARK: Book list
     @ViewBuilder fileprivate func viewBooksList() -> ScrollViewReader<some View> {
         ScrollViewReader { proxy in
-            // The positioning target is derived from `currentExcerpt`, not from
-            // `currentBookId`: the excerpt switches to the newly selected book
-            // immediately, while the book id is updated only when the chapter
-            // response arrives. Deriving the target from the book id would let
-            // the geometry signal of the stale book consume the one-shot
-            // positioning, leaving the list on the wrong book.
+            // The positioning and the auto-expansion target the same book,
+            // derived from `currentExcerpt`, not from `currentBookId`: the
+            // excerpt switches to the newly selected book immediately, while
+            // the book id is updated only when the chapter response arrives.
+            // Deriving the target from the book id would let the stale book
+            // consume the one-shot positioning and keep the wrong grid expanded.
+            // A manual `expandedBook` tap keeps its priority over the target.
             let targetBookAlias = settingsManager.currentExcerpt
                 .split(separator: " ")
                 .first
@@ -341,7 +342,7 @@ struct PageSelectView: View {
                                 .disabled(hasNoTextForWholeBook)
                                 .accessibilityIdentifier("book_\(book.book_number)")
 
-                                if !hasNoTextForWholeBook && (expandedBook == book.book_number || (settingsManager.currentBookId == book.book_number && needSelectedBookOpen)) {
+                                if !hasNoTextForWholeBook && (expandedBook == book.book_number || (book.alias.lowercased() == targetBookAlias && needSelectedBookOpen)) {
                                     viewChaptersList(book)
                                 }
                             }

@@ -348,12 +348,13 @@ struct PageReadView: View {
                 throw NSError(domain: "UITesting", code: 500, userInfo: [NSLocalizedDescriptionKey: "Simulated load error for UI testing"])
             }
 
-            // UI Testing: delay the excerpt request itself, so the window in
-            // which the excerpt is already new while the book id is not can be
-            // observed by a test.
+            // UI Testing: hold the excerpt request until the test releases it
+            // via the `debug-menu-release-excerpt` debug button, so the window
+            // in which the excerpt is already new while the book id is not is
+            // controlled by the test instead of timing.
             #if DEBUG
-            if TestingEnvironment.isUITesting, let delay = TestingEnvironment.excerptRequestDelay, delay > 0 {
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            if TestingEnvironment.isUITesting, TestingEnvironment.excerptRequestBarrier {
+                await DebugExcerptBarrier.shared.wait()
                 guard !Task.isCancelled else { return }
                 guard self.playbackPipelineSessionID == sessionID else { return }
                 guard self.pageLifecycleSessionID == lifecycleID else { return }

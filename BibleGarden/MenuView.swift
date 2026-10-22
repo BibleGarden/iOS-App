@@ -245,6 +245,16 @@ struct MenuView: View {
                     .opacity(TestingEnvironment.isUITesting ? 1 : 0)
                     .accessibilityHidden(!TestingEnvironment.isUITesting)
                     .accessibilityIdentifier("debug-menu-remote-play")
+                    Button {
+                        DebugExcerptBarrier.shared.release()
+                    } label: {
+                        Text("release")
+                    }
+                    .font(.system(size: 8))
+                    .frame(width: 40, height: 12)
+                    .opacity(TestingEnvironment.isUITesting && TestingEnvironment.excerptRequestBarrier ? 1 : 0)
+                    .accessibilityHidden(!(TestingEnvironment.isUITesting && TestingEnvironment.excerptRequestBarrier))
+                    .accessibilityIdentifier("debug-menu-release-excerpt")
                 }
                 .foregroundStyle(.clear)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)

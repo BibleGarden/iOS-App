@@ -66,18 +66,12 @@ enum TestingEnvironment {
               let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
         return value
     }()
-    /// Delays the excerpt request itself (unlike `chapterLoadDelay`, which
-    /// delays the audio after the text arrived). Holds the window in which
-    /// `currentExcerpt` already points to the newly selected chapter while
-    /// `currentBookId` still holds the previous book, so a UI test can observe
-    /// the behavior of a view opened during that window deterministically.
-    static let excerptRequestDelay: Double? = {
-        guard isUITesting else { return nil }
-        guard let idx = CommandLine.arguments.firstIndex(of: "--excerpt-request-delay"),
-              idx + 1 < CommandLine.arguments.count,
-              let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
-        return value
-    }()
+    /// Holds every excerpt request until the test explicitly releases it via
+    /// the `debug-menu-release-excerpt` debug button (see `DebugExcerptBarrier`),
+    /// so the window in which `currentExcerpt` already points to the newly
+    /// selected chapter while `currentBookId` still holds the previous book is
+    /// fully controlled by the test, not by timing.
+    static let excerptRequestBarrier = CommandLine.arguments.contains("--excerpt-request-barrier")
     #endif
     /// One-shot: consumed after first use
     static var loadErrorOnceConsumed = false
@@ -92,6 +86,44 @@ enum TestingEnvironment {
 }
 
 let globalBasePadding = 22.0
+
+#if DEBUG
+/// Debug barrier that holds excerpt requests until a UI test releases them.
+///
+/// The waiting is implemented with continuations, not with blocking: the
+/// request task suspends while the app stays responsive, so the test can keep
+/// interacting with the UI while the window "the excerpt is already new, the
+/// book id is still old" is held open indefinitely. The held state is mirrored
+/// into UserDefaults (`debugExcerptBarrierHeld`), so a test can observe that
+/// the barrier is actually engaged.
+@MainActor
+final class DebugExcerptBarrier {
+    static let shared = DebugExcerptBarrier()
+
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+
+    private init() {}
+
+    var isWaiting: Bool { !continuations.isEmpty }
+
+    /// Suspends the caller until `release()`.
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            continuations.append(continuation)
+            UserDefaults.standard.set(1, forKey: "debugExcerptBarrierHeld")
+        }
+    }
+
+    /// Resumes every waiting request.
+    func release() {
+        let waiting = continuations
+        continuations = []
+        UserDefaults.standard.set(0, forKey: "debugExcerptBarrierHeld")
+        waiting.forEach { $0.resume() }
+    }
+}
+#endif
+
 let globalCornerRadius = 6.0
 /// How many seconds earlier to start verse playback (clamped to previous verse end)
 let globalVerseEarlyStartSeconds = 0.2

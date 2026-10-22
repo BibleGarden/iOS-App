@@ -426,6 +426,8 @@ struct SkeletonView: View {
     @AppStorage("debugRemoteCommandCount") private var debugRemoteCommandCount: Int = 0
     @AppStorage("debugPlayerSnapshot") private var debugPlayerSnapshotJSON: String = "{}"
     @AppStorage("debugPlaybackRaceResult") private var debugPlaybackRaceResultJSON: String = "{}"
+    @AppStorage("debugExcerptBarrierHeld") private var debugExcerptBarrierHeld: Int = 0
+    @AppStorage("currentBookId") private var debugCurrentBookId: Int = 0
     #endif
     
     // Not relevant here
@@ -571,6 +573,10 @@ struct SkeletonView: View {
                         .accessibilityIdentifier("debug-playback-race-result")
                     Text(settingsManager.voiceMusic ? "1" : "0")
                         .accessibilityIdentifier("debug-voice-music")
+                    Text("\(debugCurrentBookId)")
+                        .accessibilityIdentifier("debug-current-book-id")
+                    Text("\(debugExcerptBarrierHeld)")
+                        .accessibilityIdentifier("debug-excerpt-barrier-held")
                 }
                 .font(.system(size: 1))
                 .foregroundStyle(.clear)

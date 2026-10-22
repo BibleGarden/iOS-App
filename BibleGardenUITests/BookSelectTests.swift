@@ -111,17 +111,26 @@ final class BookSelectTests: XCTestCase {
     // MARK: - Повторное открытие во время загрузки выбранной главы
 
     /// Сценарий: выбрана глава другой книги (Псалтирь), excerpt-запрос удерживается
-    /// DEBUG-флагом --excerpt-request-delay, поэтому currentExcerpt уже указывает
-    /// на новую книгу, а currentBookId ещё на старую (Ин.). Повторное открытие
-    /// выбора должно ставить список на новую книгу.
+    /// DEBUG-барьером (--excerpt-request-barrier + кнопка debug-menu-release-excerpt),
+    /// поэтому currentExcerpt уже указывает на новую книгу, а currentBookId ещё на
+    /// старую (Ин.) — это проверяется по наблюдаемым debug-меткам. Повторное
+    /// открытие выбора должно ставить список на новую книгу и раскрывать её главы.
     @MainActor
     func testReopenWhileChapterLoadingPositionsAtNewBook() {
         app.terminate()
-        app.launchArguments = ["--uitesting", "--excerpt-request-delay", "10"]
+        app.launchArguments = ["--uitesting", "--excerpt-request-barrier"]
         app.launch()
         app.navigateToReadingPage()
+
+        // Начальный запрос главы Ин. удерживается барьером — отпускаем его.
+        app.openMenu()
+        let releaseButton = app.buttons["debug-menu-release-excerpt"]
+        XCTAssertTrue(releaseButton.waitForExistence(timeout: 5),
+                      "The barrier release button should exist in the menu")
+        releaseButton.tap()
+        app.tapMenuItem("menu-read")
         XCTAssertTrue(app.waitForReadPlaybackReady(),
-                      "Initial chapter (John) should load before the scenario")
+                      "Initial chapter (John) should load after the barrier release")
 
         // Первый визит: список загружается и встаёт на текущую книгу (Ин., book_43)
         let titleBtn = app.buttons["read-chapter-title"]
@@ -148,14 +157,35 @@ final class BookSelectTests: XCTestCase {
                       "Psalms chapter grid should appear")
         psalmsChapterOne.tap()
 
-        // Запрос главы Псалтири удерживается: currentExcerpt уже "psa 1",
-        // currentBookId всё ещё 43. Сразу открываем выбор снова — список
-        // должен стоять на выбранной книге, а не на устаревшей.
+        // Окно гонки открыто ровно столько, сколько нужно тесту:
+        // запрос главы Псалтири удержан барьером, book id ещё старый.
+        let barrierHeld = app.staticTexts["debug-excerpt-barrier-held"]
+        XCTAssertTrue(barrierHeld.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.waitForLabel(element: barrierHeld, toBe: "1", timeout: 5),
+                      "The excerpt request should be held by the barrier")
+        XCTAssertEqual(app.debugValue("debug-current-book-id"), "43",
+                       "The stale book id (John) proves the race window is open")
+
+        // Повторное открытие выбора: список должен стоять на выбранной книге
+        // и раскрывать её главы, а не устаревшей книги.
         XCTAssertTrue(titleBtn.waitForExistence(timeout: 5))
         titleBtn.tap()
         XCTAssertTrue(app.buttons["select-close"].waitForExistence(timeout: 5),
                       "Chapter selection sheet should reappear")
         XCTAssertTrue(app.waitForElementHittable(psalms, timeout: 10),
                       "Reopened list should stand on the newly selected book (Psalms), not on the stale one (John)")
+        XCTAssertTrue(app.waitForElementHittable(psalmsChapterOne, timeout: 10),
+                      "Chapters of the newly selected book (Psalms) should be expanded, not the stale book's (John)")
+
+        // Отпускаем барьер: удерживаемый запрос завершается, book id обновляется.
+        let bookIdLabel = app.staticTexts["debug-current-book-id"]
+        let closeButton = app.buttons["select-close"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
+        closeButton.tap()
+        app.openMenu()
+        releaseButton.tap()
+        app.tapMenuItem("menu-read")
+        XCTAssertTrue(app.waitForLabel(element: bookIdLabel, toBe: "19", timeout: 30),
+                      "The held Psalms request should complete and update the book id after the release")
     }
 }
