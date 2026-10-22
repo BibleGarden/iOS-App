@@ -47,16 +47,7 @@ jobs:
       - name: Write Debug.xcconfig
         env:
           API_KEY: ${{ secrets.API_KEY }}
-        run: |
-          if [ -z "$API_KEY" ]; then
-            echo "::error::Repository secret API_KEY must be set."
-            exit 1
-          fi
-          # xcconfig treats // as a comment; $() breaks the sequence.
-          {
-            echo "API_BASE_URL = ${API_BASE_URL/:\/\//:/\$()/}"
-            echo "API_KEY = $API_KEY"
-          } > BibleGarden/Debug.xcconfig
+        run: scripts/write-ci-debug-xcconfig.sh
 
       - name: Show toolchain
         run: |
@@ -134,6 +125,15 @@ jobs:
     env:
       RESULT_BUNDLE: build/UITests-${{ matrix.shard.index }}.xcresult
     steps:
+      # TestConfig reads BibleGarden/Debug.xcconfig from the checkout at run time.
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Write Debug.xcconfig
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: scripts/write-ci-debug-xcconfig.sh
+
       - name: Check test API health
         env:
           API_KEY: ${{ secrets.API_KEY }}
