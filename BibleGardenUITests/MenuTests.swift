@@ -50,6 +50,38 @@ final class MenuTests: XCTestCase {
         XCTAssertTrue(menuDisappeared, "Side menu should close after tapping an item")
     }
 
+    // MARK: - Debug API URL
+
+    @MainActor
+    func testDebugApiURLShownInMenu() {
+        app.openMenu()
+
+        let apiURLText = app.staticTexts["menu-api-url"]
+        XCTAssertTrue(apiURLText.waitForExistence(timeout: 3),
+                      "Debug API URL should exist in the menu")
+        XCTAssertTrue(apiURLText.isHittable,
+                      "Debug API URL should be visible in the menu")
+        XCTAssertEqual(apiURLText.label, TestConfig.baseURL,
+                       "Debug API URL should match TestConfig.baseURL")
+
+        let contactsItem = app.buttons["menu-contacts"]
+        XCTAssertTrue(contactsItem.waitForExistence(timeout: 3),
+                      "Contacts menu item should remain accessible")
+        XCTAssertTrue(contactsItem.isHittable,
+                      "Contacts menu item should be tappable")
+        XCTAssertFalse(contactsItem.label.contains(TestConfig.baseURL),
+                       "Contacts accessibility label should not include the API URL")
+
+        // Tapping the icon area (leading edge of the item) must still open About
+        let iconTapPoint = contactsItem.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
+            .withOffset(CGVector(dx: 8, dy: 0))
+        iconTapPoint.tap()
+
+        let aboutPage = app.otherElements["page-about"]
+        XCTAssertTrue(aboutPage.waitForExistence(timeout: 5),
+                      "About page should open when tapping the contacts icon area")
+    }
+
     // MARK: - Navigation (order matches menu items)
 
     // 1. Multilingual
