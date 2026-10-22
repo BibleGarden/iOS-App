@@ -162,35 +162,40 @@ struct MenuView: View {
                     .accessibilityIdentifier("menu-language")
 
                     // 6. Контакты
-                    Button {
-                        selectItem(.contacts)
-                    } label: {
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(colorFor(.contacts))
-                                .padding(.top, 2)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("menu.contacts".localized)
-                                    .font(.system(.headline))
-                                    .fontWeight(.bold)
-                                    .foregroundColor(colorFor(.contacts))
-                                Text("\("menu.version".localized) \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(colorFor(.contacts).opacity(0.5))
-                                #if DEBUG
-                                Text(Config.baseURL)
-                                    .font(.system(size: 13))
-                                    .foregroundColor(colorFor(.contacts).opacity(0.5))
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                    .accessibilityIdentifier("menu-api-url")
-                                #endif
+                    // The URL stays outside the Button so it is not merged
+                    // into the combined accessibility label of the item.
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(colorFor(.contacts))
+                            .padding(.top, 2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Button {
+                                selectItem(.contacts)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("menu.contacts".localized)
+                                        .font(.system(.headline))
+                                        .fontWeight(.bold)
+                                        .foregroundColor(colorFor(.contacts))
+                                    Text("\("menu.version".localized) \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(colorFor(.contacts).opacity(0.5))
+                                }
                             }
+                            .accessibilityIdentifier("menu-contacts")
+                            .accessibilityAddTraits(settingsManager.selectedMenuItem == .contacts ? .isSelected : [])
+
+                            #if DEBUG
+                            Text(Config.baseURL)
+                                .font(.system(size: 13))
+                                .foregroundColor(colorFor(.contacts).opacity(0.5))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .accessibilityIdentifier("menu-api-url")
+                            #endif
                         }
                     }
-                    .accessibilityIdentifier("menu-contacts")
-                    .accessibilityAddTraits(settingsManager.selectedMenuItem == .contacts ? .isSelected : [])
 
                     Spacer(minLength: 10)
                 }

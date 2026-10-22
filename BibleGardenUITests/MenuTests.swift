@@ -67,6 +67,10 @@ final class MenuTests: XCTestCase {
         let contactsItem = app.buttons["menu-contacts"]
         XCTAssertTrue(contactsItem.waitForExistence(timeout: 3),
                       "Contacts menu item should remain accessible")
+        XCTAssertTrue(contactsItem.isHittable,
+                      "Contacts menu item should be tappable")
+        XCTAssertFalse(contactsItem.label.contains(TestConfig.baseURL),
+                       "Contacts accessibility label should not include the API URL")
     }
 
     // MARK: - Navigation (order matches menu items)
