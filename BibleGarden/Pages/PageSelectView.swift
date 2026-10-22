@@ -225,6 +225,16 @@ struct PageSelectView: View {
     // MARK: Book list
     @ViewBuilder fileprivate func viewBooksList() -> ScrollViewReader<some View> {
         ScrollViewReader { proxy in
+            // The positioning target is derived from `currentExcerpt`, not from
+            // `currentBookId`: the excerpt switches to the newly selected book
+            // immediately, while the book id is updated only when the chapter
+            // response arrives. Deriving the target from the book id would let
+            // the geometry signal of the stale book consume the one-shot
+            // positioning, leaving the list on the wrong book.
+            let targetBookAlias = settingsManager.currentExcerpt
+                .split(separator: " ")
+                .first
+                .map { String($0).lowercased() } ?? ""
             ScrollView() {
                 VStack(alignment: .leading) {
                     Color.clear
@@ -321,7 +331,7 @@ struct PageSelectView: View {
                                         GeometryReader { geo in
                                             Color.clear.preference(
                                                 key: CurrentBookRowGeometryKey.self,
-                                                value: book.book_number == settingsManager.currentBookId && geo.size.width > 0
+                                                value: book.alias.lowercased() == targetBookAlias && geo.size.width > 0
                                                     ? book.book_number
                                                     : nil
                                             )
@@ -366,13 +376,19 @@ struct PageSelectView: View {
 
     /// One-shot initial positioning of the book list.
     ///
-    /// It runs on the layout signal of the current book's row, not on a timer:
-    /// the book list is a plain (non-lazy) VStack, so every row — including
-    /// the current book's — receives geometry in the first layout pass, and
-    /// `onPreferenceChange` fires after that pass. The scroll target is
-    /// therefore guaranteed to be laid out, which is exactly what a `scrollTo`
-    /// from `onAppear` cannot promise. Performed at most once per presentation;
-    /// a manual interaction cancels it beforehand.
+    /// It runs on the layout signal of the row of the currently selected book,
+    /// not on a timer: the book list is a plain (non-lazy) VStack, so every row
+    /// receives geometry in the first layout pass, and `onPreferenceChange`
+    /// fires after that pass. The scroll target is therefore guaranteed to be
+    /// laid out, which is exactly what a `scrollTo` from `onAppear` cannot
+    /// promise. Performed at most once per presentation; a manual interaction
+    /// cancels it beforehand.
+    ///
+    /// The signal row is the book of the current `currentExcerpt` — the excerpt
+    /// is updated the moment a chapter is selected, while `currentBookId`
+    /// follows only after the chapter response arrives. This keeps the
+    /// positioning from being consumed by the stale book's geometry when the
+    /// sheet is reopened while the new chapter is still loading.
     ///
     /// Note on cleanup: the positioning has no deferred work (no timers, no
     /// scheduled callbacks), so `onDisappear` has nothing to cancel — and a
@@ -395,15 +411,16 @@ struct PageSelectView: View {
 }
 
 
-/// Layout signal of the current book's row inside the book list.
+/// Layout signal of the currently selected book's row inside the book list.
 ///
 /// The list itself is a plain (non-lazy) VStack, so all book rows get geometry
 /// in the first layout pass; only the chapter grids inside rows are lazy. The
-/// row of the currently open book reports its number once it actually has
-/// geometry — `onPreferenceChange` runs after that layout pass, which makes it
-/// a reliable "the scroll target is laid out" signal. A new number is reported
-/// when the current book changes (e.g. the chapter finished loading after the
-/// sheet was opened); `nil` is reported while there is no current book row.
+/// row of the selected book (by `currentExcerpt` alias — always current, unlike
+/// `currentBookId` which lags behind until the chapter response arrives)
+/// reports its number once it actually has geometry — `onPreferenceChange`
+/// runs after that layout pass, which makes it a reliable "the scroll target is
+/// laid out" signal. A new number is reported when the selected book changes;
+/// `nil` is reported while there is no matching row.
 private struct CurrentBookRowGeometryKey: PreferenceKey {
     static let defaultValue: Int? = nil
 

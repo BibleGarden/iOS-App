@@ -348,6 +348,18 @@ struct PageReadView: View {
                 throw NSError(domain: "UITesting", code: 500, userInfo: [NSLocalizedDescriptionKey: "Simulated load error for UI testing"])
             }
 
+            // UI Testing: delay the excerpt request itself, so the window in
+            // which the excerpt is already new while the book id is not can be
+            // observed by a test.
+            #if DEBUG
+            if TestingEnvironment.isUITesting, let delay = TestingEnvironment.excerptRequestDelay, delay > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                guard self.playbackPipelineSessionID == sessionID else { return }
+                guard self.pageLifecycleSessionID == lifecycleID else { return }
+            }
+            #endif
+
             let (thisTextVerses, audioVerses, firstUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(excerpts: settingsManager.currentExcerpt, client: settingsManager.client, translation: settingsManager.translation, voice: settingsManager.voice)
             guard !Task.isCancelled else { return }
             // Another chapter was requested while the request was in flight —

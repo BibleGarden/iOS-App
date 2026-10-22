@@ -66,6 +66,18 @@ enum TestingEnvironment {
               let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
         return value
     }()
+    /// Delays the excerpt request itself (unlike `chapterLoadDelay`, which
+    /// delays the audio after the text arrived). Holds the window in which
+    /// `currentExcerpt` already points to the newly selected chapter while
+    /// `currentBookId` still holds the previous book, so a UI test can observe
+    /// the behavior of a view opened during that window deterministically.
+    static let excerptRequestDelay: Double? = {
+        guard isUITesting else { return nil }
+        guard let idx = CommandLine.arguments.firstIndex(of: "--excerpt-request-delay"),
+              idx + 1 < CommandLine.arguments.count,
+              let value = Double(CommandLine.arguments[idx + 1]) else { return nil }
+        return value
+    }()
     #endif
     /// One-shot: consumed after first use
     static var loadErrorOnceConsumed = false

@@ -107,4 +107,55 @@ final class BookSelectTests: XCTestCase {
         }
         XCTFail("Книга book_\(n) не видна в списке после прокрутки")
     }
+
+    // MARK: - Повторное открытие во время загрузки выбранной главы
+
+    /// Сценарий: выбрана глава другой книги (Псалтирь), excerpt-запрос удерживается
+    /// DEBUG-флагом --excerpt-request-delay, поэтому currentExcerpt уже указывает
+    /// на новую книгу, а currentBookId ещё на старую (Ин.). Повторное открытие
+    /// выбора должно ставить список на новую книгу.
+    @MainActor
+    func testReopenWhileChapterLoadingPositionsAtNewBook() {
+        app.terminate()
+        app.launchArguments = ["--uitesting", "--excerpt-request-delay", "10"]
+        app.launch()
+        app.navigateToReadingPage()
+        XCTAssertTrue(app.waitForReadPlaybackReady(),
+                      "Initial chapter (John) should load before the scenario")
+
+        // Первый визит: список загружается и встаёт на текущую книгу (Ин., book_43)
+        let titleBtn = app.buttons["read-chapter-title"]
+        XCTAssertTrue(titleBtn.waitForExistence(timeout: 5))
+        titleBtn.tap()
+        XCTAssertTrue(app.buttons["select-close"].waitForExistence(timeout: 5),
+                      "Chapter selection sheet should appear")
+        XCTAssertTrue(app.waitForElementHittable(app.buttons["book_43"], timeout: 20),
+                      "First open should position the list at the current book (John)")
+
+        // Прокручиваем список к началу до Псалтири (book_19). Тап по книге
+        // сворачивает грид Ин., поэтому кнопка главы "1" однозначна.
+        let psalms = app.buttons["book_19"]
+        var swipes = 0
+        while !(psalms.exists && psalms.isHittable) && swipes < 6 {
+            app.swipeDown()
+            swipes += 1
+        }
+        XCTAssertTrue(psalms.isHittable, "Psalms row should be scrolled into view")
+        psalms.tap()
+
+        let psalmsChapterOne = app.buttons["1"]
+        XCTAssertTrue(app.waitForElementHittable(psalmsChapterOne, timeout: 10),
+                      "Psalms chapter grid should appear")
+        psalmsChapterOne.tap()
+
+        // Запрос главы Псалтири удерживается: currentExcerpt уже "psa 1",
+        // currentBookId всё ещё 43. Сразу открываем выбор снова — список
+        // должен стоять на выбранной книге, а не на устаревшей.
+        XCTAssertTrue(titleBtn.waitForExistence(timeout: 5))
+        titleBtn.tap()
+        XCTAssertTrue(app.buttons["select-close"].waitForExistence(timeout: 5),
+                      "Chapter selection sheet should reappear")
+        XCTAssertTrue(app.waitForElementHittable(psalms, timeout: 10),
+                      "Reopened list should stand on the newly selected book (Psalms), not on the stale one (John)")
+    }
 }
