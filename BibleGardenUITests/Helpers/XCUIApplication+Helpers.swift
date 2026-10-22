@@ -161,30 +161,36 @@ extension XCUIApplication {
 
     /// Wait for an element's label to change from a known value
     func waitForLabelChange(element: XCUIElement, from oldLabel: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "label != %@", oldLabel)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.label != oldLabel }
     }
 
     /// Wait for an element's value to change from a known value
     func waitForValueChange(element: XCUIElement, from oldValue: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "value != %@", oldValue)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.value as? String != oldValue }
     }
 
     /// Wait for an element's label to equal a specific value
     func waitForLabel(element: XCUIElement, toBe label: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "label == %@", label)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.label == label }
     }
 
     /// Wait for an element's value to equal a specific value
     func waitForValue(element: XCUIElement, toBe value: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "value == %@", value)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.value as? String == value }
+    }
+
+    /// Re-checks `condition` every 0.2 s until it holds or the timeout passes.
+    /// `XCTNSPredicateExpectation` is not used here: after every failed
+    /// evaluation it captures the element's debug description, which takes
+    /// 5–30 s on a CI runner, so a state lasting a few seconds could be
+    /// checked once and missed.
+    private func pollElement(timeout: TimeInterval, until condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return condition()
     }
 
     // MARK: - Multilingual Reading Helpers
