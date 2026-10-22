@@ -16,7 +16,8 @@ concurrency:
 env:
   API_BASE_URL: https://test-api.bible.garden
   DEVELOPER_DIR: /Applications/Xcode_26.3.app
-  DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.2
+  SIMULATOR_NAME: iPhone 17
+  SIMULATOR_OS: "26.2"
   # App Store preview recording script, not a test.
   SKIPPED_CLASSES: DemoRecordingTests
 
@@ -54,6 +55,9 @@ jobs:
           xcodebuild -version
           xcrun simctl list runtimes iOS
 
+      - name: Boot simulator
+        run: scripts/boot-ci-simulator.sh
+
       - name: Build for testing
         run: |
           set -o pipefail
@@ -61,7 +65,7 @@ jobs:
             -project BibleGarden.xcodeproj \
             -scheme BibleGarden \
             -testPlan BibleGarden \
-            -destination "$DESTINATION" \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -derivedDataPath "$DERIVED_DATA" \
             -onlyUsePackageVersionsFromResolvedFile \
             -skipPackagePluginValidation \
@@ -76,7 +80,7 @@ jobs:
           xctestrun=$(ls "$DERIVED_DATA"/Build/Products/*.xctestrun)
           xcodebuild test-without-building \
             -xctestrun "$xctestrun" \
-            -destination "$DESTINATION" \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -enumerate-tests \
             -test-enumeration-style hierarchical \
             -test-enumeration-format json \
@@ -156,6 +160,9 @@ jobs:
           mkdir -p build/Products
           tar -xzf build/products.tar.gz -C build/Products
 
+      - name: Boot simulator
+        run: scripts/boot-ci-simulator.sh
+
       - name: Run UI tests
         env:
           ONLY_TESTING: ${{ matrix.shard.only_testing }}
@@ -165,7 +172,7 @@ jobs:
           # shellcheck disable=SC2086
           xcodebuild test-without-building \
             -xctestrun "$(ls build/Products/*.xctestrun)" \
-            -destination "$DESTINATION" \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -resultBundlePath "$RESULT_BUNDLE" \
             $ONLY_TESTING \
             | xcbeautify --renderer github-actions
