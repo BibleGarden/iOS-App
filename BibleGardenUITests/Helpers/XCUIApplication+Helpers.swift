@@ -12,13 +12,29 @@ extension XCUIApplication {
 
         let sideMenu = otherElements["side-menu"]
         XCTAssertTrue(sideMenu.waitForExistence(timeout: 3), "Side menu did not appear")
+        XCTAssertTrue(waitForFrameToSettle(sideMenu, timeout: 5), "Side menu did not finish opening")
     }
 
-    /// Tap a menu item by its accessibility identifier
+    /// Tap a menu item by its accessibility identifier.
+    /// The menu slides in with a spring animation; a tap that lands while it is
+    /// still moving is cancelled by UIKit, so `openMenu` waits for the frame to settle.
     func tapMenuItem(_ identifier: String) {
         let item = buttons[identifier]
-        XCTAssertTrue(item.waitForExistence(timeout: 3), "Menu item '\(identifier)' not found")
+        XCTAssertTrue(waitForElementHittable(item, timeout: 3), "Menu item '\(identifier)' not hittable")
         item.tap()
+    }
+
+    /// Wait until the element's frame stops changing between two checks 0.2 s apart.
+    func waitForFrameToSettle(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var previous = element.frame
+        while Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            let current = element.frame
+            if current == previous { return true }
+            previous = current
+        }
+        return false
     }
 
     /// Open menu and navigate to a page via menu item identifier
@@ -161,30 +177,36 @@ extension XCUIApplication {
 
     /// Wait for an element's label to change from a known value
     func waitForLabelChange(element: XCUIElement, from oldLabel: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "label != %@", oldLabel)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.label != oldLabel }
     }
 
     /// Wait for an element's value to change from a known value
     func waitForValueChange(element: XCUIElement, from oldValue: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "value != %@", oldValue)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.value as? String != oldValue }
     }
 
     /// Wait for an element's label to equal a specific value
     func waitForLabel(element: XCUIElement, toBe label: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "label == %@", label)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.label == label }
     }
 
     /// Wait for an element's value to equal a specific value
     func waitForValue(element: XCUIElement, toBe value: String, timeout: TimeInterval = 10) -> Bool {
-        let predicate = NSPredicate(format: "value == %@", value)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+        pollElement(timeout: timeout) { element.exists && element.value as? String == value }
+    }
+
+    /// Re-checks `condition` every 0.2 s until it holds or the timeout passes.
+    /// `XCTNSPredicateExpectation` is not used here: after every failed
+    /// evaluation it captures the element's debug description, which takes
+    /// 5–30 s on a CI runner, so a state lasting a few seconds could be
+    /// checked once and missed.
+    private func pollElement(timeout: TimeInterval, until condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return condition()
     }
 
     // MARK: - Multilingual Reading Helpers
@@ -350,6 +372,23 @@ extension XCUIApplication {
     /// История переживает удаление экземпляра.
     func debugPlayingTransitionCount(forOwner owner: String) -> Int? {
         debugOwnerTelemetry(forOwner: owner)?.playingTransitionCount
+    }
+
+    /// Ждёт, пока AVPlayer владельца перейдёт в .playing не меньше `count` раз.
+    /// Счётчик монотонный: короткое воспроизведение (стих ~5 с перед паузой)
+    /// не проскакивает между опросами, как мгновенное состояние.
+    func waitForPlayingTransitions(forOwner owner: String, atLeast count: Int, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "no telemetry"
+        while Date() < deadline {
+            if let current = debugPlayingTransitionCount(forOwner: owner) {
+                lastKnown = "\(current)"
+                if current >= count { return true }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The \(owner) AVPlayer should start playing at least \(count) times within \(Int(timeout))s, got '\(lastKnown)'")
+        return false
     }
 
     /// Играет ли хотя бы один зарегистрированный экземпляр.

@@ -726,9 +726,11 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
 
         app = XCUIApplication()
         // Шаблон two-langs: чтение → пауза между переводами → чтение.
-        // Пауза короче дефолтной (30 с), но длиннее, чем задержка считывания
-        // состояния в UI-тесте, — иначе команда приходит уже после паузы.
-        app.launchArguments = ["--uitesting", "--multi-template", "two-langs", "--multi-pause-duration", "15"]
+        // Пауза должна быть длиннее задержки от её начала до remote-команды,
+        // иначе команда приходит уже после паузы. Локально задержка доходит
+        // до ~17 с (опрос состояния и чтение телеметрии), на CI — больше.
+        // Длинная пауза тест не удлиняет: remote Play её пропускает.
+        app.launchArguments = ["--uitesting", "--multi-template", "two-langs", "--multi-pause-duration", "30"]
         app.launch()
         app.navigateToMultiReadingPage()
     }
@@ -749,13 +751,11 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         XCTAssertTrue(playPause.isEnabled, "Play button should be enabled")
 
         playPause.tap()
-        // Сначала дожидаемся фактического воспроизведения, потом сверяем
-        // логические счётчики: иначе проверка зависит от скорости сети.
-        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
+        // Старт доказывается монотонным счётчиком переходов AVPlayer в .playing.
+        // Первый стих звучит ~5 с, затем шаг паузы: на медленном CI мгновенные
+        // состояния (timeControlStatus, «playing») к проверке уже сменяются.
+        XCTAssertTrue(app.waitForPlayingTransitions(forOwner: "multilingualRead", atLeast: 1, timeout: 30),
                       "The multilingual AVPlayer should really start")
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5),
-                      "Multilingual player should be active. count=\(app.debugPlaybackCount("debug-playback-multilingual-count") ?? "nil") state=\(app.debugPlaybackCount("multi-playback-state") ?? "nil")")
-        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 20), "Playback should start")
 
         // Ждём паузу между переводами
         XCTAssertTrue(app.waitForMultiPlaybackState("autopausing", timeout: 90),
@@ -805,20 +805,18 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         XCTAssertTrue(remotePlay.waitForExistence(timeout: 5), "Debug remote play button should exist")
         // Baseline продвижения обязателен: подставленный ноль удовлетворил бы
         // проверку уже накопленным счётчиком, без нового перехода после Play.
-        guard let advancesBeforePlay = app.debugPipelineAdvanceCount() else {
-            XCTFail("The pipeline advance counter should be published before the remote play command")
+        guard let advancesBeforePlay = app.debugPipelineAdvanceCount(),
+              let transitionsBeforePlay = app.debugPlayingTransitionCount(forOwner: "multilingualRead") else {
+            XCTFail("The playback telemetry should be published before the remote play command")
             return
         }
         remotePlay.tap()
 
-        XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 20),
-                      "Remote play should resume the reading")
-        // Возобновление подтверждается фактическим состоянием AVPlayer, а не только
-        // логическим состоянием модели.
-        XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 20),
+        // Возобновление подтверждается фактическим запуском AVPlayer. Следующий
+        // перевод звучит ~5 с, поэтому проверяется монотонный счётчик, а не
+        // мгновенное состояние.
+        XCTAssertTrue(app.waitForPlayingTransitions(forOwner: "multilingualRead", atLeast: transitionsBeforePlay + 1, timeout: 20),
                       "The multilingual AVPlayer should really resume after the remote play command")
-        XCTAssertTrue(app.waitForDebugPlaybackCount(identifier: "debug-playback-multilingual-count", value: "1", timeout: 5),
-                      "Multilingual player should be active again")
         // Чтение продолжилось со следующего перевода: пайплайн ушёл с шага паузы.
         XCTAssertTrue(app.waitForDebugPipelineAdvanced(after: advancesBeforePlay, timeout: 20),
                       "The reading should continue after the remote play command. unit=\(app.multiCurrentUnit() ?? "nil") step=\(app.multiCurrentStep() ?? "nil") state=\(app.debugValue("multi-playback-state") ?? "nil")")
