@@ -352,6 +352,23 @@ extension XCUIApplication {
         debugOwnerTelemetry(forOwner: owner)?.playingTransitionCount
     }
 
+    /// Ждёт, пока AVPlayer владельца перейдёт в .playing не меньше `count` раз.
+    /// Счётчик монотонный: короткое воспроизведение (стих ~5 с перед паузой)
+    /// не проскакивает между опросами, как мгновенное состояние.
+    func waitForPlayingTransitions(forOwner owner: String, atLeast count: Int, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var lastKnown = "no telemetry"
+        while Date() < deadline {
+            if let current = debugPlayingTransitionCount(forOwner: owner) {
+                lastKnown = "\(current)"
+                if current >= count { return true }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTFail("The \(owner) AVPlayer should start playing at least \(count) times within \(Int(timeout))s, got '\(lastKnown)'")
+        return false
+    }
+
     /// Играет ли хотя бы один зарегистрированный экземпляр.
     /// nil — телеметрия недоступна или состояние экземпляра неизвестно:
     /// неизвестное не равно «не играет».

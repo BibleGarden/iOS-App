@@ -739,23 +739,6 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         app = nil
     }
 
-    /// Ждёт, пока AVPlayer мультичтения перейдёт в .playing не меньше `count` раз.
-    /// Счётчик монотонный: короткое воспроизведение (стих ~5 с перед паузой)
-    /// не проскакивает между опросами, как мгновенное состояние.
-    private func waitForMultiPlayingTransitions(atLeast count: Int, timeout: TimeInterval) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        var lastKnown = "no telemetry"
-        while Date() < deadline {
-            if let current = app.debugPlayingTransitionCount(forOwner: "multilingualRead") {
-                lastKnown = "\(current)"
-                if current >= count { return true }
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        XCTFail("The multilingual AVPlayer should start playing at least \(count) times within \(Int(timeout))s, got '\(lastKnown)'")
-        return false
-    }
-
     // #50 — Пауза с экрана блокировки во время паузы между переводами останавливает
     // мультичтение до явной команды Play.
     // Результат: после remote-паузы плеер реально не играет (DebugPlaybackRegistry),
@@ -771,7 +754,7 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         // Старт доказывается монотонным счётчиком переходов AVPlayer в .playing.
         // Первый стих звучит ~5 с, затем шаг паузы: на медленном CI мгновенные
         // состояния (timeControlStatus, «playing») к проверке уже сменяются.
-        XCTAssertTrue(waitForMultiPlayingTransitions(atLeast: 1, timeout: 30),
+        XCTAssertTrue(app.waitForPlayingTransitions(forOwner: "multilingualRead", atLeast: 1, timeout: 30),
                       "The multilingual AVPlayer should really start")
 
         // Ждём паузу между переводами
@@ -832,7 +815,7 @@ final class MultiReadingRemoteCommandTests: XCTestCase {
         // Возобновление подтверждается фактическим запуском AVPlayer. Следующий
         // перевод звучит ~5 с, поэтому проверяется монотонный счётчик, а не
         // мгновенное состояние.
-        XCTAssertTrue(waitForMultiPlayingTransitions(atLeast: transitionsBeforePlay + 1, timeout: 20),
+        XCTAssertTrue(app.waitForPlayingTransitions(forOwner: "multilingualRead", atLeast: transitionsBeforePlay + 1, timeout: 20),
                       "The multilingual AVPlayer should really resume after the remote play command")
         // Чтение продолжилось со следующего перевода: пайплайн ушёл с шага паузы.
         XCTAssertTrue(app.waitForDebugPipelineAdvanced(after: advancesBeforePlay, timeout: 20),

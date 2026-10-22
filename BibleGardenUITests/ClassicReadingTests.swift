@@ -1628,23 +1628,6 @@ final class ClassicReadingPauseTests: XCTestCase {
         return transitions
     }
 
-    /// Ждёт, пока AVPlayer классического чтения перейдёт в .playing не меньше
-    /// `count` раз. Счётчик монотонный: короткое воспроизведение не проскакивает
-    /// между опросами, как мгновенное состояние.
-    private func waitForClassicPlayingTransitions(atLeast count: Int, timeout: TimeInterval) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        var lastKnown = "no telemetry"
-        while Date() < deadline {
-            if let current = app.debugPlayingTransitionCount(forOwner: "classicRead") {
-                lastKnown = "\(current)"
-                if current >= count { return true }
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        XCTFail("The classic AVPlayer should start playing at least \(count) times within \(Int(timeout))s, got '\(lastKnown)'")
-        return false
-    }
-
     // #20 — Запускаем с pauseType=time + pauseBlock=verse.
     // Результат: после каждого стиха плеер встаёт на паузу и сам возобновляется.
     //
@@ -1662,7 +1645,7 @@ final class ClassicReadingPauseTests: XCTestCase {
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()
-        XCTAssertTrue(waitForClassicPlayingTransitions(atLeast: 1, timeout: 10), "Should start playing")
+        XCTAssertTrue(app.waitForPlayingTransitions(forOwner: "classicRead", atLeast: 1, timeout: 10), "Should start playing")
 
         XCTAssertTrue(waitForVerseIndex(atLeast: 3, timeout: 45),
                       "Reading should go on by itself through the pauses between verses")
@@ -1720,7 +1703,7 @@ final class ClassicReadingPauseTests: XCTestCase {
 
         let playPause = app.buttons["read-play-pause"]
         playPause.tap()
-        XCTAssertTrue(waitForClassicPlayingTransitions(atLeast: 1, timeout: 10), "Should start playing")
+        XCTAssertTrue(app.waitForPlayingTransitions(forOwner: "classicRead", atLeast: 1, timeout: 10), "Should start playing")
 
         XCTAssertTrue(waitForVerseIndex(atLeast: 6, earliestPauseIndex: 5, timeout: 60),
                       "Reading should go on by itself through the paragraph pause")
