@@ -3,6 +3,7 @@ import SwiftUI
 enum MenuItem: Hashable {
     case main
     case read
+    case search
     case select
     case progress
     case setup
@@ -115,6 +116,20 @@ struct MenuView: View {
                     }
                     .accessibilityIdentifier("menu-read")
                     .accessibilityAddTraits(settingsManager.selectedMenuItem == .read ? .isSelected : [])
+
+                    Button {
+                        selectItem(.search)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("search.title".localized)
+                                .font(.headline).fontWeight(.bold)
+                        }
+                        .foregroundColor(colorFor(.search))
+                    }
+                    .accessibilityIdentifier("menu-search")
+                    .accessibilityAddTraits(settingsManager.selectedMenuItem == .search ? .isSelected : [])
 
                     // 4. Прогресс
                     Button {
@@ -353,6 +368,7 @@ struct MenuView: View {
     }
 
     private func selectItem(_ item: MenuItem) {
+        settingsManager.readingFromSearch = false
         settingsManager.selectedMenuItem = item
         withAnimation(.spring()) {
             settingsManager.showMenu = false

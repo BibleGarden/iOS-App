@@ -781,6 +781,67 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - HTTPBearer: []
+  /api/ai/scripture/search:
+    post:
+      tags:
+      - AI
+      summary: Search Bible passages by meaning
+      description: General search for Bible Garden using the existing scripture index.
+        Returns exact database text and translation-native reading coordinates. No prayer
+        genre filters or fallback passages. Empty results are a successful search; provider,
+        index and database failures return 503, total timeout 504. Uses the configured
+        scripture stage models, rate limits and time budget.
+      operationId: search_scripture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '403':
+          description: Invalid key or application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid request or translation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded; Retry-After header is provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            Retry-After:
+              description: Seconds until another search is allowed
+              schema:
+                type: string
+        '503':
+          description: Search stage unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Search time budget exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - APIKeyHeader: []
 components:
   schemas:
     AboutContactModel:
@@ -1538,6 +1599,174 @@ components:
           type: boolean
       type: object
       title: VoiceUpdateModel
+    SearchRequest:
+      properties:
+        query:
+          type: string
+          maxLength: 500
+          minLength: 1
+        language:
+          $ref: '#/components/schemas/Language'
+        translation:
+          type:
+          - integer
+          - 'null'
+          exclusiveMinimum: 0.0
+        limit:
+          type: integer
+          maximum: 10.0
+          minimum: 1.0
+          default: 5
+      additionalProperties: false
+      type: object
+      required:
+      - query
+      - language
+    Language:
+      type: string
+      enum:
+      - ru
+      - en
+      - uk
+    SearchResponse:
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+        translation:
+          type: integer
+        results:
+          items:
+            $ref: '#/components/schemas/SearchResult'
+          type: array
+      type: object
+      required:
+      - language
+      - translation
+      - results
+    SearchResult:
+      properties:
+        canonical:
+          $ref: '#/components/schemas/CanonicalRange'
+        passage:
+          $ref: '#/components/schemas/PassageModel'
+        highlight:
+          $ref: '#/components/schemas/HighlightModel'
+      type: object
+      required:
+      - canonical
+      - passage
+      - highlight
+    CanonicalRange:
+      properties:
+        canonical_id:
+          type: string
+        book_number:
+          type: integer
+        chapter_number:
+          type: integer
+        verse_start:
+          type: integer
+        verse_end:
+          type: integer
+      type: object
+      required:
+      - canonical_id
+      - book_number
+      - chapter_number
+      - verse_start
+      - verse_end
+    PassageModel:
+      properties:
+        translation:
+          type: integer
+        translation_alias:
+          type: string
+        book_number:
+          type: integer
+        chapter_number:
+          type: integer
+        verse_start:
+          type: integer
+        verse_end:
+          type: integer
+        title:
+          type:
+          - string
+          - 'null'
+        text:
+          type: string
+        verses:
+          items:
+            $ref: '#/components/schemas/VerseModel'
+          type: array
+      type: object
+      required:
+      - translation
+      - translation_alias
+      - book_number
+      - chapter_number
+      - verse_start
+      - verse_end
+      - text
+    VerseModel:
+      properties:
+        number:
+          type: integer
+        text:
+          type: string
+        paragraph_start:
+          type: boolean
+      type: object
+      required:
+      - number
+      - text
+      - paragraph_start
+    ErrorResponse:
+      properties:
+        detail:
+          type: string
+      type: object
+      required:
+      - detail
+    HighlightModel:
+      properties:
+        canonical:
+          $ref: '#/components/schemas/HighlightCanonical'
+        passage:
+          $ref: '#/components/schemas/HighlightPassage'
+      type: object
+      required:
+      - canonical
+      - passage
+    HighlightCanonical:
+      properties:
+        book_number:
+          type: integer
+        chapter_number:
+          type: integer
+        verse_start:
+          type: integer
+        verse_end:
+          type: integer
+      type: object
+      required:
+      - book_number
+      - chapter_number
+      - verse_start
+      - verse_end
+    HighlightPassage:
+      properties:
+        chapter_number:
+          type: integer
+        verse_start:
+          type: integer
+        verse_end:
+          type: integer
+      type: object
+      required:
+      - chapter_number
+      - verse_start
+      - verse_end
   securitySchemes:
     APIKeyHeader:
       type: apiKey

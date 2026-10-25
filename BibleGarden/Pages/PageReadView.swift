@@ -63,6 +63,7 @@ struct PageReadView: View {
     @State private var isTextLoading: Bool = true
     @State private var hasAudio: Bool = true
     @State private var hasText: Bool = true
+    @State private var isWholeChapter: Bool = false
 
     @State var scrollToVerseId: Int?
 
@@ -82,8 +83,21 @@ struct PageReadView: View {
 
                     // MARK: Header
                     AppHeaderBar {
-                        MenuButtonView()
-                            .environmentObject(settingsManager)
+                        if settingsManager.readingFromSearch {
+                            Button {
+                                settingsManager.readingFromSearch = false
+                                settingsManager.selectedMenuItem = .search
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 25, weight: .medium))
+                                    .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
+                            }
+                            .accessibilityLabel("search.back".localized)
+                            .accessibilityIdentifier("read-back-search")
+                        } else {
+                            MenuButtonView()
+                                .environmentObject(settingsManager)
+                        }
                     } center: {
                         Button {
                             withAnimation(Animation.easeInOut(duration: 1)) {
@@ -337,6 +351,7 @@ struct PageReadView: View {
         // keep working while the next chapter is loading.
         audiopleer.detachCurrentItem()
         self.hasAudio = false
+        self.isWholeChapter = false
 
         do {
                 self.isTextLoading = true
@@ -380,6 +395,7 @@ struct PageReadView: View {
                 throw NSError(domain: "updateExcerpt", code: 204, userInfo: [NSLocalizedDescriptionKey: "error.loading.chapter".localized])
             }
             self.hasText = true
+            self.isWholeChapter = isSingleChapter
             beginTextReadingTracking()
 
             // Update book and chapter information
@@ -393,7 +409,14 @@ struct PageReadView: View {
                 self.nextExcerpt = part!.next_excerpt
                 withAnimation() {
                     settingsManager.currentExcerptTitle = part!.book.name
-                    settingsManager.currentExcerptSubtitle = "page.read.chapter_subtitle".localized(String(part!.chapter_number))
+                    if settingsManager.readingFromSearch,
+                       let firstVerse = part!.verses.first, let lastVerse = part!.verses.last {
+                        let range = firstVerse.number == lastVerse.number
+                            ? "\(firstVerse.number)" : "\(firstVerse.number)–\(lastVerse.number)"
+                        settingsManager.currentExcerptSubtitle = "\(part!.chapter_number):\(range)"
+                    } else {
+                        settingsManager.currentExcerptSubtitle = "page.read.chapter_subtitle".localized(String(part!.chapter_number))
+                    }
                     settingsManager.currentBookId = part!.book.number
                     settingsManager.currentChapterId = part!.chapter_number
                 }
@@ -676,7 +699,7 @@ struct PageReadView: View {
                         self.markCurrentChapterAsRead()
                     }
                     
-                    if self.settingsManager.autoNextChapter && !self.nextExcerpt.isEmpty {
+                    if self.isWholeChapter && self.settingsManager.autoNextChapter && !self.nextExcerpt.isEmpty {
                         // Small delay for better UX
                         let sessionID = pipelineSessionID
                         let workItem = DispatchWorkItem {

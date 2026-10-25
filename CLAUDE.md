@@ -101,3 +101,40 @@ Uses a custom `LocalizationManager` singleton (not Apple's standard localization
 ### API Layer
 
 All API calls go through the generated OpenAPI client on `SettingsManager.client`. The API key is sent as `X-API-Key` header. Audio URLs require an `api_key` query parameter (handled by `SettingsManager.audioURL(...)` helpers). 
+
+### Scripture Search
+
+`PageSearchView` is available from the home screen and the side menu. Its
+`ScriptureSearchModel` lives in `SkeletonView`, preserving the query and results
+when a passage is opened and the user returns. Search uses the generated
+`search_scripture` operation (`POST /api/ai/scripture/search`) with the selected
+language/translation and a limit of five. Its separate transport has a 45-second
+timeout. Requests are submitted explicitly, cancelled on departure or query
+changes, and never retried automatically. A 429 response uses `Retry-After`;
+empty results and service failures have separate states.
+
+Reading links use `passage` coordinates and the book alias from the selected
+translation's book catalogue, preserving Psalm numbering. The existing reader
+handles the resulting verse range, playback and missing audio. Search queries
+and responses remain in memory and are not logged or persisted.
+
+The first search asks for versioned AI-processing consent; the information
+button allows withdrawal. Debug consent identifies the test processors
+(Cerebras, Google Gemini and llm.ai2.ru), verified through the test container configuration on
+2026-10-25. Release copy follows the recorded production decision (Google Gemini
+and the company server); verify it against deployment configuration before
+release and update the public Bible Garden privacy policy in `Site`.
+
+Search results require the API's `highlight` object and verse breakdown. Cards
+initially show the 1–3 key verses using translation-native verse numbers. The
+context control expands the full passage with surrounding verses dimmed. Opening
+the reader retains the full passage range. Automatic chapter continuation applies
+only when the API returns a whole chapter; a selected verse range stops at its
+end even when the user's automatic chapter continuation setting is enabled.
+Invalid highlight boundaries produce
+an explicit response error. The test API added this contract on 2026-10-25
+(Bible-API PR #40, commit 81a6c94); the model rerank now uses Google Gemini,
+so the test consent version changed to require a fresh choice.
+
+UI approval precedes new search UI tests. At the interface-preview stage, no
+search tests or production release are claimed.

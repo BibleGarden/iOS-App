@@ -61,6 +61,18 @@ struct PageMainView: View {
                             }
                         }
                         .accessibilityIdentifier("card-classic-reading")
+
+                        MainMenuCard(
+                            title: "search.title".localized,
+                            subtitle: "search.main.subtitle".localized,
+                            icon: "magnifyingglass",
+                            color: Color("ForestGreen")
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                settingsManager.selectedMenuItem = .search
+                            }
+                        }
+                        .accessibilityIdentifier("card-search")
                     }
 
                     Spacer()

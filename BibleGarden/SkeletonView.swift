@@ -63,6 +63,7 @@ class SettingsManager: ObservableObject {
     
     @Published var showMenu: Bool = false
     @Published var selectedMenuItem: MenuItem = .main
+    @Published var readingFromSearch = false
     
     @AppStorage("fontIncreasePercent") var fontIncreasePercent: Double = 100.0
     
@@ -409,6 +410,7 @@ class SettingsManager: ObservableObject {
 struct SkeletonView: View {
     
     @StateObject private var settingsManager = SettingsManager()
+    @StateObject private var scriptureSearch = ScriptureSearchModel()
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @AppStorage("debugPlaybackTotalCount") private var debugPlaybackTotalCount: Int = 0
     @AppStorage("debugPlaybackClassicCount") private var debugPlaybackClassicCount: Int = 0
@@ -449,6 +451,12 @@ struct SkeletonView: View {
 
                 else if settingsManager.selectedMenuItem == .read {
                     PageReadView()
+                        .environmentObject(settingsManager)
+                        .transition(.opacity)
+                }
+
+                else if settingsManager.selectedMenuItem == .search {
+                    PageSearchView(model: scriptureSearch)
                         .environmentObject(settingsManager)
                         .transition(.opacity)
                 }

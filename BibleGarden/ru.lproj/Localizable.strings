@@ -193,3 +193,46 @@
 /* Version Update */
 "update.later" = "Позже";
 "update.go" = "Обновить";
+
+/* Scripture Search */
+"search.title" = "Поиск по Библии";
+"search.main.subtitle" = "Находите отрывки по смыслу, темам и событиям";
+"search.heading" = "Найдите нужный отрывок";
+"search.subtitle" = "Опишите мысль, задайте вопрос или напишите слова, которые помните.";
+"search.placeholder" = "Что вы хотите найти?";
+"search.action" = "Найти отрывки";
+"search.clear" = "Очистить запрос";
+"search.translation" = "Перевод Библии";
+"search.too_long" = "Сократите запрос до 500 символов.";
+"search.wait" = "Повторить через %d с";
+"search.examples" = "Например";
+"search.example.anxiety" = "Как справиться с тревогой?";
+"search.example.noah" = "Кто построил ковчег?";
+"search.example.love" = "О любви к ближнему";
+"search.hint" = "Поиск понимает смысл запроса. Необязательно помнить точную цитату.";
+"search.loading" = "Ищем подходящие отрывки";
+"search.loading.detail" = "Это может занять до 30 секунд.";
+"search.error.title" = "Не удалось выполнить поиск";
+"search.error.unavailable" = "Сервис поиска сейчас недоступен. Попробуйте позже.";
+"search.error.timeout" = "Поиск занял слишком много времени. Попробуйте ещё раз позже.";
+"search.error.network" = "Не удалось связаться с сервером. Проверьте подключение к интернету.";
+"search.error.authorization" = "Не удалось получить доступ к поиску. Обратитесь в поддержку.";
+"search.error.translation" = "Поиск недоступен для выбранного перевода. Выберите другой перевод.";
+"search.error.response" = "Сервер вернул некорректный ответ. Попробуйте позже.";
+"search.error.limit" = "Достигнут лимит запросов. Подождите перед следующим поиском.";
+"search.error.catalog" = "Не удалось загрузить переводы. Нажмите, чтобы повторить.";
+"search.empty" = "Подходящих отрывков нет";
+"search.empty.detail" = "Попробуйте описать мысль другими словами или задать более конкретный вопрос.";
+"search.results" = "Найдено отрывков: %d";
+"search.open" = "Открыть отрывок";
+"search.back" = "К результатам поиска";
+"search.privacy.title" = "Поиск с помощью ИИ";
+"search.privacy.body" = "Чтобы найти отрывки, мы передадим текст запроса через Bible API сервисам обработки ИИ. Не добавляйте в запрос личные данные.\n\nBible API не сохраняет текст запроса. Разрешение можно отозвать здесь в любой момент.";
+"search.privacy.providers.test" = "В этой тестовой сборке запрос обрабатывают Cerebras, Google Gemini и сервер llm.ai2.ru.";
+"search.privacy.providers" = "Обработка запросов: Google Gemini и сервер Bible Garden (llm.ai2.ru).";
+"search.privacy.allow_search" = "Разрешить и найти";
+"search.privacy.allow" = "Разрешить обработку запроса";
+"search.privacy.decline" = "Пока не использовать";
+"search.privacy.revoke" = "Отозвать разрешение";
+"search.context.show" = "Показать контекст";
+"search.context.hide" = "Скрыть контекст";

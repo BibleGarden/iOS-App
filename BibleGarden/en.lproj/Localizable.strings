@@ -193,3 +193,46 @@
 /* Version Update */
 "update.later" = "Later";
 "update.go" = "Update";
+
+/* Scripture Search */
+"search.title" = "Search the Bible";
+"search.main.subtitle" = "Find passages by meaning, topic or event";
+"search.heading" = "Find the words you need";
+"search.subtitle" = "Describe a thought, ask a question or enter the words you remember.";
+"search.placeholder" = "What would you like to find?";
+"search.action" = "Find passages";
+"search.clear" = "Clear search";
+"search.translation" = "Bible translation";
+"search.too_long" = "Keep your query within 500 characters.";
+"search.wait" = "Try again in %d s";
+"search.examples" = "Try asking";
+"search.example.anxiety" = "How can I cope with worry?";
+"search.example.noah" = "Who built the ark?";
+"search.example.love" = "About loving your neighbour";
+"search.hint" = "Search understands meaning. You don’t have to remember the exact quotation.";
+"search.loading" = "Finding relevant passages";
+"search.loading.detail" = "This may take up to 30 seconds.";
+"search.error.title" = "Search couldn’t be completed";
+"search.error.unavailable" = "The search service is unavailable right now. Please try later.";
+"search.error.timeout" = "The search took too long. Please try again later.";
+"search.error.network" = "Couldn’t reach the server. Check your internet connection.";
+"search.error.authorization" = "Search access was denied. Please contact support.";
+"search.error.translation" = "Search is unavailable for this translation. Please choose another.";
+"search.error.response" = "The server returned an invalid response. Please try later.";
+"search.error.limit" = "The search limit has been reached. Please wait before searching again.";
+"search.error.catalog" = "Couldn’t load translations. Tap to try again.";
+"search.empty" = "No matching passages";
+"search.empty.detail" = "Try describing your thought differently or asking a more specific question.";
+"search.results" = "Passages found: %d";
+"search.open" = "Open passage";
+"search.back" = "Back to search results";
+"search.privacy.title" = "Search with AI";
+"search.privacy.body" = "To find passages, we send your query through Bible API to AI processing services. Please keep personal information out of your query.\n\nBible API does not store the query text. You can withdraw permission here at any time.";
+"search.privacy.providers.test" = "In this test build, Cerebras, Google Gemini and the llm.ai2.ru server process the query.";
+"search.privacy.providers" = "Queries are processed by Google Gemini and the Bible Garden server (llm.ai2.ru).";
+"search.privacy.allow_search" = "Allow and search";
+"search.privacy.allow" = "Allow query processing";
+"search.privacy.decline" = "Not now";
+"search.privacy.revoke" = "Withdraw permission";
+"search.context.show" = "Show context";
+"search.context.hide" = "Hide context";
