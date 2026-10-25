@@ -1249,7 +1249,7 @@ struct PageReadView: View {
 	                        Image(systemName: "circle")
 	                            .font(.system(size: chapterMarkIndicatorSize))
 	                            .foregroundColor(Color("localAccentColor").opacity(0.6))
-	                        if settingsManager.autoProgressFrom90Percent && audioVerseCount > 0 {
+	                        if isWholeChapter && settingsManager.autoProgressFrom90Percent && audioVerseCount > 0 {
 	                            ChapterProgressArc(
 	                                progress: ninetyPercentVisualProgress,
 	                                lineWidth: chapterMarkProgressLineWidth
@@ -1324,7 +1324,7 @@ struct PageReadView: View {
     }
 
     private func markCurrentChapterAsRead() {
-        guard let target = currentChapterProgressTarget else { return }
+        guard isWholeChapter, let target = currentChapterProgressTarget else { return }
         settingsManager.markChapterAsRead(book: target.bookAlias, chapter: target.chapter)
     }
 

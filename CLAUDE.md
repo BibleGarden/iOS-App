@@ -131,6 +131,8 @@ context control expands the full passage with surrounding verses dimmed. Opening
 the reader retains the full passage range. Automatic chapter continuation applies
 only when the API returns a whole chapter; a selected verse range stops at its
 end even when the user's automatic chapter continuation setting is enabled.
+Automatic progress also requires a whole chapter; reading or listening to a
+bounded result cannot mark the entire chapter read. Manual marking is retained.
 Invalid highlight boundaries produce
 an explicit response error. The test API added this contract on 2026-10-25
 (Bible-API PR #40, commit 81a6c94); the model rerank now uses Google Gemini,
