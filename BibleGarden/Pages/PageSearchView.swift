@@ -176,7 +176,17 @@ struct PageSearchView: View {
         switch model.phase {
         case .idle:
             VStack(alignment: .leading, spacing: 14) {
-                if !model.recentQueries.isEmpty {
+                if model.recentQueries.isEmpty {
+                    sectionTitle("search.examples")
+                    ForEach(["search.example.anxiety", "search.example.noah", "search.example.love"], id: \.self) { key in
+                        suggestion(key.localized, icon: "arrow.up.left") {
+                            model.query = key.localized
+                            queryFocused = true
+                        }
+                    }
+                    Text("search.hint".localized)
+                        .font(.caption).foregroundColor(.white.opacity(0.4)).lineSpacing(4).padding(.top, 4)
+                } else {
                     HStack {
                         sectionTitle("search.recent")
                         Spacer()
@@ -191,15 +201,6 @@ struct PageSearchView: View {
                         }
                     }
                 }
-                sectionTitle("search.examples").padding(.top, model.recentQueries.isEmpty ? 0 : 10)
-                ForEach(["search.example.anxiety", "search.example.noah", "search.example.love"], id: \.self) { key in
-                    suggestion(key.localized, icon: "arrow.up.left") {
-                        model.query = key.localized
-                        queryFocused = true
-                    }
-                }
-                Text("search.hint".localized)
-                    .font(.caption).foregroundColor(.white.opacity(0.4)).lineSpacing(4).padding(.top, 4)
             }
         case .loading:
             VStack(alignment: .leading, spacing: 16) {
@@ -380,7 +381,7 @@ private struct SearchResultCard: View {
             Label("search.read_chapter".localized, systemImage: "book")
         }
         Button { open(.translations) } label: {
-            Label("search.translations".localized, systemImage: "character.book.closed")
+            Label("menu.multilingual".localized, systemImage: "translate")
         }
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }

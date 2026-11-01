@@ -118,7 +118,7 @@ translation's book catalogue, preserving Psalm numbering. The existing reader
 handles the resulting verse range, playback and missing audio. Responses remain
 in memory and are not logged or persisted. The last five submitted queries are
 kept on the device only (`UserDefaults` key `searchRecentQueries`) and shown on
-the empty search screen; tapping one searches again. Clearing the field returns
+the empty search screen instead of the example queries; tapping one searches again. Clearing the field returns
 to that screen. Withdrawing consent deletes the history.
 
 The first search asks for versioned AI-processing consent; the information
@@ -134,7 +134,7 @@ card is not a link: its "…" menu (also the long-press menu) holds every action
 "Show context" expands the full passage with surrounding verses dimmed. "Listen"
 opens the reader on the full passage range and starts playback once the audio is
 ready (`SettingsManager.playOnOpen`, consumed by `PageReadView`). "Read the
-chapter" opens the whole chapter. "In several translations" opens multilingual
+chapter" opens the whole chapter. "Multi Reading" opens multilingual
 reading of the passage, or its setup first when no reading step exists. Both
 readers then show `ReaderLeadingButton`, which returns to the preserved results
 instead of opening the side menu. Copy and
