@@ -98,7 +98,7 @@ struct PageMainView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
-            .background(Capsule().fill(Color("DarkGreen").opacity(0.85)))
+            .background(Capsule().fill(Color.black.opacity(0.35)))
             .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
         }
         .buttonStyle(.plain)
