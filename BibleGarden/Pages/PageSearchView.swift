@@ -435,7 +435,10 @@ private struct SearchSkeletonCard: View {
 /// SwiftUI `ShareLink` needs iOS 16; the app still supports iOS 15.
 private func presentShareSheet(_ text: String) {
     let scene = UIApplication.shared.connectedScenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
-    guard var top = scene?.keyWindow?.rootViewController else { return }
+    guard var top = scene?.keyWindow?.rootViewController else {
+        assertionFailure("No foreground window to present the share sheet from")
+        return
+    }
     while let presented = top.presentedViewController { top = presented }
     let controller = UIActivityViewController(activityItems: [text], applicationActivities: nil)
     if let popover = controller.popoverPresentationController {

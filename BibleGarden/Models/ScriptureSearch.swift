@@ -155,7 +155,7 @@ final class ScriptureSearchModel: ObservableObject {
         requestID = UUID()
         task?.cancel()
         task = nil
-        if isLoading { phase = hits.isEmpty ? .idle : .loaded }
+        if isLoading { phase = .idle }
     }
 
     func search() {
@@ -284,13 +284,9 @@ final class ScriptureSearchModel: ObservableObject {
 
     func open(_ hit: ScriptureSearchHit, in destination: Destination, settings: SettingsManager) {
         let chapter = hit.passage.chapter_number
-        settings.currentBookId = hit.passage.book_number
-        settings.currentChapterId = chapter
-        settings.currentExcerptTitle = hit.book.name
-        settings.searchFocus = .init(bookNumber: hit.passage.book_number, chapter: chapter,
-                                     verses: hit.highlight.verse_start...hit.highlight.verse_end)
 
         if destination == .translations {
+            focus(on: hit, settings: settings)
             settings.currentExcerpt = hit.excerpt
             settings.currentExcerptSubtitle = "\(chapter):\(hit.passage.verse_start)–\(hit.passage.verse_end)"
             let configured = settings.multilingualSteps.contains { $0.type == .read }
@@ -303,6 +299,7 @@ final class ScriptureSearchModel: ObservableObject {
             phase = .failed("search.error.translation")
             return
         }
+        focus(on: hit, settings: settings)
         let voices = selected.voices.filter(\.active)
         let voice = voices.first(where: { $0.code == settings.voice }) ?? voices.first
         settings.language = selected.language
@@ -322,6 +319,15 @@ final class ScriptureSearchModel: ObservableObject {
         settings.readingFromSearch = true
         settings.playOnOpen = destination == .listen
         settings.selectedMenuItem = .read
+    }
+
+    /// The chapter the reader opens and the key verses it marks there.
+    private func focus(on hit: ScriptureSearchHit, settings: SettingsManager) {
+        settings.currentBookId = hit.passage.book_number
+        settings.currentChapterId = hit.passage.chapter_number
+        settings.currentExcerptTitle = hit.book.name
+        settings.searchFocus = .init(bookNumber: hit.passage.book_number, chapter: hit.passage.chapter_number,
+                                     verses: hit.highlight.verse_start...hit.highlight.verse_end)
     }
 }
 

@@ -61,6 +61,8 @@ struct PageMultilingualReadView: View {
     @State private var highlightVerseNumber: Int? = nil
     /// Verses found by search in the loaded chapter; the page scrolls to them instead of the top.
     @State private var keyVerses: ClosedRange<Int>? = nil
+    /// A verse range (a search result) is not the whole chapter and never marks it read automatically.
+    @State private var isWholeChapter = false
 
     @State private var retryCount: Int = 0
 
@@ -713,6 +715,7 @@ struct PageMultilingualReadView: View {
         stepPlayerItems = [:]
         
         // Load data for each read step
+        isWholeChapter = false
         for (index, step) in readSteps.enumerated() {
             do {
                 if TestingEnvironment.shouldForceLoadError {
@@ -720,7 +723,7 @@ struct PageMultilingualReadView: View {
                         userInfo: [NSLocalizedDescriptionKey: "Simulated load error for UI testing"])
                 }
 
-                let (textVerses, audioVerses, audioUrl, _, part) = try await getExcerptTextualVersesOnline(
+                let (textVerses, audioVerses, audioUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(
                     excerpts: settingsManager.currentExcerpt,
                     client: settingsManager.client,
                     translation: step.translationCode,
@@ -735,6 +738,9 @@ struct PageMultilingualReadView: View {
                     stepPlayerItems[index] = AVPlayerItem(url: url)
                 }
                 
+                if index == 0 {
+                    isWholeChapter = isSingleChapter
+                }
                 // Use first step's data for navigation info
                 if index == 0, let part = part {
                     prevExcerpt = part.prev_excerpt
@@ -1510,8 +1516,9 @@ struct PageMultilingualReadView: View {
         return settingsManager.isChapterRead(book: target.bookAlias, chapter: target.chapter)
     }
 
+    /// Automatic progress only; the reader marks a chapter manually with `toggleCurrentChapterReadState`.
     private func markCurrentChapterAsRead() {
-        guard let target = currentChapterProgressTarget else { return }
+        guard isWholeChapter, let target = currentChapterProgressTarget else { return }
         settingsManager.markChapterAsRead(book: target.bookAlias, chapter: target.chapter)
     }
 

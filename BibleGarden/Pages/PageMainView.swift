@@ -43,7 +43,7 @@ struct PageMainView: View {
                         MainMenuCard(
                             title: "page.main.multilingual.title".localized,
                             subtitle: "page.main.multilingual.subtitle".localized,
-                            icon: Image(systemName: "translate"),
+                            icon: "translate",
                             color: Color("ForestGreen")
                         ) {
                             withAnimation(.easeInOut(duration: 0.25)) {
@@ -55,7 +55,7 @@ struct PageMainView: View {
                         MainMenuCard(
                             title: "page.main.classic.title".localized,
                             subtitle: "page.main.classic.subtitle".localized,
-                            icon: Image(systemName: "book.fill"),
+                            icon: "book.fill",
                             color: Color("ForestGreen")
                         ) {
                             withAnimation(.easeInOut(duration: 0.25)) {
@@ -177,10 +177,10 @@ struct TestPageMainView: View {
     }
 }
 
-struct MainMenuCard<Icon: View>: View {
+struct MainMenuCard: View {
     let title: String
     let subtitle: String
-    let icon: Icon
+    let icon: String // SF Symbol name
     let color: Color
     let action: () -> Void
     
@@ -193,7 +193,7 @@ struct MainMenuCard<Icon: View>: View {
                         .fill(Color.white.opacity(0.1))
                         .frame(width: 44, height: 44)
                     
-                    icon
+                    Image(systemName: icon)
                         .font(.system(size: 20))
                         .foregroundColor(Color("Mustard"))
                 }

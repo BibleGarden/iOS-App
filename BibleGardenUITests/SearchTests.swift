@@ -91,7 +91,10 @@ final class SearchTests: XCTestCase {
 
     private func launch(extraArguments: [String] = []) {
         app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--app-language", "en"] + extraArguments
+        // The recorded response is for BSB: the search starts with the translation of the
+        // device language, so the device runs in English whatever the simulator locale is.
+        app.launchArguments = ["--uitesting", "--app-language", "en",
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
         app.launchEnvironment["UITEST_SEARCH_RESPONSE"] = Self.recordedResponse
         app.launch()
     }

@@ -406,7 +406,7 @@ struct PageReadView: View {
                 self.nextExcerpt = part!.next_excerpt
                 withAnimation() {
                     settingsManager.currentExcerptTitle = part!.book.name
-                    if settingsManager.readingFromSearch, !self.isWholeChapter,
+                    if !self.isWholeChapter,
                        let firstVerse = part!.verses.first, let lastVerse = part!.verses.last {
                         let range = firstVerse.number == lastVerse.number
                             ? "\(firstVerse.number)" : "\(firstVerse.number)–\(lastVerse.number)"
