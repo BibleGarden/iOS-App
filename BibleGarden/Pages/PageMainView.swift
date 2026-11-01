@@ -98,7 +98,10 @@ struct PageMainView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
-            .mainPillBackground()
+            // Darker than the cards, but dense enough to hide the forest behind the text.
+            .background(Capsule().fill(Color.black.opacity(0.4)))
+            .background(Capsule().fill(Color("DarkGreen").opacity(0.7)))
+            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("search.title".localized)
@@ -128,12 +131,14 @@ struct PageMainView: View {
                             .background(alignment: .leading) {
                                 GeometryReader { geometry in
                                     // A small share still shows as a sliver at the start.
-                                    Rectangle().fill(Color("Mustard").opacity(0.45))
-                                        .frame(width: max(geometry.size.width * share, 6))
+                                    Rectangle().fill(Color("DarkGreen-accent").opacity(0.4))
+                                        .frame(width: max(geometry.size.width * share, 4))
                                 }
                             }
-                            .clipShape(Capsule())
-                            .mainPillBackground()
+                            // The shape and background of the reading cards above.
+                            .background(Color("DarkGreen").opacity(0.72))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.16), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("card-progress")
@@ -225,14 +230,4 @@ struct MainMenuCard<Icon: View>: View {
 
 #Preview {
     TestPageMainView()
-}
-
-private extension View {
-    /// Pill of the main screen controls: darker than the cards, but dense enough
-    /// to hide the forest behind the text.
-    func mainPillBackground() -> some View {
-        background(Capsule().fill(Color.black.opacity(0.4)))
-            .background(Capsule().fill(Color("DarkGreen").opacity(0.7)))
-            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
-    }
 }
