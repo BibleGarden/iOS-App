@@ -288,6 +288,8 @@ struct PageReadView: View {
 
                 installRemoteCommandHandlers()
 
+                let playOnOpen = settingsManager.playOnOpen
+                settingsManager.playOnOpen = false
                 pageSetupTask = Task {
                     self.audiopleer.onEndVerse = onEndVerse
                     self.audiopleer.onStartVerse = onStartVerse
@@ -302,6 +304,10 @@ struct PageReadView: View {
                     
                     // Setup observer for finishing audio to auto-switch chapters
                     setupAudioCompletionObserver(proxy: proxy)
+
+                    if playOnOpen {
+                        startCurrentChapter { audiopleer.doPlayOrPause() }
+                    }
                 }
 
                 scrollToVerseId = nil
@@ -409,7 +415,7 @@ struct PageReadView: View {
                 self.nextExcerpt = part!.next_excerpt
                 withAnimation() {
                     settingsManager.currentExcerptTitle = part!.book.name
-                    if settingsManager.readingFromSearch,
+                    if settingsManager.readingFromSearch, !self.isWholeChapter,
                        let firstVerse = part!.verses.first, let lastVerse = part!.verses.last {
                         let range = firstVerse.number == lastVerse.number
                             ? "\(firstVerse.number)" : "\(firstVerse.number)–\(lastVerse.number)"

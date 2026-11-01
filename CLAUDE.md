@@ -130,12 +130,15 @@ release and update the public Bible Garden privacy policy in `Site`.
 
 Search results require the API's `highlight` object and verse breakdown. Cards
 initially show the 1–3 key verses using translation-native verse numbers. The
-context control expands the full passage with surrounding verses dimmed. Tapping
-the card opens the reader with the full passage range. The share button and the
-card's context menu share or copy the key verses with their reference and
-translation alias. While a request runs, placeholder cards and a cancel control
-replace the results. Automatic chapter continuation applies
-only when the API returns a whole chapter; a selected verse range stops at its
+card is not a link: its "…" menu (also the long-press menu) holds every action.
+"Show context" expands the full passage with surrounding verses dimmed. "Listen"
+opens the reader on the full passage range and starts playback once the audio is
+ready (`SettingsManager.playOnOpen`, consumed by `PageReadView`). "Read the
+chapter" opens the whole chapter. "In several translations" opens multilingual
+reading of the passage, or its setup first when no reading step exists. Copy and
+share take the key verses with their reference and translation alias. While a
+request runs, placeholder cards and a cancel control replace the results.
+Automatic chapter continuation applies only when the API returns a whole chapter; a selected verse range stops at its
 end even when the user's automatic chapter continuation setting is enabled.
 Automatic progress also requires a whole chapter; reading or listening to a
 bounded result cannot mark the entire chapter read. Manual marking is retained.

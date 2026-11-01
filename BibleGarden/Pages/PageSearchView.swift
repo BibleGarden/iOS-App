@@ -227,9 +227,9 @@ struct PageSearchView: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(model.hits) { hit in
-                        SearchResultCard(hit: hit) {
+                        SearchResultCard(hit: hit) { destination in
                             queryFocused = false
-                            model.open(hit, settings: settingsManager)
+                            model.open(hit, in: destination, settings: settingsManager)
                         }
                     }
                 }
@@ -329,27 +329,28 @@ struct PageSearchView: View {
 
 private struct SearchResultCard: View {
     let hit: ScriptureSearchHit
-    let open: () -> Void
+    let open: (ScriptureSearchModel.Destination) -> Void
     @State private var expanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Button(action: open) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(hit.keyReference).font(.headline).foregroundColor(Color("Mustard"))
-                        if let title = hit.passage.title, !title.isEmpty {
-                            Text(title).font(.caption).foregroundColor(.white.opacity(0.5))
-                        }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(hit.keyReference).font(.headline).foregroundColor(Color("Mustard"))
+                    if let title = hit.passage.title, !title.isEmpty {
+                        Text(title).font(.caption).foregroundColor(.white.opacity(0.5))
                     }
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
-                        .foregroundColor(.white.opacity(0.45))
                 }
-                .contentShape(Rectangle())
+                Spacer(minLength: 8)
+                Menu { actions } label: {
+                    Image(systemName: "ellipsis").font(.body.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.6))
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                .padding(.top, -10).padding(.trailing, -12)
+                .accessibilityLabel("search.actions".localized)
+                .accessibilityIdentifier("search-actions-\(hit.id)")
             }
-            .accessibilityHint("search.open".localized)
-            .accessibilityIdentifier("search-result-\(hit.id)")
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(expanded ? hit.verses : hit.keyVerses, id: \.number) { verse in
@@ -363,45 +364,38 @@ private struct SearchResultCard: View {
                         .accessibilityIdentifier("search-verse-\(hit.id)-\(verse.number)")
                 }
             }
-
-            HStack(spacing: 0) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
-                } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(expanded ? "search.context.hide".localized : "search.context.show".localized)
-                        Text(hit.reference).foregroundColor(.white.opacity(0.45))
-                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    }
-                    .font(.caption).foregroundColor(.white.opacity(0.7))
-                    .frame(minHeight: 44).contentShape(Rectangle())
-                }
-                .accessibilityIdentifier("search-context-\(hit.id)")
-                Spacer(minLength: 8)
-                Button { presentShareSheet(hit.shareText) } label: {
-                    Image(systemName: "square.and.arrow.up").font(.subheadline)
-                        .foregroundColor(.white.opacity(0.7))
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
-                }
-                .accessibilityLabel("search.share".localized)
-                .accessibilityIdentifier("search-share-\(hit.id)")
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 4)
+        .padding(18)
         .background(Color("DarkGreen-light"))
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .contentShape(RoundedRectangle(cornerRadius: 18))
-        .onTapGesture(perform: open)
-        .contextMenu {
-            Button { UIPasteboard.general.string = hit.shareText } label: {
-                Label("search.copy".localized, systemImage: "doc.on.doc")
-            }
-            Button { presentShareSheet(hit.shareText) } label: {
-                Label("search.share".localized, systemImage: "square.and.arrow.up")
-            }
+        .contextMenu { actions }
+    }
+
+    @ViewBuilder private var actions: some View {
+        Button { open(.listen) } label: {
+            Label("search.listen".localized, systemImage: "play.fill")
         }
-        .buttonStyle(.plain)
+        Button { open(.chapter) } label: {
+            Label("search.read_chapter".localized, systemImage: "book")
+        }
+        Button { open(.translations) } label: {
+            Label("search.translations".localized, systemImage: "character.book.closed")
+        }
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+        } label: {
+            Label((expanded ? "search.context.hide" : "search.context.show").localized(hit.reference),
+                  systemImage: expanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+        }
+        .accessibilityIdentifier("search-context-\(hit.id)")
+        Divider()
+        Button { UIPasteboard.general.string = hit.shareText } label: {
+            Label("search.copy".localized, systemImage: "doc.on.doc")
+        }
+        Button { presentShareSheet(hit.shareText) } label: {
+            Label("search.share".localized, systemImage: "square.and.arrow.up")
+        }
     }
 }
 

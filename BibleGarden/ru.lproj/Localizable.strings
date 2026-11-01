@@ -224,7 +224,6 @@
 "search.empty" = "Подходящих отрывков нет";
 "search.empty.detail" = "Попробуйте описать мысль другими словами или задать более конкретный вопрос.";
 "search.results" = "Найдено: %d";
-"search.open" = "Открыть отрывок";
 "search.back" = "К результатам поиска";
 "search.privacy.title" = "Поиск с помощью ИИ";
 "search.privacy.body" = "Чтобы найти отрывки, мы передадим текст запроса через Bible API сервисам обработки ИИ. Не добавляйте в запрос личные данные.\n\nBible API не сохраняет текст запроса. Недавние запросы хранятся только на этом устройстве. Разрешение можно отозвать здесь в любой момент — это удалит и их.";
@@ -234,10 +233,14 @@
 "search.privacy.allow" = "Разрешить обработку запроса";
 "search.privacy.decline" = "Пока не использовать";
 "search.privacy.revoke" = "Отозвать разрешение";
-"search.context.show" = "Показать контекст";
+"search.context.show" = "Показать контекст: %@";
 "search.cancel" = "Отменить";
 "search.recent" = "Недавние";
 "search.recent.clear" = "Очистить";
 "search.share" = "Поделиться";
 "search.copy" = "Скопировать стихи";
+"search.listen" = "Слушать";
+"search.read_chapter" = "Читать главу";
+"search.translations" = "В нескольких переводах";
+"search.actions" = "Действия";
 "search.context.hide" = "Скрыть контекст";

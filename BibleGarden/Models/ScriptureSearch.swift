@@ -243,7 +243,29 @@ final class ScriptureSearchModel: ObservableObject {
         UserDefaults.standard.set(recentQueries, forKey: Self.recentQueriesKey)
     }
 
-    func open(_ hit: ScriptureSearchHit, settings: SettingsManager) {
+    enum Destination {
+        /// The classic reader plays the found passage at once.
+        case listen
+        /// The classic reader shows the whole chapter of the passage.
+        case chapter
+        /// Multilingual reading of the passage; its setup opens first when no reading step exists.
+        case translations
+    }
+
+    func open(_ hit: ScriptureSearchHit, in destination: Destination, settings: SettingsManager) {
+        let chapter = hit.passage.chapter_number
+        settings.currentBookId = hit.passage.book_number
+        settings.currentChapterId = chapter
+        settings.currentExcerptTitle = hit.book.name
+
+        if destination == .translations {
+            settings.currentExcerpt = hit.excerpt
+            settings.currentExcerptSubtitle = "\(chapter):\(hit.passage.verse_start)–\(hit.passage.verse_end)"
+            let configured = settings.multilingualSteps.contains { $0.type == .read }
+            settings.selectedMenuItem = configured ? .multilingualRead : .multilingual
+            return
+        }
+
         guard let selected = translations.first(where: { $0.code == hit.passage.translation }) else {
             phase = .failed("search.error.translation")
             return
@@ -257,12 +279,15 @@ final class ScriptureSearchModel: ObservableObject {
         settings.voiceName = voice?.name ?? ""
         settings.voiceMusic = voice?.is_music ?? false
         settings.clearBooksCache()
-        settings.currentExcerpt = hit.excerpt
-        settings.currentBookId = hit.passage.book_number
-        settings.currentChapterId = hit.passage.chapter_number
-        settings.currentExcerptTitle = hit.book.name
-        settings.currentExcerptSubtitle = "\(hit.passage.chapter_number):\(hit.passage.verse_start)–\(hit.passage.verse_end)"
+        if destination == .chapter {
+            settings.currentExcerpt = "\(hit.book.alias) \(chapter)"
+            settings.currentExcerptSubtitle = "page.read.chapter_subtitle".localized(String(chapter))
+        } else {
+            settings.currentExcerpt = hit.excerpt
+            settings.currentExcerptSubtitle = "\(chapter):\(hit.passage.verse_start)–\(hit.passage.verse_end)"
+        }
         settings.readingFromSearch = true
+        settings.playOnOpen = destination == .listen
         settings.selectedMenuItem = .read
     }
 }

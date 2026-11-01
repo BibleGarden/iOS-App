@@ -223,7 +223,6 @@
 "search.empty" = "Відповідних уривків немає";
 "search.empty.detail" = "Спробуйте описати думку іншими словами або поставити конкретніше запитання.";
 "search.results" = "Знайдено: %d";
-"search.open" = "Відкрити уривок";
 "search.back" = "До результатів пошуку";
 "search.privacy.title" = "Пошук за допомогою ШІ";
 "search.privacy.body" = "Щоб знайти уривки, ми передамо текст запиту через Bible API сервісам обробки ШІ. Не додавайте до запиту особисті дані.\n\nBible API не зберігає текст запиту. Нещодавні запити зберігаються лише на цьому пристрої. Дозвіл можна відкликати тут у будь-який момент — це видалить і їх.";
@@ -233,10 +232,14 @@
 "search.privacy.allow" = "Дозволити обробку запиту";
 "search.privacy.decline" = "Поки не використовувати";
 "search.privacy.revoke" = "Відкликати дозвіл";
-"search.context.show" = "Показати контекст";
+"search.context.show" = "Показати контекст: %@";
 "search.cancel" = "Скасувати";
 "search.recent" = "Нещодавні";
 "search.recent.clear" = "Очистити";
 "search.share" = "Поділитися";
 "search.copy" = "Скопіювати вірші";
+"search.listen" = "Слухати";
+"search.read_chapter" = "Читати розділ";
+"search.translations" = "У кількох перекладах";
+"search.actions" = "Дії";
 "search.context.hide" = "Приховати контекст";

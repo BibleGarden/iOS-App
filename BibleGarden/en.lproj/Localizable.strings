@@ -224,7 +224,6 @@
 "search.empty" = "No matching passages";
 "search.empty.detail" = "Try describing your thought differently or asking a more specific question.";
 "search.results" = "Found: %d";
-"search.open" = "Open passage";
 "search.back" = "Back to search results";
 "search.privacy.title" = "Search with AI";
 "search.privacy.body" = "To find passages, we send your query through Bible API to AI processing services. Please keep personal information out of your query.\n\nBible API does not store the query text. Your recent queries are kept only on this device. You can withdraw permission here at any time; this also deletes them.";
@@ -234,10 +233,14 @@
 "search.privacy.allow" = "Allow query processing";
 "search.privacy.decline" = "Not now";
 "search.privacy.revoke" = "Withdraw permission";
-"search.context.show" = "Show context";
+"search.context.show" = "Show context: %@";
 "search.cancel" = "Cancel";
 "search.recent" = "Recent";
 "search.recent.clear" = "Clear";
 "search.share" = "Share";
 "search.copy" = "Copy verses";
+"search.listen" = "Listen";
+"search.read_chapter" = "Read the chapter";
+"search.translations" = "In several translations";
+"search.actions" = "Actions";
 "search.context.hide" = "Hide context";

@@ -64,6 +64,8 @@ class SettingsManager: ObservableObject {
     @Published var showMenu: Bool = false
     @Published var selectedMenuItem: MenuItem = .main
     @Published var readingFromSearch = false
+    /// One-shot request of search: the reader starts playback as soon as the passage is loaded.
+    var playOnOpen = false
     
     @AppStorage("fontIncreasePercent") var fontIncreasePercent: Double = 100.0
     
