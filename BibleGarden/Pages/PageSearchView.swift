@@ -76,7 +76,7 @@ struct PageSearchView: View {
                         .focused($queryFocused)
                         .onSubmit { requestSearch() }
                         .accessibilityIdentifier("search-query")
-                    if !model.query.isEmpty {
+                    if model.answersCurrentQuery {
                         Button { model.reset() } label: {
                             Image(systemName: "xmark.circle.fill").foregroundColor(.white.opacity(0.45))
                         }
@@ -101,7 +101,8 @@ struct PageSearchView: View {
     }
 
     /// The search runs from the keyboard or from this button inside the field.
-    /// It appears only while there is something new to search for.
+    /// It appears only while there is something new to search for; once the results
+    /// answer the query, the clear button takes its place.
     private var submitControl: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let wait = max(0, Int(ceil((model.retryAfter ?? context.date).timeIntervalSince(context.date))))
