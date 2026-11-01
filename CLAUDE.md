@@ -118,10 +118,12 @@ empty results and service failures have separate states.
 Reading links use `passage` coordinates and the book alias from the selected
 translation's book catalogue, preserving Psalm numbering. The existing reader
 handles the resulting verse range, playback and missing audio. Responses remain
-in memory and are not logged or persisted. The last five submitted queries are
-kept on the device only (`UserDefaults` key `searchRecentQueries`) and shown on
-the empty search screen instead of the example queries; tapping one searches again. Clearing the field returns
-to that screen. Withdrawing consent deletes the history.
+in memory and are not logged or persisted. Submitted queries are kept on the
+device only (`UserDefaults` key `searchRecentQueries`, JSON with dates): every
+query from today and yesterday stays, older ones only fill the list up to five.
+The history replaces the example queries on the empty search screen; tapping a
+query searches again. Clearing the field returns to that screen. Withdrawing
+consent deletes the history.
 
 The first search asks for versioned AI-processing consent; the information
 button allows withdrawal. Debug consent identifies the test processors

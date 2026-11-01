@@ -64,9 +64,18 @@ final class ScriptureSearchModel: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var catalogError = false
     @Published private(set) var retryAfter: Date?
-    @Published private(set) var recentQueries = UserDefaults.standard.stringArray(forKey: recentQueriesKey) ?? []
+    /// Submitted queries, newest first, kept on this device only.
+    @Published private var recentEntries = ScriptureSearchModel.pruned(ScriptureSearchModel.loadRecentEntries())
+    var recentQueries: [String] { recentEntries.map(\.text) }
+
+    private struct RecentQuery: Codable {
+        let text: String
+        let date: Date
+    }
 
     private static let recentQueriesKey = "searchRecentQueries"
+    /// Older queries are kept only while fewer than this many remain.
+    private static let recentMinimum = 5
 
     private var task: Task<Void, Never>?
     private var requestID = UUID()
@@ -232,14 +241,32 @@ final class ScriptureSearchModel: ObservableObject {
     }
 
     func clearRecentQueries() {
-        recentQueries = []
+        recentEntries = []
         UserDefaults.standard.removeObject(forKey: Self.recentQueriesKey)
     }
 
     private func remember(_ text: String) {
-        let others = recentQueries.filter { $0.caseInsensitiveCompare(text) != .orderedSame }
-        recentQueries = Array(([text] + others).prefix(5))
-        UserDefaults.standard.set(recentQueries, forKey: Self.recentQueriesKey)
+        let others = recentEntries.filter { $0.text.caseInsensitiveCompare(text) != .orderedSame }
+        recentEntries = Self.pruned([RecentQuery(text: text, date: Date())] + others)
+        UserDefaults.standard.set(try! JSONEncoder().encode(recentEntries), forKey: Self.recentQueriesKey)
+    }
+
+    private static func loadRecentEntries() -> [RecentQuery] {
+        guard let data = UserDefaults.standard.data(forKey: recentQueriesKey) else { return [] }
+        do {
+            return try JSONDecoder().decode([RecentQuery].self, from: data)
+        } catch {
+            assertionFailure("Unreadable search history: \(error)")
+            return []
+        }
+    }
+
+    /// Every query from today and yesterday stays; older ones only fill the list up to `recentMinimum`.
+    private static func pruned(_ entries: [RecentQuery]) -> [RecentQuery] {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        let fresh = entries.prefix { $0.date >= yesterday }.count
+        return Array(entries.prefix(max(fresh, recentMinimum)))
     }
 
     enum Destination {
