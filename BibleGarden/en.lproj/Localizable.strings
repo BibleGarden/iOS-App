@@ -233,7 +233,7 @@
 "search.privacy.allow" = "Allow query processing";
 "search.privacy.decline" = "Not now";
 "search.privacy.revoke" = "Withdraw permission";
-"search.context.show" = "Show context: %@";
+"search.context.show" = "Show context";
 "search.cancel" = "Cancel";
 "search.recent" = "Recent";
 "search.recent.clear" = "Clear";

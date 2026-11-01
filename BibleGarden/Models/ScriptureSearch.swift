@@ -11,7 +11,6 @@ struct ScriptureSearchHit: Identifiable {
     var highlight: Components.Schemas.HighlightPassage { result.highlight.passage }
     var verses: [Components.Schemas.VerseModel] { passage.verses ?? [] }
     var keyVerses: [Components.Schemas.VerseModel] { verses.filter { isHighlighted($0.number) } }
-    var reference: String { reference(from: passage.verse_start, to: passage.verse_end) }
     var keyReference: String { reference(from: highlight.verse_start, to: highlight.verse_end) }
 
     private func reference(from: Int, to: Int) -> String {

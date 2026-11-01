@@ -375,18 +375,18 @@ private struct SearchResultCard: View {
 
     @ViewBuilder private var actions: some View {
         Button { open(.listen) } label: {
-            Label("search.listen".localized, systemImage: "play.fill")
+            Label("search.listen".localized, systemImage: "headphones")
         }
         Button { open(.chapter) } label: {
             Label("search.read_chapter".localized, systemImage: "book")
         }
         Button { open(.translations) } label: {
-            Label("menu.multilingual".localized, systemImage: "translate")
+            Label("menu.multilingual".localized, systemImage: "rectangle.stack")
         }
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
         } label: {
-            Label((expanded ? "search.context.hide" : "search.context.show").localized(hit.reference),
+            Label((expanded ? "search.context.hide" : "search.context.show").localized,
                   systemImage: expanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
         }
         .accessibilityIdentifier("search-context-\(hit.id)")

@@ -233,7 +233,7 @@
 "search.privacy.allow" = "Разрешить обработку запроса";
 "search.privacy.decline" = "Пока не использовать";
 "search.privacy.revoke" = "Отозвать разрешение";
-"search.context.show" = "Показать контекст: %@";
+"search.context.show" = "Показать контекст";
 "search.cancel" = "Отменить";
 "search.recent" = "Недавние";
 "search.recent.clear" = "Очистить";

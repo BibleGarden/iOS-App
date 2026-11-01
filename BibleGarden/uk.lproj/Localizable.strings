@@ -232,7 +232,7 @@
 "search.privacy.allow" = "Дозволити обробку запиту";
 "search.privacy.decline" = "Поки не використовувати";
 "search.privacy.revoke" = "Відкликати дозвіл";
-"search.context.show" = "Показати контекст: %@";
+"search.context.show" = "Показати контекст";
 "search.cancel" = "Скасувати";
 "search.recent" = "Нещодавні";
 "search.recent.clear" = "Очистити";
