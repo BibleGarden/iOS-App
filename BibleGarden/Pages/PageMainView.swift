@@ -124,7 +124,7 @@ struct PageMainView: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                            .frame(height: 34)
                             .background(alignment: .leading) {
                                 GeometryReader { geometry in
                                     // A small share still shows as a sliver at the start.
