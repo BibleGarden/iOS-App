@@ -83,8 +83,10 @@ struct PageSearchView: View {
                         .accessibilityLabel("search.clear".localized)
                         .accessibilityIdentifier("search-clear")
                     }
+                    submitControl
                 }
-                .padding(16)
+                .frame(minHeight: 32)
+                .padding(.leading, 16).padding(.trailing, 10).padding(.vertical, 11)
                 .background(Color("DarkGreen-light"))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(queryFocused ? 0.45 : 0.12)))
@@ -94,28 +96,30 @@ struct PageSearchView: View {
                 if model.trimmedQuery.count > 500 {
                     Text("search.too_long".localized).font(.caption).foregroundColor(Color("Mustard"))
                 }
+            }
+        }
+    }
 
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let wait = max(0, Int(ceil((model.retryAfter ?? context.date).timeIntervalSince(context.date))))
-                    let enabled = canSubmit && wait == 0
-                    let primary = enabled && !model.answersCurrentQuery
-                    Button(action: requestSearch) {
-                        HStack(spacing: 9) {
-                            if model.isLoading { ProgressView().tint(.white.opacity(0.6)) }
-                            Text(wait > 0 ? "search.wait".localized(wait) : "search.action".localized)
-                                .font(.headline)
-                            if !model.isLoading && wait == 0 { Image(systemName: "arrow.right") }
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .foregroundColor(primary ? Color("DarkGreen") : .white.opacity(enabled ? 0.8 : 0.5))
-                        .background(primary ? Color("Mustard") : .white.opacity(0.07))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(primary ? .clear : .white.opacity(enabled ? 0.2 : 0.1)))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!enabled)
-                    .accessibilityIdentifier("search-submit")
+    /// The search runs from the keyboard or from this button inside the field.
+    /// It appears only while there is something new to search for.
+    private var submitControl: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let wait = max(0, Int(ceil((model.retryAfter ?? context.date).timeIntervalSince(context.date))))
+            if model.isLoading {
+                ProgressView().tint(.white.opacity(0.6)).frame(width: 32, height: 32)
+            } else if wait > 0 {
+                Text("\(wait)").font(.footnote.weight(.semibold).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.6))
+                    .frame(width: 32, height: 32).background(Circle().fill(.white.opacity(0.08)))
+                    .accessibilityLabel("search.wait".localized(wait))
+            } else if canSubmit && !model.answersCurrentQuery {
+                Button(action: requestSearch) {
+                    Image(systemName: "arrow.right").font(.subheadline.weight(.bold))
+                        .foregroundColor(Color("DarkGreen"))
+                        .frame(width: 32, height: 32).background(Circle().fill(Color("Mustard")))
                 }
+                .accessibilityLabel("search.action".localized)
+                .accessibilityIdentifier("search-submit")
             }
         }
     }

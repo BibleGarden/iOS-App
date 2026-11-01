@@ -109,8 +109,10 @@ All API calls go through the generated OpenAPI client on `SettingsManager.client
 when a passage is opened and the user returns. Search uses the generated
 `search_scripture` operation (`POST /api/ai/scripture/search`) with the selected
 language/translation and a limit of five. Its separate transport has a 45-second
-timeout. Requests are submitted explicitly, cancelled on departure or query
-changes, and never retried automatically. A 429 response uses `Retry-After`;
+timeout. Requests are submitted explicitly — from the keyboard or the round
+button inside the field, shown only while the field holds a query the results do
+not already answer — cancelled on departure or query changes, and never retried
+automatically. A 429 response uses `Retry-After`;
 empty results and service failures have separate states.
 
 Reading links use `passage` coordinates and the book alias from the selected
