@@ -160,7 +160,7 @@ final class ScriptureSearchModel: ObservableObject {
         task = Task {
             do {
                 let response = try await client.search_scripture(body: .json(.init(
-                    query: text, language: searchLanguage, translation: requestedTranslation, limit: 5
+                    query: text, language: searchLanguage, translation: requestedTranslation, limit: 10
                 )))
                 try Task.checkCancellation()
                 guard requestID == id else { return }

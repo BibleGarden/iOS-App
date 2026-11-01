@@ -108,7 +108,7 @@ All API calls go through the generated OpenAPI client on `SettingsManager.client
 `ScriptureSearchModel` lives in `SkeletonView`, preserving the query and results
 when a passage is opened and the user returns. Search uses the generated
 `search_scripture` operation (`POST /api/ai/scripture/search`) with the selected
-language/translation and a limit of five. Its separate transport has a 45-second
+language/translation and the API maximum limit of ten. Its separate transport has a 45-second
 timeout. Requests are submitted explicitly — from the keyboard or the round
 button inside the field, shown only while the field holds a query the results do
 not already answer — cancelled on departure or query changes, and never retried
