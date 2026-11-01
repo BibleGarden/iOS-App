@@ -1694,32 +1694,30 @@ struct PageMultilingualReadView: View {
                             for i in startIdx...endIdx {
                                 let verse = verses[i]
                                 let uniqueId = stepIdx * 10000 + verse.number
+                                // Outside the key verses of a search result: the verse and its headings are dimmed.
+                                let isContext = keyVerses.map { !(verse.number...(verse.number + verse.join)).overlaps($0) } ?? false
+                                let contextClass = isContext ? " context-verse" : ""
                                 
                                 // Display headers (titles/subtitles)
                                 let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
                                 for title in regularTitles {
-                                    htmlString += "<p class=\"title\">\(title.text)</p>"
+                                    htmlString += "<p class=\"title\(contextClass)\">\(title.text)</p>"
                                     if let reference = title.reference, !reference.isEmpty {
-                                        htmlString += "<p class=\"reference\">\(reference)</p>"
+                                        htmlString += "<p class=\"reference\(contextClass)\">\(reference)</p>"
                                     }
                                 }
 
                                 // Subtitles at start
                                 let startSubtitles = verse.beforeTitles.filter { $0.subtitle && ($0.positionHtml ?? 0) == 0 }
                                 for sub in startSubtitles {
-                                    htmlString += "<p class=\"subtitle\">\(sub.text)</p>"
+                                    htmlString += "<p class=\"subtitle\(contextClass)\">\(sub.text)</p>"
                                 }
                                 
-                                var classes = "verse-block"
-                                if let keyVerses {
-                                    if !(verse.number...(verse.number + verse.join)).overlaps(keyVerses) {
-                                        classes += " context-verse"
-                                    } else if firstKeyVerseID == nil {
-                                        firstKeyVerseID = "verse-\(uniqueId)"
-                                    }
+                                if !isContext && keyVerses != nil && firstKeyVerseID == nil {
+                                    firstKeyVerseID = "verse-\(uniqueId)"
                                 }
                                 htmlString += """
-                                <div id="verse-\(uniqueId)" class="\(classes)" style="font-size: \(fontSize)px;">
+                                <div id="verse-\(uniqueId)" class="verse-block\(contextClass)" style="font-size: \(fontSize)px;">
                                     <span class="verse-number">\(verse.number).</span>
                                     <span>\(verse.html)</span>
                                 </div>

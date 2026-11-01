@@ -239,6 +239,10 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
 
     var firstKeyVerseID: String?
     for verse in verses {
+        // Outside the key verses of a search result: the verse and its headings are dimmed.
+        let isContext = keyVerses.map { !(verse.number...(verse.number + verse.join)).overlaps($0) } ?? false
+        let contextClass = isContext ? " context-verse" : ""
+
         // Separate regular titles and subtitles
         let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
         // Subtitles with position 0 go before the verse text
@@ -264,13 +268,13 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
 
             htmlString += """
                 <div id="top"></div>
-                <p id="title-\(title.id)" class="title">\(titleHTML)</p>
+                <p id="title-\(title.id)" class="title\(contextClass)">\(titleHTML)</p>
             """
 
             // reference
             if let reference = title.reference, !reference.isEmpty {
                 htmlString += """
-                    <p class="reference">\(reference)</p>
+                    <p class="reference\(contextClass)">\(reference)</p>
                 """
             }
 
@@ -293,7 +297,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
                 }
 
                 htmlString += """
-                    <p class="subtitle">\(metadataHTML)</p>
+                    <p class="subtitle\(contextClass)">\(metadataHTML)</p>
                 """
             }
         }
@@ -312,7 +316,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
                 }
             }
             htmlString += """
-                <span class="subtitle">\(subtitleHTML)</span>
+                <span class="subtitle\(contextClass)">\(subtitleHTML)</span>
             """
         }
 
@@ -361,12 +365,10 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
         let id_info = verse.join > 0 ? "\(verse.number)-\(verse.number+verse.join)" : "\(verse.number)"
 
         var classes = verse.html.contains("class=\"quote\"") ? ["quote-container"] : []
-        if let keyVerses {
-            if !(verse.number...(verse.number + verse.join)).overlaps(keyVerses) {
-                classes.append("context-verse")
-            } else if firstKeyVerseID == nil {
-                firstKeyVerseID = "verse-\(verse.number)"
-            }
+        if isContext {
+            classes.append("context-verse")
+        } else if keyVerses != nil && firstKeyVerseID == nil {
+            firstKeyVerseID = "verse-\(verse.number)"
         }
         if verse.startParagraph {
             htmlString += "<p>"
