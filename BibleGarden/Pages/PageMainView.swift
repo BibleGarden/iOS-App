@@ -120,32 +120,20 @@ struct PageMainView: View {
                             settingsManager.selectedMenuItem = .progress
                         }
                     } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "chart.bar.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(Color("Mustard"))
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 7) {
-                                Text("page.main.progress_read".localized(String(format: "%.1f%%", share * 100)))
-                                    .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.85))
+                        Text("page.main.progress_read".localized(String(format: "%.1f%%", share * 100)))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(alignment: .leading) {
                                 GeometryReader { geometry in
-                                    Capsule().fill(Color.white.opacity(0.15))
-                                        .overlay(alignment: .leading) {
-                                            // A small share still shows as a dot.
-                                            Capsule().fill(Color("Mustard"))
-                                                .frame(width: max(geometry.size.width * share, 4))
-                                        }
+                                    // A small share still shows as a sliver at the start.
+                                    Rectangle().fill(Color("Mustard").opacity(0.45))
+                                        .frame(width: max(geometry.size.width * share, 6))
                                 }
-                                .frame(height: 4)
                             }
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .padding(.horizontal, 16)
-                        .frame(height: 56)
-                        .mainPillBackground()
+                            .clipShape(Capsule())
+                            .mainPillBackground()
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("card-progress")
