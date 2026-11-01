@@ -41,7 +41,7 @@ struct PageMainView: View {
                         MainMenuCard(
                             title: "page.main.multilingual.title".localized,
                             subtitle: "page.main.multilingual.subtitle".localized,
-                            icon: "translate",
+                            icon: Image(systemName: "translate"),
                             color: Color("ForestGreen")
                         ) {
                             withAnimation(.easeInOut(duration: 0.25)) {
@@ -53,7 +53,7 @@ struct PageMainView: View {
                         MainMenuCard(
                             title: "page.main.classic.title".localized,
                             subtitle: "page.main.classic.subtitle".localized,
-                            icon: "book.fill",
+                            icon: Image(systemName: "book.fill"),
                             color: Color("ForestGreen")
                         ) {
                             withAnimation(.easeInOut(duration: 0.25)) {
@@ -65,7 +65,7 @@ struct PageMainView: View {
                         MainMenuCard(
                             title: "search.title".localized,
                             subtitle: "search.main.subtitle".localized,
-                            icon: ScriptureSearchModel.featureIcon,
+                            icon: SmartSearchIcon(size: 20),
                             color: Color("ForestGreen")
                         ) {
                             withAnimation(.easeInOut(duration: 0.25)) {
@@ -189,10 +189,10 @@ struct TestPageMainView: View {
     }
 }
 
-struct MainMenuCard: View {
+struct MainMenuCard<Icon: View>: View {
     let title: String
     let subtitle: String
-    let icon: String // SF Symbol name
+    let icon: Icon
     let color: Color
     let action: () -> Void
     
@@ -205,7 +205,7 @@ struct MainMenuCard: View {
                         .fill(Color.white.opacity(0.1))
                         .frame(width: 44, height: 44)
                     
-                    Image(systemName: icon)
+                    icon
                         .font(.system(size: 20))
                         .foregroundColor(Color("Mustard"))
                 }

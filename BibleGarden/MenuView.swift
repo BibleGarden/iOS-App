@@ -121,8 +121,7 @@ struct MenuView: View {
                         selectItem(.search)
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: ScriptureSearchModel.featureIcon)
-                                .font(.system(size: 14, weight: .semibold))
+                            SmartSearchIcon(size: 14, weight: .semibold)
                             Text("search.title".localized)
                                 .font(.headline).fontWeight(.bold)
                         }

@@ -9,6 +9,25 @@ struct HeaderPlaceholder: View {
     }
 }
 
+/// Icon of Smart Bible Search: the search magnifier with a small sparkle outside its lens.
+struct SmartSearchIcon: View {
+    let size: CGFloat
+    var weight: Font.Weight = .regular
+
+    var body: some View {
+        Image(systemName: "magnifyingglass")
+            .font(.system(size: size, weight: weight))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: size * 0.5, weight: .bold))
+                    .offset(x: size * 0.3, y: -size * 0.3)
+            }
+            // Centres the pair: the sparkle sticks out to the top right of the magnifier.
+            .offset(x: -size * 0.15, y: size * 0.15)
+            .accessibilityHidden(true)
+    }
+}
+
 struct CloseHeaderButton: View {
     let action: () -> Void
     var foregroundColor: Color = .white.opacity(0.7)
