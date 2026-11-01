@@ -1,9 +1,11 @@
 /* Menu Items */
-"menu.main" = "Main";
+"menu.main" = "Home";
 "menu.continue_reading" = "Continue Reading";
 "menu.classic_reading" = "Classic Reading";
 "menu.select" = "Select";
 "menu.select.subtitle" = "Choose a book and chapter of the Bible";
+"menu.search" = "Smart Search";
+"menu.search.subtitle" = "By meaning, topic or event";
 "menu.progress" = "Progress";
 "menu.progress.subtitle" = "Reading progress management";
 "menu.settings" = "Settings";

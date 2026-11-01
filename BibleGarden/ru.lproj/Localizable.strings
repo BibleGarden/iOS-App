@@ -4,6 +4,8 @@
 "menu.classic_reading" = "Обычное чтение";
 "menu.select" = "Выбрать";
 "menu.select.subtitle" = "Выберите книгу и главу Библии";
+"menu.search" = "Умный поиск";
+"menu.search.subtitle" = "По смыслу, теме или событию";
 "menu.progress" = "Прогресс";
 "menu.progress.subtitle" = "Управление прогрессом чтения";
 "menu.settings" = "Настройки";

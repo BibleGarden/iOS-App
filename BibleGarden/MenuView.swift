@@ -120,10 +120,18 @@ struct MenuView: View {
                     Button {
                         selectItem(.search)
                     } label: {
-                        HStack(spacing: 10) {
+                        HStack(alignment: .top, spacing: 10) {
                             SmartSearchIcon(size: 14, weight: .semibold)
-                            Text("search.title".localized)
-                                .font(.headline).fontWeight(.bold)
+                                .padding(.top, 2)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("menu.search".localized)
+                                    .font(.system(.headline))
+                                    .fontWeight(.bold)
+                                Text("menu.search.subtitle".localized)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(colorFor(.search).opacity(0.5))
+                                    .lineLimit(1)
+                            }
                         }
                         .foregroundColor(colorFor(.search))
                     }

@@ -4,6 +4,8 @@
 "menu.classic_reading" = "Звичайне читання";
 "menu.select" = "Вибрати";
 "menu.select.subtitle" = "Виберіть книгу та розділ Біблії";
+"menu.search" = "Розумний пошук";
+"menu.search.subtitle" = "За змістом, темою чи подією";
 "menu.progress" = "Прогрес";
 "menu.progress.subtitle" = "Управління прогресом читання";
 "menu.settings" = "Налаштування";
