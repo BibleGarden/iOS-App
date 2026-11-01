@@ -98,7 +98,9 @@ struct PageMainView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
-            .background(Capsule().fill(Color.black.opacity(0.35)))
+            // Darker than the cards, but dense enough to hide the forest behind the text.
+            .background(Capsule().fill(Color.black.opacity(0.4)))
+            .background(Capsule().fill(Color("DarkGreen").opacity(0.7)))
             .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
         }
         .buttonStyle(.plain)
