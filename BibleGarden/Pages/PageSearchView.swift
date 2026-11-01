@@ -68,7 +68,7 @@ struct PageSearchView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundColor(Color("Mustard"))
+                    Image(systemName: "magnifyingglass").foregroundColor(.white.opacity(0.5))
                     TextField("", text: $model.query, prompt: Text("search.placeholder".localized).foregroundColor(.white.opacity(0.45)))
                         .foregroundColor(.white)
                         .font(.body)
@@ -98,6 +98,7 @@ struct PageSearchView: View {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let wait = max(0, Int(ceil((model.retryAfter ?? context.date).timeIntervalSince(context.date))))
                     let enabled = canSubmit && wait == 0
+                    let primary = enabled && !model.answersCurrentQuery
                     Button(action: requestSearch) {
                         HStack(spacing: 9) {
                             if model.isLoading { ProgressView().tint(.white.opacity(0.6)) }
@@ -106,10 +107,10 @@ struct PageSearchView: View {
                             if !model.isLoading && wait == 0 { Image(systemName: "arrow.right") }
                         }
                         .frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .foregroundColor(enabled ? Color("DarkGreen") : .white.opacity(0.5))
-                        .background(enabled ? Color("Mustard") : .white.opacity(0.07))
+                        .foregroundColor(primary ? Color("DarkGreen") : .white.opacity(enabled ? 0.8 : 0.5))
+                        .background(primary ? Color("Mustard") : .white.opacity(0.07))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(enabled ? .clear : .white.opacity(0.1)))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(primary ? .clear : .white.opacity(enabled ? 0.2 : 0.1)))
                     }
                     .buttonStyle(.plain)
                     .disabled(!enabled)
@@ -343,7 +344,7 @@ private struct SearchResultCard: View {
                     }
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
-                        .foregroundColor(Color("Mustard"))
+                        .foregroundColor(.white.opacity(0.45))
                 }
                 .contentShape(Rectangle())
             }
@@ -353,7 +354,7 @@ private struct SearchResultCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(expanded ? hit.verses : hit.keyVerses, id: \.number) { verse in
                     (Text("\(verse.number) ").font(.system(size: 12, design: .serif))
-                        .foregroundColor(Color("Mustard").opacity(hit.isHighlighted(verse.number) ? 1 : 0.5))
+                        .foregroundColor(.white.opacity(hit.isHighlighted(verse.number) ? 0.5 : 0.3))
                      + Text(verse.text)
                         .font(.system(size: 17, weight: hit.isHighlighted(verse.number) ? .medium : .regular, design: .serif))
                         .foregroundColor(.white.opacity(hit.isHighlighted(verse.number) ? 0.95 : 0.5)))

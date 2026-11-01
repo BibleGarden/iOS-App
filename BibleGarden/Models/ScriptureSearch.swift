@@ -61,6 +61,7 @@ final class ScriptureSearchModel: ObservableObject {
     @Published private(set) var translationName = ""
     @Published private(set) var translations: [Components.Schemas.TranslationModel] = []
     @Published private(set) var hits: [ScriptureSearchHit] = []
+    @Published private(set) var submittedQuery = ""
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var catalogError = false
     @Published private(set) var retryAfter: Date?
@@ -89,6 +90,12 @@ final class ScriptureSearchModel: ObservableObject {
     }
 
     var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// The visible results (or empty state) already answer the query in the field.
+    var answersCurrentQuery: Bool {
+        if case .loaded = phase { return trimmedQuery == submittedQuery }
+        return false
+    }
 
     func configure(settings: SettingsManager) async {
         if language.isEmpty {
@@ -147,6 +154,7 @@ final class ScriptureSearchModel: ObservableObject {
         let id = requestID
         let text = trimmedQuery
         let requestedTranslation = translation
+        submittedQuery = text
         remember(text)
         hits = []
         phase = .loading
