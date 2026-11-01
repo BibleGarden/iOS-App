@@ -127,7 +127,7 @@ struct PageMainView: View {
                             .font(.subheadline)
                             .foregroundColor(.white.opacity(0.82))
                             .frame(maxWidth: .infinity)
-                            .frame(height: 34)
+                            .frame(height: 30)
                             .overlay(alignment: .trailing) {
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
@@ -143,8 +143,8 @@ struct PageMainView: View {
                             }
                             // The shape and background of the reading cards above.
                             .background(Color("DarkGreen").opacity(0.72))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.16), lineWidth: 1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.16), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("card-progress")
