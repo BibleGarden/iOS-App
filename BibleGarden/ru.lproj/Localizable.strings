@@ -197,7 +197,6 @@
 /* Scripture Search */
 "search.title" = "Умный поиск по Библии";
 "search.main.subtitle" = "Находите отрывки по смыслу, темам и событиям";
-"search.heading" = "Найдите нужный отрывок";
 "search.subtitle" = "Опишите мысль, задайте вопрос или напишите слова, которые помните.";
 "search.placeholder" = "Что вы хотите найти?";
 "search.action" = "Найти отрывки";

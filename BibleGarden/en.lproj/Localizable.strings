@@ -197,7 +197,6 @@
 /* Scripture Search */
 "search.title" = "Smart Bible Search";
 "search.main.subtitle" = "Find passages by meaning, topic or event";
-"search.heading" = "Find the words you need";
 "search.subtitle" = "Describe a thought, ask a question or enter the words you remember.";
 "search.placeholder" = "What would you like to find?";
 "search.action" = "Find passages";

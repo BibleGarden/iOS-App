@@ -44,7 +44,7 @@ struct PageSearchView: View {
                     searchContent
                 }
                 .padding(.horizontal, globalBasePadding)
-                .padding(.top, 26)
+                .padding(.top, 16)
                 .padding(.bottom, 32)
             }
         }
@@ -56,15 +56,9 @@ struct PageSearchView: View {
 
     private var searchForm: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 9) {
-                Text("search.heading".localized)
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("search.subtitle".localized)
-                    .font(.subheadline).foregroundColor(.white.opacity(0.65))
-                    .lineSpacing(4)
-            }
+            Text("search.subtitle".localized)
+                .font(.subheadline).foregroundColor(.white.opacity(0.65))
+                .lineSpacing(4)
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
