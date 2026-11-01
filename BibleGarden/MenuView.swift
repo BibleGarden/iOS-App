@@ -484,6 +484,31 @@ struct MenuButtonView: View {
     }
 }
 
+/// Leading header control of the readers: back to the search results when
+/// the reading was opened from search, the side menu otherwise.
+struct ReaderLeadingButton: View {
+
+    @EnvironmentObject var settingsManager: SettingsManager
+
+    var body: some View {
+        if settingsManager.readingFromSearch {
+            Button {
+                settingsManager.readingFromSearch = false
+                settingsManager.selectedMenuItem = .search
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 25, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
+            }
+            .accessibilityLabel("search.back".localized)
+            .accessibilityIdentifier("read-back-search")
+        } else {
+            MenuButtonView()
+        }
+    }
+}
+
 // MARK: - BlurView
 struct BlurView: UIViewRepresentable {
 

@@ -83,21 +83,8 @@ struct PageReadView: View {
 
                     // MARK: Header
                     AppHeaderBar {
-                        if settingsManager.readingFromSearch {
-                            Button {
-                                settingsManager.readingFromSearch = false
-                                settingsManager.selectedMenuItem = .search
-                            } label: {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 25, weight: .medium))
-                                    .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
-                            }
-                            .accessibilityLabel("search.back".localized)
-                            .accessibilityIdentifier("read-back-search")
-                        } else {
-                            MenuButtonView()
-                                .environmentObject(settingsManager)
-                        }
+                        ReaderLeadingButton()
+                            .environmentObject(settingsManager)
                     } center: {
                         Button {
                             withAnimation(Animation.easeInOut(duration: 1)) {

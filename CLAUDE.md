@@ -135,7 +135,9 @@ card is not a link: its "…" menu (also the long-press menu) holds every action
 opens the reader on the full passage range and starts playback once the audio is
 ready (`SettingsManager.playOnOpen`, consumed by `PageReadView`). "Read the
 chapter" opens the whole chapter. "In several translations" opens multilingual
-reading of the passage, or its setup first when no reading step exists. Copy and
+reading of the passage, or its setup first when no reading step exists. Both
+readers then show `ReaderLeadingButton`, which returns to the preserved results
+instead of opening the side menu. Copy and
 share take the key verses with their reference and translation alias. While a
 request runs, placeholder cards and a cancel control replace the results.
 Automatic chapter continuation applies only when the API returns a whole chapter; a selected verse range stops at its

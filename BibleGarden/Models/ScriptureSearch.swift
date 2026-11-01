@@ -262,6 +262,7 @@ final class ScriptureSearchModel: ObservableObject {
             settings.currentExcerpt = hit.excerpt
             settings.currentExcerptSubtitle = "\(chapter):\(hit.passage.verse_start)–\(hit.passage.verse_end)"
             let configured = settings.multilingualSteps.contains { $0.type == .read }
+            settings.readingFromSearch = true
             settings.selectedMenuItem = configured ? .multilingualRead : .multilingual
             return
         }

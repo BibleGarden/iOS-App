@@ -92,7 +92,7 @@ struct PageMultilingualReadView: View {
             VStack(spacing: 0) {
                 // MARK: Header
                 AppHeaderBar {
-                    MenuButtonView()
+                    ReaderLeadingButton()
                         .environmentObject(settingsManager)
                 } center: {
                     Button {
