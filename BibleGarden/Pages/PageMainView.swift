@@ -124,10 +124,16 @@ struct PageMainView: View {
                         }
                     } label: {
                         Text("page.main.progress_read".localized(String(format: "%.1f%%", share * 100)))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.white)
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.82))
                             .frame(maxWidth: .infinity)
                             .frame(height: 34)
+                            .overlay(alignment: .trailing) {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.72))
+                                    .padding(.trailing, 16)
+                            }
                             .background(alignment: .leading) {
                                 GeometryReader { geometry in
                                     // A small share still shows as a sliver at the start.
