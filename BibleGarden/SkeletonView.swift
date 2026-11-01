@@ -85,6 +85,8 @@ class SettingsManager: ObservableObject {
         }
         return focus.verses
     }
+    /// One-shot request of the main screen: the search page opens with the keyboard up.
+    var focusSearchOnOpen = false
     /// One-shot request of search: the reader starts playback as soon as the passage is loaded.
     var playOnOpen = false
     

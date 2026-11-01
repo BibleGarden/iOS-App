@@ -50,6 +50,12 @@ struct PageSearchView: View {
         }
         .background(Color("DarkGreen").accessibilityIdentifier("page-search").ignoresSafeArea())
         .task { await model.configure(settings: settingsManager) }
+        .onAppear {
+            guard settingsManager.focusSearchOnOpen else { return }
+            settingsManager.focusSearchOnOpen = false
+            // Waits for the page transition: focus set during it is dropped.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { queryFocused = true }
+        }
         .onDisappear { model.cancel() }
         .sheet(isPresented: $showingPrivacy) { privacySheet }
     }

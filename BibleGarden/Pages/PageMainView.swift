@@ -36,7 +36,9 @@ struct PageMainView: View {
                         .minimumScaleFactor(0.75)
                         .lineLimit(1)
                         .shadow(color: Color.black.opacity(0.25), radius: 8, x: 0, y: 4)
-                    
+
+                    searchEntry
+
                     VStack(spacing: 15) {
                         MainMenuCard(
                             title: "page.main.multilingual.title".localized,
@@ -61,18 +63,6 @@ struct PageMainView: View {
                             }
                         }
                         .accessibilityIdentifier("card-classic-reading")
-
-                        MainMenuCard(
-                            title: "search.title".localized,
-                            subtitle: "search.main.subtitle".localized,
-                            icon: SmartSearchIcon(size: 20),
-                            color: Color("ForestGreen")
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                settingsManager.selectedMenuItem = .search
-                            }
-                        }
-                        .accessibilityIdentifier("card-search")
                     }
 
                     Spacer()
@@ -88,6 +78,35 @@ struct PageMainView: View {
         }
     }
     
+    /// Looks like a search field: search is a way into the Bible, not a third reading mode.
+    private var searchEntry: some View {
+        Button {
+            settingsManager.focusSearchOnOpen = true
+            withAnimation(.easeInOut(duration: 0.25)) {
+                settingsManager.selectedMenuItem = .search
+            }
+        } label: {
+            HStack(spacing: 12) {
+                SmartSearchIcon(size: 18)
+                    .foregroundColor(Color("Mustard"))
+                    .frame(width: 24)
+                Text("search.main.prompt".localized)
+                    .font(.body)
+                    .foregroundColor(.white.opacity(0.75))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+            .background(Capsule().fill(Color("DarkGreen").opacity(0.85)))
+            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("search.title".localized)
+        .accessibilityHint("search.main.prompt".localized)
+        .accessibilityIdentifier("card-search")
+    }
+
     @ViewBuilder
     func progressCardView() -> some View {
         if !settingsManager.cachedBooks.isEmpty {
