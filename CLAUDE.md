@@ -115,8 +115,11 @@ empty results and service failures have separate states.
 
 Reading links use `passage` coordinates and the book alias from the selected
 translation's book catalogue, preserving Psalm numbering. The existing reader
-handles the resulting verse range, playback and missing audio. Search queries
-and responses remain in memory and are not logged or persisted.
+handles the resulting verse range, playback and missing audio. Responses remain
+in memory and are not logged or persisted. The last five submitted queries are
+kept on the device only (`UserDefaults` key `searchRecentQueries`) and shown on
+the empty search screen; tapping one searches again. Clearing the field returns
+to that screen. Withdrawing consent deletes the history.
 
 The first search asks for versioned AI-processing consent; the information
 button allows withdrawal. Debug consent identifies the test processors
@@ -127,8 +130,11 @@ release and update the public Bible Garden privacy policy in `Site`.
 
 Search results require the API's `highlight` object and verse breakdown. Cards
 initially show the 1–3 key verses using translation-native verse numbers. The
-context control expands the full passage with surrounding verses dimmed. Opening
-the reader retains the full passage range. Automatic chapter continuation applies
+context control expands the full passage with surrounding verses dimmed. Tapping
+the card opens the reader with the full passage range. The share button and the
+card's context menu share or copy the key verses with their reference and
+translation alias. While a request runs, placeholder cards and a cancel control
+replace the results. Automatic chapter continuation applies
 only when the API returns a whole chapter; a selected verse range stops at its
 end even when the user's automatic chapter continuation setting is enabled.
 Automatic progress also requires a whole chapter; reading or listening to a

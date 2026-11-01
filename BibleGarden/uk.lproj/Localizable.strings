@@ -201,7 +201,7 @@
 "search.placeholder" = "Що ви хочете знайти?";
 "search.action" = "Знайти уривки";
 "search.clear" = "Очистити запит";
-"search.translation" = "Переклад Біблії";
+"search.translation" = "Переклад: %@";
 "search.too_long" = "Скоротіть запит до 500 символів.";
 "search.wait" = "Повторити через %d с";
 "search.examples" = "Наприклад";
@@ -222,11 +222,11 @@
 "search.error.catalog" = "Не вдалося завантажити переклади. Натисніть, щоб повторити.";
 "search.empty" = "Відповідних уривків немає";
 "search.empty.detail" = "Спробуйте описати думку іншими словами або поставити конкретніше запитання.";
-"search.results" = "Знайдено уривків: %d";
+"search.results" = "Знайдено: %d";
 "search.open" = "Відкрити уривок";
 "search.back" = "До результатів пошуку";
 "search.privacy.title" = "Пошук за допомогою ШІ";
-"search.privacy.body" = "Щоб знайти уривки, ми передамо текст запиту через Bible API сервісам обробки ШІ. Не додавайте до запиту особисті дані.\n\nBible API не зберігає текст запиту. Дозвіл можна відкликати тут у будь-який момент.";
+"search.privacy.body" = "Щоб знайти уривки, ми передамо текст запиту через Bible API сервісам обробки ШІ. Не додавайте до запиту особисті дані.\n\nBible API не зберігає текст запиту. Нещодавні запити зберігаються лише на цьому пристрої. Дозвіл можна відкликати тут у будь-який момент — це видалить і їх.";
 "search.privacy.providers.test" = "У цій тестовій збірці запит обробляють Cerebras, Google Gemini та сервер llm.ai2.ru.";
 "search.privacy.providers" = "Обробка запитів: Google Gemini та сервер Bible Garden (llm.ai2.ru).";
 "search.privacy.allow_search" = "Дозволити й знайти";
@@ -234,4 +234,9 @@
 "search.privacy.decline" = "Поки не використовувати";
 "search.privacy.revoke" = "Відкликати дозвіл";
 "search.context.show" = "Показати контекст";
+"search.cancel" = "Скасувати";
+"search.recent" = "Нещодавні";
+"search.recent.clear" = "Очистити";
+"search.share" = "Поділитися";
+"search.copy" = "Скопіювати вірші";
 "search.context.hide" = "Приховати контекст";

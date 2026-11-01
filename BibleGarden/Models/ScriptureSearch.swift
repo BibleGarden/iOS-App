@@ -35,6 +35,11 @@ struct ScriptureSearchHit: Identifiable {
         let count = verses.filter { $0.number >= range.verse_start && $0.number <= range.verse_end }.count
         return (1...3).contains(count)
     }
+    var shareText: String {
+        let text = keyVerses.map(\.text).joined(separator: " ")
+        return "\(text)\n— \(keyReference) (\(passage.translation_alias.uppercased()))"
+    }
+
     var excerpt: String {
         "\(book.alias) \(passage.chapter_number):\(passage.verse_start)-\(passage.verse_end)"
     }
@@ -47,16 +52,21 @@ final class ScriptureSearchModel: ObservableObject {
         case failed(String)
     }
 
-    @Published var query = ""
+    /// Editing the query invalidates a request that is still in flight.
+    @Published var query = "" {
+        didSet { if query != oldValue { cancel() } }
+    }
     @Published private(set) var language = ""
     @Published private(set) var translation = 0
     @Published private(set) var translationName = ""
     @Published private(set) var translations: [Components.Schemas.TranslationModel] = []
     @Published private(set) var hits: [ScriptureSearchHit] = []
-    @Published private(set) var submittedQuery = ""
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var catalogError = false
     @Published private(set) var retryAfter: Date?
+    @Published private(set) var recentQueries = UserDefaults.standard.stringArray(forKey: recentQueriesKey) ?? []
+
+    private static let recentQueriesKey = "searchRecentQueries"
 
     private var task: Task<Void, Never>?
     private var requestID = UUID()
@@ -105,10 +115,19 @@ final class ScriptureSearchModel: ObservableObject {
     }
 
     func select(_ selection: Components.Schemas.TranslationModel) {
-        cancel()
         language = selection.language
         translation = selection.code
         translationName = selection.name
+        clearResults()
+    }
+
+    func reset() {
+        query = ""
+        clearResults()
+    }
+
+    private func clearResults() {
+        cancel()
         hits = []
         phase = .idle
     }
@@ -128,7 +147,7 @@ final class ScriptureSearchModel: ObservableObject {
         let id = requestID
         let text = trimmedQuery
         let requestedTranslation = translation
-        submittedQuery = text
+        remember(text)
         hits = []
         phase = .loading
         task = Task {
@@ -203,6 +222,17 @@ final class ScriptureSearchModel: ObservableObject {
                 }
             }
         }
+    }
+
+    func clearRecentQueries() {
+        recentQueries = []
+        UserDefaults.standard.removeObject(forKey: Self.recentQueriesKey)
+    }
+
+    private func remember(_ text: String) {
+        let others = recentQueries.filter { $0.caseInsensitiveCompare(text) != .orderedSame }
+        recentQueries = Array(([text] + others).prefix(5))
+        UserDefaults.standard.set(recentQueries, forKey: Self.recentQueriesKey)
     }
 
     func open(_ hit: ScriptureSearchHit, settings: SettingsManager) {

@@ -51,7 +51,6 @@ struct PageSearchView: View {
         .background(Color("DarkGreen").accessibilityIdentifier("page-search").ignoresSafeArea())
         .task { await model.configure(settings: settingsManager) }
         .onDisappear { model.cancel() }
-        .onChange(of: model.query) { _ in model.cancel() }
         .sheet(isPresented: $showingPrivacy) { privacySheet }
     }
 
@@ -78,7 +77,7 @@ struct PageSearchView: View {
                         .onSubmit { requestSearch() }
                         .accessibilityIdentifier("search-query")
                     if !model.query.isEmpty {
-                        Button { model.query = "" } label: {
+                        Button { model.reset() } label: {
                             Image(systemName: "xmark.circle.fill").foregroundColor(.white.opacity(0.45))
                         }
                         .accessibilityLabel("search.clear".localized)
@@ -143,15 +142,14 @@ struct PageSearchView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 7) {
+                HStack(spacing: 6) {
                     Image(systemName: "globe")
-                    Text(model.translationName).lineLimit(1)
+                    Text("search.translation".localized(model.translationName)).lineLimit(1)
                     Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
-                    Spacer(minLength: 0)
-                    Text("search.translation".localized).foregroundColor(.white.opacity(0.4))
                 }
-                .font(.caption).foregroundColor(.white.opacity(0.75))
-                .padding(.horizontal, 4).padding(.vertical, 3)
+                .font(.caption.weight(.medium)).foregroundColor(.white.opacity(0.8))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(.white.opacity(0.07)).clipShape(Capsule())
             }
             .disabled(model.translations.isEmpty)
             .accessibilityIdentifier("search-translation")
@@ -169,30 +167,47 @@ struct PageSearchView: View {
         switch model.phase {
         case .idle:
             VStack(alignment: .leading, spacing: 14) {
-                Text("search.examples".localized.uppercased())
-                    .font(.caption.weight(.semibold)).tracking(1.3).foregroundColor(.white.opacity(0.4))
+                if !model.recentQueries.isEmpty {
+                    HStack {
+                        sectionTitle("search.recent")
+                        Spacer()
+                        Button("search.recent.clear".localized) { model.clearRecentQueries() }
+                            .font(.caption).foregroundColor(.white.opacity(0.5))
+                            .accessibilityIdentifier("search-recent-clear")
+                    }
+                    ForEach(model.recentQueries, id: \.self) { query in
+                        suggestion(query, icon: "magnifyingglass") {
+                            model.query = query
+                            requestSearch()
+                        }
+                    }
+                }
+                sectionTitle("search.examples").padding(.top, model.recentQueries.isEmpty ? 0 : 10)
                 ForEach(["search.example.anxiety", "search.example.noah", "search.example.love"], id: \.self) { key in
-                    Button {
+                    suggestion(key.localized, icon: "arrow.up.left") {
                         model.query = key.localized
                         queryFocused = true
-                    } label: {
-                        HStack {
-                            Text(key.localized).font(.subheadline)
-                            Spacer()
-                            Image(systemName: "arrow.up.left").font(.caption)
-                        }
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(16)
-                        .background(.white.opacity(0.045))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                 }
                 Text("search.hint".localized)
                     .font(.caption).foregroundColor(.white.opacity(0.4)).lineSpacing(4).padding(.top, 4)
             }
         case .loading:
-            stateCard(icon: "sparkle.magnifyingglass", title: "search.loading", detail: "search.loading.detail")
-                .accessibilityIdentifier("search-loading")
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("search.loading".localized).font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white.opacity(0.8))
+                        Text("search.loading.detail".localized).font(.caption).foregroundColor(.white.opacity(0.45))
+                    }
+                    .accessibilityIdentifier("search-loading")
+                    Spacer(minLength: 12)
+                    Button("search.cancel".localized) { model.cancel() }
+                        .font(.subheadline.weight(.semibold)).foregroundColor(Color("Mustard"))
+                        .accessibilityIdentifier("search-cancel")
+                }
+                ForEach(0..<3, id: \.self) { _ in SearchSkeletonCard() }
+            }
         case .failed(let key):
             stateCard(icon: "exclamationmark.bubble", title: "search.error.title", detail: key)
                 .accessibilityIdentifier("search-error")
@@ -201,11 +216,8 @@ struct PageSearchView: View {
                 stateCard(icon: "magnifyingglass", title: "search.empty", detail: "search.empty.detail")
                     .accessibilityIdentifier("search-empty")
             } else {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("search.results".localized(model.hits.count))
-                        .font(.subheadline.weight(.semibold)).foregroundColor(.white.opacity(0.65))
-                    Text(model.submittedQuery)
-                        .font(.caption).foregroundColor(.white.opacity(0.45))
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionTitle("search.results", model.hits.count)
                     ForEach(model.hits) { hit in
                         SearchResultCard(hit: hit) {
                             queryFocused = false
@@ -225,6 +237,25 @@ struct PageSearchView: View {
         }
         .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.horizontal, 20).padding(.vertical, 36)
         .background(.white.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func sectionTitle(_ key: String, _ args: CVarArg...) -> some View {
+        Text(String(format: key.localized, arguments: args).uppercased())
+            .font(.caption.weight(.semibold)).tracking(1.3).foregroundColor(.white.opacity(0.4))
+    }
+
+    private func suggestion(_ text: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(text).font(.subheadline).lineLimit(2).multilineTextAlignment(.leading)
+                Spacer()
+                Image(systemName: icon).font(.caption)
+            }
+            .foregroundColor(.white.opacity(0.8))
+            .padding(16)
+            .background(.white.opacity(0.045))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
 
     private func requestSearch() {
@@ -261,6 +292,7 @@ struct PageSearchView: View {
                 Button("search.privacy.revoke".localized) {
                     consentVersion = ""
                     model.cancel()
+                    model.clearRecentQueries()
                     showingPrivacy = false
                 }
                 .foregroundColor(Color("Mustard"))
@@ -293,56 +325,112 @@ private struct SearchResultCard: View {
     @State private var expanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(hit.keyReference)
-                .font(.headline).foregroundColor(Color("Mustard"))
-            if let title = hit.passage.title, !title.isEmpty {
-                Text(title).font(.subheadline).foregroundColor(.white.opacity(0.55))
+        VStack(alignment: .leading, spacing: 12) {
+            Button(action: open) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(hit.keyReference).font(.headline).foregroundColor(Color("Mustard"))
+                        if let title = hit.passage.title, !title.isEmpty {
+                            Text(title).font(.caption).foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+                        .foregroundColor(Color("Mustard"))
+                }
+                .contentShape(Rectangle())
             }
+            .accessibilityHint("search.open".localized)
+            .accessibilityIdentifier("search-result-\(hit.id)")
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(expanded ? hit.verses : hit.keyVerses, id: \.number) { verse in
                     (Text("\(verse.number) ").font(.system(size: 12, design: .serif))
                         .foregroundColor(Color("Mustard").opacity(hit.isHighlighted(verse.number) ? 1 : 0.5))
                      + Text(verse.text)
-                        .font(.system(size: 18, weight: hit.isHighlighted(verse.number) ? .medium : .regular, design: .serif))
+                        .font(.system(size: 17, weight: hit.isHighlighted(verse.number) ? .medium : .regular, design: .serif))
                         .foregroundColor(.white.opacity(hit.isHighlighted(verse.number) ? 0.95 : 0.5)))
-                        .lineSpacing(5)
+                        .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("search-verse-\(hit.id)-\(verse.number)")
                 }
             }
 
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
-            } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(expanded ? "search.context.hide".localized : "search.context.show".localized)
-                    Text(hit.reference).foregroundColor(.white.opacity(0.45))
-                    Spacer(minLength: 0)
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+            HStack(spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(expanded ? "search.context.hide".localized : "search.context.show".localized)
+                        Text(hit.reference).foregroundColor(.white.opacity(0.45))
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.caption).foregroundColor(.white.opacity(0.7))
+                    .frame(minHeight: 44).contentShape(Rectangle())
                 }
-                .font(.caption).foregroundColor(.white.opacity(0.7))
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .accessibilityIdentifier("search-context-\(hit.id)")
-
-            Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
-            Button(action: open) {
-                HStack {
-                    Text("search.open".localized).font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Image(systemName: "arrow.right").font(.caption)
+                .accessibilityIdentifier("search-context-\(hit.id)")
+                Spacer(minLength: 8)
+                Button { presentShareSheet(hit.shareText) } label: {
+                    Image(systemName: "square.and.arrow.up").font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
-                .foregroundColor(Color("Mustard")).padding(.vertical, 3)
+                .accessibilityLabel("search.share".localized)
+                .accessibilityIdentifier("search-share-\(hit.id)")
             }
-            .accessibilityIdentifier("search-result-\(hit.id)")
         }
-        .frame(maxWidth: .infinity, alignment: .leading).padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 4)
         .background(Color("DarkGreen-light"))
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .onTapGesture(perform: open)
+        .contextMenu {
+            Button { UIPasteboard.general.string = hit.shareText } label: {
+                Label("search.copy".localized, systemImage: "doc.on.doc")
+            }
+            Button { presentShareSheet(hit.shareText) } label: {
+                Label("search.share".localized, systemImage: "square.and.arrow.up")
+            }
+        }
         .buttonStyle(.plain)
     }
+}
+
+private struct SearchSkeletonCard: View {
+    @State private var dimmed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            bar(width: 130, height: 16)
+            bar(width: nil, height: 12)
+            bar(width: nil, height: 12)
+            bar(width: 190, height: 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(18)
+        .background(Color("DarkGreen-light"))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .opacity(dimmed ? 0.4 : 1)
+        .animation(.easeInOut(duration: 0.9).repeatForever(), value: dimmed)
+        .onAppear { dimmed = true }
+        .accessibilityHidden(true)
+    }
+
+    private func bar(width: CGFloat?, height: CGFloat) -> some View {
+        Capsule().fill(.white.opacity(0.1)).frame(width: width, height: height)
+    }
+}
+
+/// SwiftUI `ShareLink` needs iOS 16; the app still supports iOS 15.
+private func presentShareSheet(_ text: String) {
+    let scene = UIApplication.shared.connectedScenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+    guard var top = scene?.keyWindow?.rootViewController else { return }
+    while let presented = top.presentedViewController { top = presented }
+    let controller = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+    if let popover = controller.popoverPresentationController {
+        popover.sourceView = top.view
+        popover.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.midY, width: 0, height: 0)
+        popover.permittedArrowDirections = []
+    }
+    top.present(controller, animated: true)
 }

@@ -202,7 +202,7 @@
 "search.placeholder" = "What would you like to find?";
 "search.action" = "Find passages";
 "search.clear" = "Clear search";
-"search.translation" = "Bible translation";
+"search.translation" = "Translation: %@";
 "search.too_long" = "Keep your query within 500 characters.";
 "search.wait" = "Try again in %d s";
 "search.examples" = "Try asking";
@@ -223,11 +223,11 @@
 "search.error.catalog" = "Couldn’t load translations. Tap to try again.";
 "search.empty" = "No matching passages";
 "search.empty.detail" = "Try describing your thought differently or asking a more specific question.";
-"search.results" = "Passages found: %d";
+"search.results" = "Found: %d";
 "search.open" = "Open passage";
 "search.back" = "Back to search results";
 "search.privacy.title" = "Search with AI";
-"search.privacy.body" = "To find passages, we send your query through Bible API to AI processing services. Please keep personal information out of your query.\n\nBible API does not store the query text. You can withdraw permission here at any time.";
+"search.privacy.body" = "To find passages, we send your query through Bible API to AI processing services. Please keep personal information out of your query.\n\nBible API does not store the query text. Your recent queries are kept only on this device. You can withdraw permission here at any time; this also deletes them.";
 "search.privacy.providers.test" = "In this test build, Cerebras, Google Gemini and the llm.ai2.ru server process the query.";
 "search.privacy.providers" = "Queries are processed by Google Gemini and the Bible Garden server (llm.ai2.ru).";
 "search.privacy.allow_search" = "Allow and search";
@@ -235,4 +235,9 @@
 "search.privacy.decline" = "Not now";
 "search.privacy.revoke" = "Withdraw permission";
 "search.context.show" = "Show context";
+"search.cancel" = "Cancel";
+"search.recent" = "Recent";
+"search.recent.clear" = "Clear";
+"search.share" = "Share";
+"search.copy" = "Copy verses";
 "search.context.hide" = "Hide context";
