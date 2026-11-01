@@ -76,20 +76,13 @@ struct PageSearchView: View {
                         .focused($queryFocused)
                         .onSubmit { requestSearch() }
                         .accessibilityIdentifier("search-query")
-                    if model.answersCurrentQuery {
-                        Button { model.reset() } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(.white.opacity(0.45))
-                        }
-                        .accessibilityLabel("search.clear".localized)
-                        .accessibilityIdentifier("search-clear")
-                    }
-                    submitControl
+                    trailingControl
                 }
                 .frame(minHeight: 32)
                 .padding(.leading, 16).padding(.trailing, 10).padding(.vertical, 11)
-                .background(Color("DarkGreen-light"))
+                .background(Color.black.opacity(0.18))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(queryFocused ? 0.45 : 0.12)))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(queryFocused ? 0.45 : 0.18)))
 
                 translationPicker
 
@@ -100,10 +93,10 @@ struct PageSearchView: View {
         }
     }
 
-    /// The search runs from the keyboard or from this button inside the field.
-    /// It appears only while there is something new to search for; once the results
-    /// answer the query, the clear button takes its place.
-    private var submitControl: some View {
+    /// The single control at the end of the field: the search button while there is
+    /// something new to search for, the clear button once the results answer the query.
+    /// The search also runs from the keyboard.
+    private var trailingControl: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let wait = max(0, Int(ceil((model.retryAfter ?? context.date).timeIntervalSince(context.date))))
             if model.isLoading {
@@ -113,7 +106,15 @@ struct PageSearchView: View {
                     .foregroundColor(.white.opacity(0.6))
                     .frame(width: 32, height: 32).background(Circle().fill(.white.opacity(0.08)))
                     .accessibilityLabel("search.wait".localized(wait))
-            } else if canSubmit && !model.answersCurrentQuery {
+            } else if model.answersCurrentQuery {
+                Button { model.reset() } label: {
+                    Image(systemName: "xmark.circle.fill").font(.title3)
+                        .foregroundColor(.white.opacity(0.45))
+                        .frame(width: 32, height: 32)
+                }
+                .accessibilityLabel("search.clear".localized)
+                .accessibilityIdentifier("search-clear")
+            } else if canSubmit {
                 Button(action: requestSearch) {
                     Image(systemName: "arrow.right").font(.subheadline.weight(.bold))
                         .foregroundColor(Color("DarkGreen"))
