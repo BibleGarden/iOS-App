@@ -158,5 +158,9 @@ an explicit response error. The test API added this contract on 2026-10-25
 (Bible-API PR #40, commit 81a6c94); the model rerank now uses Google Gemini,
 so the test consent version changed to require a fresh choice.
 
-UI approval precedes new search UI tests. At the interface-preview stage, no
-search tests or production release are claimed.
+`SearchTests` cover the flow from the home search field through the card menu
+to both readers and back, the history and consent withdrawal. The search request
+itself answers with a recorded response (`BibleGardenUITests/Fixtures/`, passed
+in the `UITEST_SEARCH_RESPONSE` environment variable and served only by Debug
+builds): the AI search of the test API is too unstable for CI. Translations,
+book catalogues and reading still use the live test API.

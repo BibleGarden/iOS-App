@@ -1404,6 +1404,8 @@ struct PageReadView: View {
                         .accessibilityIdentifier("read-verse-counter")
                     Text(debugHighlightedVerseID)
                         .accessibilityIdentifier("read-highlighted-verse-id")
+                    Text(keyVerses.map { "\($0.lowerBound)-\($0.upperBound)" } ?? "")
+                        .accessibilityIdentifier("read-key-verses")
                 }
                 .font(.system(size: 1))
                 .foregroundStyle(.clear)

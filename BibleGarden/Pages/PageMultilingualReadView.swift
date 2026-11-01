@@ -331,6 +331,8 @@ struct PageMultilingualReadView: View {
                             .accessibilityIdentifier("multi-current-unit")
                         Text("\(currentStepIndex)")
                             .accessibilityIdentifier("multi-current-step")
+                        Text(keyVerses.map { "\($0.lowerBound)-\($0.upperBound)" } ?? "")
+                            .accessibilityIdentifier("multi-key-verses")
                     }
                     .font(.system(size: 1))
                     .foregroundStyle(.clear)

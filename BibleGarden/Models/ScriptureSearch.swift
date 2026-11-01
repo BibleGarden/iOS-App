@@ -1,4 +1,5 @@
 import SwiftUI
+import HTTPTypes
 import OpenAPIRuntime
 import OpenAPIURLSession
 
@@ -86,10 +87,13 @@ final class ScriptureSearchModel: ObservableObject {
         configuration.timeoutIntervalForRequest = 45
         configuration.timeoutIntervalForResource = 45
         configuration.httpAdditionalHeaders = ["X-API-Key": Config.apiKey]
-        client = Client(
-            serverURL: URL(string: Config.baseURL)!,
-            transport: URLSessionTransport(configuration: .init(session: URLSession(configuration: configuration)))
-        )
+        var transport: any ClientTransport = URLSessionTransport(configuration: .init(session: URLSession(configuration: configuration)))
+        #if DEBUG
+        if let response = ProcessInfo.processInfo.environment[RecordedSearchTransport.environmentKey] {
+            transport = RecordedSearchTransport(response: response, network: transport)
+        }
+        #endif
+        client = Client(serverURL: URL(string: Config.baseURL)!, transport: transport)
     }
 
     var isLoading: Bool {
@@ -320,3 +324,21 @@ final class ScriptureSearchModel: ObservableObject {
         settings.selectedMenuItem = .read
     }
 }
+
+#if DEBUG
+/// UI tests pass a recorded search response: the AI search of the test API is too
+/// unstable for CI. Every other request, the book catalogue included, goes to the network.
+private struct RecordedSearchTransport: ClientTransport {
+    static let environmentKey = "UITEST_SEARCH_RESPONSE"
+
+    let response: String
+    let network: any ClientTransport
+
+    func send(_ request: HTTPRequest, body: HTTPBody?, baseURL: URL, operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
+        guard operationID == "search_scripture" else {
+            return try await network.send(request, body: body, baseURL: baseURL, operationID: operationID)
+        }
+        return (HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"]), HTTPBody(response))
+    }
+}
+#endif

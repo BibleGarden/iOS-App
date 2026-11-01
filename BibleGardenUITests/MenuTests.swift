@@ -28,11 +28,12 @@ final class MenuTests: XCTestCase {
         XCTAssertTrue(mainItem.waitForExistence(timeout: 3))
         XCTAssertTrue(mainItem.isSelected, "Main should be selected on app launch")
 
-        // All 6 items present
+        // All 7 items present
         let expectedItems = [
             "menu-main",
             "menu-multilingual",
             "menu-read",
+            "menu-search",
             "menu-progress",
             "menu-language",
             "menu-contacts"

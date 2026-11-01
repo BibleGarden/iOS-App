@@ -189,6 +189,7 @@ struct PageSearchView: View {
                             model.query = key.localized
                             queryFocused = true
                         }
+                        .accessibilityIdentifier("search-example")
                     }
                     Text("search.hint".localized)
                         .font(.caption).foregroundColor(.white.opacity(0.4)).lineSpacing(4).padding(.top, 4)
@@ -205,6 +206,7 @@ struct PageSearchView: View {
                             model.query = query
                             requestSearch()
                         }
+                        .accessibilityIdentifier("search-recent")
                     }
                 }
             }
