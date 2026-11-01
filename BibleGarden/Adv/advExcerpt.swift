@@ -40,7 +40,29 @@ func getCSSColor(named colorName: String) -> String {
 }
 
 
-func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: Double) -> String {
+/// Key verses of a search result inside the text of a reader: the other verses are dimmed
+/// like the context in a search card, the playing verse is shown at full strength.
+let keyVerseCSS = """
+    .context-verse { opacity: 0.4; }
+    .context-verse.highlighted-verse { opacity: 1; }
+    """
+
+/// Scrolls the loaded page to the first key verse, at the position the player uses.
+func keyVerseScrollScript(elementID: String) -> String {
+    """
+    <script>
+    window.addEventListener('load', function() {
+        var target = document.getElementById('\(elementID)');
+        if (target) {
+            window.scrollTo(0, target.getBoundingClientRect().top + window.pageYOffset - window.innerHeight / 5);
+        }
+    });
+    </script>
+    """
+}
+
+/// - Parameter keyVerses: verses found by search; the rest of the text is dimmed.
+func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: Double, keyVerses: ClosedRange<Int>? = nil) -> String {
     let fontSize = 10 * (1 + fontIncreasePercent / 100)
     let selectedColor = getCSSColor(named: "DarkGreen-accent")
     let jesusColor = getCSSColor(named: "Jesus")
@@ -122,6 +144,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
                 .highlighted-verse .jesus {
                     color: \(jesusSelectedColor);
                 }
+                \(keyVerseCSS)
                                 
                 .note-icon {
                     width: 20px;
@@ -214,6 +237,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
         <body>
     """
 
+    var firstKeyVerseID: String?
     for verse in verses {
         // Separate regular titles and subtitles
         let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
@@ -336,15 +360,25 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
         // Paragraphs
         let id_info = verse.join > 0 ? "\(verse.number)-\(verse.number+verse.join)" : "\(verse.number)"
 
-        let quoteContainer = verse.html.contains("class=\"quote\"") ? "quote-container" : ""
+        var classes = verse.html.contains("class=\"quote\"") ? ["quote-container"] : []
+        if let keyVerses {
+            if !(verse.number...(verse.number + verse.join)).overlaps(keyVerses) {
+                classes.append("context-verse")
+            } else if firstKeyVerseID == nil {
+                firstKeyVerseID = "verse-\(verse.number)"
+            }
+        }
         if verse.startParagraph {
             htmlString += "<p>"
         }
         htmlString += """
-            <span id="verse-\(verse.number)" class="\(quoteContainer)"><span class="verse-number">\(id_info).</span><span>\(verseHTML)</span></span>
+            <span id="verse-\(verse.number)" class="\(classes.joined(separator: " "))"><span class="verse-number">\(id_info).</span><span>\(verseHTML)</span></span>
         """
     }
 
+    if let firstKeyVerseID {
+        htmlString += keyVerseScrollScript(elementID: firstKeyVerseID)
+    }
     htmlString += """
         </body>
         </html>

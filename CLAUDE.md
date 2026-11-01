@@ -139,7 +139,12 @@ ready (`SettingsManager.playOnOpen`, consumed by `PageReadView`). "Read the
 chapter" opens the whole chapter. "Multi Reading" opens multilingual
 reading of the passage, or its setup first when no reading step exists. Both
 readers then show `ReaderLeadingButton`, which returns to the preserved results
-instead of opening the side menu. Copy and
+instead of opening the side menu. They also mark the key verses
+(`SettingsManager.searchFocus`): the rest of the text is dimmed like card
+context, the page scrolls to the first key verse, and the playing verse stays
+at full strength. Loading another chapter or leaving search mode ends the
+focus. Multilingual reading pairs translations by verse number, so where a
+translation numbers verses differently the marked verse follows the number. Copy and
 share take the key verses with their reference and translation alias. While a
 request runs, placeholder cards and a cancel control replace the results.
 Automatic chapter continuation applies only when the API returns a whole chapter; a selected verse range stops at its

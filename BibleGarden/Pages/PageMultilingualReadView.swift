@@ -59,6 +59,8 @@ struct PageMultilingualReadView: View {
     
     // Current verse for highlighting
     @State private var highlightVerseNumber: Int? = nil
+    /// Verses found by search in the loaded chapter; the page scrolls to them instead of the top.
+    @State private var keyVerses: ClosedRange<Int>? = nil
 
     @State private var retryCount: Int = 0
 
@@ -752,6 +754,10 @@ struct PageMultilingualReadView: View {
             }
         }
         
+        keyVerses = stepTextVerses[0]?.first.flatMap {
+            settingsManager.searchKeyVerses(bookNumber: $0.bookDigitCode, chapter: $0.chapterDigitCode)
+        }
+
         // Build unit ranges based on first translation's structure
         buildUnitRanges()
         let verseNumbers = Set(stepTextVerses.values.flatMap { $0.map(\.number) })
@@ -1614,6 +1620,7 @@ struct PageMultilingualReadView: View {
                 .gray { opacity: 0.5; }
                 .highlighted-verse { color: \(selectedColor); }
                 .highlighted-verse .jesus { color: \(jesusSelectedColor); }
+                \(keyVerseCSS)
                 
                 .quote-container {
                     padding-left: 1.1rem;
@@ -1666,6 +1673,7 @@ struct PageMultilingualReadView: View {
         """
         
         // Generate content for each unit
+        var firstKeyVerseID: String?
         for (unitIdx, unitRange) in unitRanges.enumerated() {
             htmlString += "<div id=\"unit-\(unitIdx)\" class=\"unit\">"
             
@@ -1702,8 +1710,16 @@ struct PageMultilingualReadView: View {
                                     htmlString += "<p class=\"subtitle\">\(sub.text)</p>"
                                 }
                                 
+                                var classes = "verse-block"
+                                if let keyVerses {
+                                    if !(verse.number...(verse.number + verse.join)).overlaps(keyVerses) {
+                                        classes += " context-verse"
+                                    } else if firstKeyVerseID == nil {
+                                        firstKeyVerseID = "verse-\(uniqueId)"
+                                    }
+                                }
                                 htmlString += """
-                                <div id="verse-\(uniqueId)" class="verse-block" style="font-size: \(fontSize)px;">
+                                <div id="verse-\(uniqueId)" class="\(classes)" style="font-size: \(fontSize)px;">
                                     <span class="verse-number">\(verse.number).</span>
                                     <span>\(verse.html)</span>
                                 </div>
@@ -1723,7 +1739,10 @@ struct PageMultilingualReadView: View {
             
             htmlString += "</div>"
         }
-        
+
+        if let firstKeyVerseID {
+            htmlString += keyVerseScrollScript(elementID: firstKeyVerseID)
+        }
         htmlString += """
         </body>
         </html>

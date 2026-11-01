@@ -55,6 +55,8 @@ struct PageReadView: View {
 
     @State private var textVerses: [BibleTextualVerseFull] = []
     @State private var currentVerseNumber: Int?
+    /// Verses found by search in the loaded chapter; the page scrolls to them instead of the top.
+    @State private var keyVerses: ClosedRange<Int>?
     @State private var prevExcerpt: String = ""
     @State private var nextExcerpt: String = ""
 
@@ -155,7 +157,7 @@ struct PageReadView: View {
                             }
                             
                         HTMLTextView(
-                            htmlContent: generateHTMLContent(verses: textVerses, fontIncreasePercent: settingsManager.fontIncreasePercent),
+                            htmlContent: generateHTMLContent(verses: textVerses, fontIncreasePercent: settingsManager.fontIncreasePercent, keyVerses: keyVerses),
                             scrollToVerse: $currentVerseNumber,
                             onScrollMetricsChanged: { _, isAtBottom in
                                 handleTextScroll(isAtBottom: isAtBottom)
@@ -387,6 +389,8 @@ struct PageReadView: View {
             guard !textVerses.isEmpty else {
                 throw NSError(domain: "updateExcerpt", code: 204, userInfo: [NSLocalizedDescriptionKey: "error.loading.chapter".localized])
             }
+            self.keyVerses = settingsManager.searchKeyVerses(
+                bookNumber: textVerses[0].bookDigitCode, chapter: textVerses[0].chapterDigitCode)
             self.hasText = true
             self.isWholeChapter = isSingleChapter
             beginTextReadingTracking()
@@ -395,7 +399,7 @@ struct PageReadView: View {
             settingsManager.currentBookId = textVerses[0].bookDigitCode
             settingsManager.currentChapterId = textVerses[0].chapterDigitCode
             
-            self.currentVerseNumber = -1
+            self.currentVerseNumber = keyVerses == nil ? -1 : nil
             self.activeVerseIndex = -1
             if (part != nil) {
                 self.prevExcerpt = part!.prev_excerpt

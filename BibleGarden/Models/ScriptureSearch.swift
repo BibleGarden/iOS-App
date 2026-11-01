@@ -256,6 +256,8 @@ final class ScriptureSearchModel: ObservableObject {
         settings.currentBookId = hit.passage.book_number
         settings.currentChapterId = chapter
         settings.currentExcerptTitle = hit.book.name
+        settings.searchFocus = .init(bookNumber: hit.passage.book_number, chapter: chapter,
+                                     verses: hit.highlight.verse_start...hit.highlight.verse_end)
 
         if destination == .translations {
             settings.currentExcerpt = hit.excerpt
