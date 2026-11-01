@@ -125,34 +125,42 @@ struct PageSearchView: View {
 
     private var translationPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Menu {
-                ForEach(AppLanguage.allCases) { language in
-                    Menu(language.displayName) {
-                        ForEach(model.translations.filter { $0.language == language.rawValue }, id: \.code) { translation in
-                            Button {
-                                model.select(translation)
-                            } label: {
-                                if model.translation == translation.code {
-                                    Label(translation.name, systemImage: "checkmark")
-                                } else {
-                                    Text(translation.name)
+            HStack {
+                Menu {
+                    ForEach(AppLanguage.allCases) { language in
+                        Menu(language.displayName) {
+                            ForEach(model.translations.filter { $0.language == language.rawValue }, id: \.code) { translation in
+                                Button {
+                                    model.select(translation)
+                                } label: {
+                                    if model.translation == translation.code {
+                                        Label(translation.name, systemImage: "checkmark")
+                                    } else {
+                                        Text(translation.name)
+                                    }
                                 }
                             }
                         }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "globe")
+                        Text("search.translation".localized(model.translationName)).lineLimit(1)
+                        Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                    }
+                    .font(.caption.weight(.medium)).foregroundColor(.white.opacity(0.8))
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(.white.opacity(0.07)).clipShape(Capsule())
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "globe")
-                    Text("search.translation".localized(model.translationName)).lineLimit(1)
-                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                .disabled(model.translations.isEmpty)
+                .accessibilityIdentifier("search-translation")
+                Spacer(minLength: 12)
+                if !model.hits.isEmpty {
+                    Text("search.results".localized(model.hits.count))
+                        .font(.caption).foregroundColor(.white.opacity(0.5))
+                        .accessibilityIdentifier("search-results-count")
                 }
-                .font(.caption.weight(.medium)).foregroundColor(.white.opacity(0.8))
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(.white.opacity(0.07)).clipShape(Capsule())
             }
-            .disabled(model.translations.isEmpty)
-            .accessibilityIdentifier("search-translation")
 
             if model.catalogError {
                 Button("search.error.catalog".localized) {
@@ -217,7 +225,6 @@ struct PageSearchView: View {
                     .accessibilityIdentifier("search-empty")
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    sectionTitle("search.results", model.hits.count)
                     ForEach(model.hits) { hit in
                         SearchResultCard(hit: hit) {
                             queryFocused = false
@@ -239,8 +246,8 @@ struct PageSearchView: View {
         .background(.white.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 18))
     }
 
-    private func sectionTitle(_ key: String, _ args: CVarArg...) -> some View {
-        Text(String(format: key.localized, arguments: args).uppercased())
+    private func sectionTitle(_ key: String) -> some View {
+        Text(key.localized.uppercased())
             .font(.caption.weight(.semibold)).tracking(1.3).foregroundColor(.white.opacity(0.4))
     }
 
