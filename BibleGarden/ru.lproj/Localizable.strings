@@ -19,7 +19,7 @@
 "page.contacts.title" = "О проекте";
 "page.progress.title" = "Прогресс чтения";
 "page.main.continue_reading" = "Продолжить чтение";
-"page.main.reading_progress" = "Прогресс чтения";
+"page.main.progress_read" = "Прочитано %@ Библии";
 "page.main.header" = "Bible Garden";
 "page.main.classic.title" = "Обычное чтение";
 "page.main.classic.subtitle" = "На одном языке, можно добавить паузы между стихами";

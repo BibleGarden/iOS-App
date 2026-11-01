@@ -19,7 +19,7 @@
 "page.contacts.title" = "About the Project";
 "page.progress.title" = "Reading Progress";
 "page.main.continue_reading" = "Continue Reading";
-"page.main.reading_progress" = "Reading Progress";
+"page.main.progress_read" = "Read %@ of the Bible";
 "page.main.header" = "Bible Garden";
 "page.main.classic.title" = "Classic Reading";
 "page.main.classic.subtitle" = "In one language, with optional pauses between verses";

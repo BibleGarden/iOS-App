@@ -98,10 +98,7 @@ struct PageMainView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
-            // Darker than the cards, but dense enough to hide the forest behind the text.
-            .background(Capsule().fill(Color.black.opacity(0.4)))
-            .background(Capsule().fill(Color("DarkGreen").opacity(0.7)))
-            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
+            .mainPillBackground()
         }
         .buttonStyle(.plain)
         .accessibilityLabel("search.title".localized)
@@ -114,75 +111,46 @@ struct PageMainView: View {
         if !settingsManager.cachedBooks.isEmpty {
             let totalProgress = settingsManager.getTotalProgress(books: settingsManager.cachedBooks)
             if totalProgress.read > 0 {
+                let share = Double(totalProgress.read) / Double(totalProgress.total)
                 VStack {
                     Spacer()
-                    
+
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             settingsManager.selectedMenuItem = .progress
                         }
                     } label: {
-                        VStack(spacing: 10) {
-                            Text("page.main.reading_progress".localized)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                            
-                            // Progress bar with overlayed percentage
-                            ZStack {
-                                // Progress bar background
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.white.opacity(0.3))
-                                    .frame(height: 24)
-                                
+                        HStack(spacing: 12) {
+                            Image(systemName: "chart.bar.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(Color("Mustard"))
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text("page.main.progress_read".localized(String(format: "%.1f%%", share * 100)))
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.85))
                                 GeometryReader { geometry in
-                                    let progressWidth = geometry.size.width * CGFloat(totalProgress.read) / CGFloat(totalProgress.total)
-                                    let progressPercent = CGFloat(totalProgress.read) / CGFloat(totalProgress.total)
-                                    
-                                    // Green progress fill
-                                    HStack(spacing: 0) {
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [Color.green.opacity(0.8), Color.green]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                        .frame(width: progressWidth, height: 24)
-                                        
-                                        Spacer(minLength: 0)
-                                    }
-                                    .mask(
-                                        Group {
-                                            if progressPercent > 0.98 {
-                                                RoundedRectangle(cornerRadius: 6)
-                                            } else {
-                                                LeftRoundedRectangle(radius: 6)
-                                            }
+                                    Capsule().fill(Color.white.opacity(0.15))
+                                        .overlay(alignment: .leading) {
+                                            // A small share still shows as a dot.
+                                            Capsule().fill(Color("Mustard"))
+                                                .frame(width: max(geometry.size.width * share, 4))
                                         }
-                                    )
                                 }
-                                .frame(height: 24)
-                                
-                                // Percentage label above progress bar
-                                Text(String(format: "%.1f%%", Double(totalProgress.read) / Double(totalProgress.total) * 100))
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                                .frame(height: 4)
                             }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.6))
                         }
+                        .padding(.horizontal, 16)
+                        .frame(height: 56)
+                        .mainPillBackground()
                     }
                     .buttonStyle(.plain)
-                    .contentShape(Rectangle())
                     .accessibilityIdentifier("card-progress")
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color("DarkGreen").opacity(0.75))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color("DarkGreen"), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, globalBasePadding)
+                    .padding(.bottom, 32)
                 }
             }
         }
@@ -269,4 +237,14 @@ struct MainMenuCard<Icon: View>: View {
 
 #Preview {
     TestPageMainView()
+}
+
+private extension View {
+    /// Pill of the main screen controls: darker than the cards, but dense enough
+    /// to hide the forest behind the text.
+    func mainPillBackground() -> some View {
+        background(Capsule().fill(Color.black.opacity(0.4)))
+            .background(Capsule().fill(Color("DarkGreen").opacity(0.7)))
+            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
+    }
 }

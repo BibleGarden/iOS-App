@@ -19,7 +19,7 @@
 "page.contacts.title" = "Про проєкт";
 "page.progress.title" = "Прогрес читання";
 "page.main.continue_reading" = "Продовжити читання";
-"page.main.reading_progress" = "Прогрес читання";
+"page.main.progress_read" = "Прочитано %@ Біблії";
 "page.main.header" = "Bible Garden";
 "page.main.classic.title" = "Звичайне читання";
 "page.main.classic.subtitle" = "Однією мовою, можна додати паузи між віршами";
