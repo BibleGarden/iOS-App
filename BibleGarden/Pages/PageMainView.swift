@@ -65,7 +65,7 @@ struct PageMainView: View {
                         MainMenuCard(
                             title: "search.title".localized,
                             subtitle: "search.main.subtitle".localized,
-                            icon: "magnifyingglass",
+                            icon: ScriptureSearchModel.featureIcon,
                             color: Color("ForestGreen")
                         ) {
                             withAnimation(.easeInOut(duration: 0.25)) {

@@ -68,6 +68,13 @@ final class ScriptureSearchModel: ObservableObject {
 
     private static let recentQueriesKey = "searchRecentQueries"
 
+    /// Icon of the feature on the main screen and in the side menu.
+    /// `sparkle.magnifyingglass` exists from iOS 16; the app still supports iOS 15.
+    static var featureIcon: String {
+        if #available(iOS 16.0, *) { return "sparkle.magnifyingglass" }
+        return "magnifyingglass"
+    }
+
     private var task: Task<Void, Never>?
     private var requestID = UUID()
     private let client: any APIProtocol
