@@ -89,8 +89,8 @@ final class ScriptureSearchModel: ObservableObject {
         configuration.httpAdditionalHeaders = ["X-API-Key": Config.apiKey]
         var transport: any ClientTransport = URLSessionTransport(configuration: .init(session: URLSession(configuration: configuration)))
         #if DEBUG
-        if let response = ProcessInfo.processInfo.environment[RecordedSearchTransport.environmentKey] {
-            transport = RecordedSearchTransport(response: response, network: transport)
+        if let recorded = RecordedSearchTransport(environment: ProcessInfo.processInfo.environment, network: transport) {
+            transport = recorded
         }
         #endif
         client = Client(serverURL: URL(string: Config.baseURL)!, transport: transport)
@@ -332,19 +332,82 @@ final class ScriptureSearchModel: ObservableObject {
 }
 
 #if DEBUG
-/// UI tests pass a recorded search response: the AI search of the test API is too
-/// unstable for CI. Every other request, the book catalogue included, goes to the network.
+/// UI tests script the search answers: the AI search of the test API is too unstable
+/// for CI. Every other request, the book catalogue included, goes to the network.
+///
+/// `UITEST_SEARCH_RESPONSE` is the recorded response body. `UITEST_SEARCH_OUTCOMES`,
+/// a JSON array of `Outcome`, answers the n-th search request with the n-th outcome;
+/// a request beyond the list is a test error. Without it every request gets the body.
 private struct RecordedSearchTransport: ClientTransport {
-    static let environmentKey = "UITEST_SEARCH_RESPONSE"
+    static let responseKey = "UITEST_SEARCH_RESPONSE"
+    static let outcomesKey = "UITEST_SEARCH_OUTCOMES"
 
-    let response: String
-    let network: any ClientTransport
+    struct Outcome: Decodable {
+        var status: Int?
+        var retryAfter: String?
+        /// The answer arrives this late even if the app has cancelled the request,
+        /// like a server that has already started answering.
+        var delaySeconds: Double?
+        /// `URLError.Code` raw value to fail the request with.
+        var urlError: Int?
+        /// Replaces the recorded body.
+        var body: String?
+    }
+
+    private actor Script {
+        private let outcomes: [Outcome]?
+        private var sent = 0
+
+        init(outcomes: [Outcome]?) { self.outcomes = outcomes }
+
+        func next() -> Outcome {
+            defer { sent += 1 }
+            guard let outcomes else { return Outcome() }
+            guard sent < outcomes.count else {
+                fatalError("Search request \(sent + 1) has no scripted outcome")
+            }
+            return outcomes[sent]
+        }
+    }
+
+    private let response: String
+    private let script: Script
+    private let network: any ClientTransport
+
+    /// Nil unless the UI test passed a recorded response.
+    init?(environment: [String: String], network: any ClientTransport) {
+        guard let response = environment[Self.responseKey] else { return nil }
+        let outcomes = environment[Self.outcomesKey].map { json in
+            do {
+                return try JSONDecoder().decode([Outcome].self, from: Data(json.utf8))
+            } catch {
+                fatalError("Invalid \(Self.outcomesKey): \(error)")
+            }
+        }
+        self.response = response
+        self.script = Script(outcomes: outcomes)
+        self.network = network
+    }
 
     func send(_ request: HTTPRequest, body: HTTPBody?, baseURL: URL, operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
         guard operationID == "search_scripture" else {
             return try await network.send(request, body: body, baseURL: baseURL, operationID: operationID)
         }
-        return (HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"]), HTTPBody(response))
+        let outcome = await script.next()
+        if let delay = outcome.delaySeconds {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global().asyncAfter(deadline: .now() + delay) { continuation.resume() }
+            }
+        }
+        if let code = outcome.urlError {
+            throw URLError(URLError.Code(rawValue: code))
+        }
+        var headers: HTTPFields = [.contentType: "application/json"]
+        if let retryAfter = outcome.retryAfter {
+            headers[.retryAfter] = retryAfter
+        }
+        return (HTTPResponse(status: .init(code: outcome.status ?? 200), headerFields: headers),
+                HTTPBody(outcome.body ?? response))
     }
 }
 #endif
