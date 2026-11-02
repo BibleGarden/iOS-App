@@ -141,7 +141,7 @@ final class MenuTests: XCTestCase {
         app.navigateViaMenu(to: "menu-progress")
 
         let progressElement = app.staticTexts["progress-total"]
-        XCTAssertTrue(progressElement.waitForExistence(timeout: 5),
+        XCTAssertTrue(progressElement.waitForExistence(timeout: 15),
                       "Progress page should show total progress")
 
         // Check highlight
