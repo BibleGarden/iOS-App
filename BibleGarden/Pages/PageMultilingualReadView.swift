@@ -378,10 +378,10 @@ struct PageMultilingualReadView: View {
 
                 // Control buttons row - matching PageReadView style
                 HStack {
-                    let hasAudio = !stepPlayerItems.isEmpty
+                    let hasAudio = !isLoading && !stepPlayerItems.isEmpty
                     let buttonsColor = hasAudio ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
-                    let prevColor = prevExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
-                    let nextColor = nextExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
+                    let prevColor = (prevExcerpt.isEmpty || isLoading) ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
+                    let nextColor = (nextExcerpt.isEmpty || isLoading) ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
 
                     // Previous chapter
                     Button {
@@ -396,7 +396,7 @@ struct PageMultilingualReadView: View {
                             .foregroundColor(prevColor)
                     }
                     .accessibilityIdentifier("multi-prev-chapter")
-                    .disabled(prevExcerpt.isEmpty)
+                    .disabled(prevExcerpt.isEmpty || isLoading)
                     Spacer()
 
                     // Previous Unit (Block)
@@ -478,7 +478,7 @@ struct PageMultilingualReadView: View {
                             .foregroundColor(nextColor)
                     }
                     .accessibilityIdentifier("multi-next-chapter")
-                    .disabled(nextExcerpt.isEmpty)
+                    .disabled(nextExcerpt.isEmpty || isLoading)
                 }
                 .foregroundColor(Color("localAccentColor"))
                 .padding(.horizontal, globalBasePadding)
