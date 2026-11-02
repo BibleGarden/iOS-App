@@ -14,6 +14,7 @@ BibleGarden (display name "Bible Garden") is an iOS SwiftUI app for listening to
 - **Dependencies**: Managed via Xcode SPM (not standalone Package.swift)
   - `swift-openapi-runtime`, `swift-openapi-urlsession`, `swift-openapi-generator`
 - **UI tests**: `BibleGardenUITests` target (XCUITest). Tests require API availability and use `--uitesting` launch argument to reset UserDefaults. Pre-configured multilingual templates via `--multi-template` and `--multi-save-template` flags. No unit tests.
+  - Both readers keep their playback and chapter controls disabled while the passage loads. Before reading `isEnabled` or tapping such a control, wait with `app.waitForEnabled(_:)`: existence alone does not mean the passage has loaded, and a tap on a disabled button is silently lost.
 
 ### Configuration (required before building)
 
