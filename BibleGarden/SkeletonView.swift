@@ -63,6 +63,32 @@ class SettingsManager: ObservableObject {
     
     @Published var showMenu: Bool = false
     @Published var selectedMenuItem: MenuItem = .main
+    @Published var readingFromSearch = false {
+        didSet { if !readingFromSearch { searchFocus = nil } }
+    }
+    /// The key verses of the search result a reader was opened for.
+    var searchFocus: SearchFocus?
+
+    struct SearchFocus {
+        let bookNumber: Int
+        let chapter: Int
+        let verses: ClosedRange<Int>
+    }
+
+    /// Key verses to mark in the chapter a reader has just loaded.
+    /// Loading any other chapter ends the focus.
+    func searchKeyVerses(bookNumber: Int, chapter: Int) -> ClosedRange<Int>? {
+        guard let focus = searchFocus else { return nil }
+        guard focus.bookNumber == bookNumber, focus.chapter == chapter else {
+            searchFocus = nil
+            return nil
+        }
+        return focus.verses
+    }
+    /// One-shot request of the main screen: the search page opens with the keyboard up.
+    var focusSearchOnOpen = false
+    /// One-shot request of search: the reader starts playback as soon as the passage is loaded.
+    var playOnOpen = false
     
     @AppStorage("fontIncreasePercent") var fontIncreasePercent: Double = 100.0
     
@@ -409,6 +435,7 @@ class SettingsManager: ObservableObject {
 struct SkeletonView: View {
     
     @StateObject private var settingsManager = SettingsManager()
+    @StateObject private var scriptureSearch = ScriptureSearchModel()
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @AppStorage("debugPlaybackTotalCount") private var debugPlaybackTotalCount: Int = 0
     @AppStorage("debugPlaybackClassicCount") private var debugPlaybackClassicCount: Int = 0
@@ -449,6 +476,12 @@ struct SkeletonView: View {
 
                 else if settingsManager.selectedMenuItem == .read {
                     PageReadView()
+                        .environmentObject(settingsManager)
+                        .transition(.opacity)
+                }
+
+                else if settingsManager.selectedMenuItem == .search {
+                    PageSearchView(model: scriptureSearch)
                         .environmentObject(settingsManager)
                         .transition(.opacity)
                 }

@@ -59,6 +59,10 @@ struct PageMultilingualReadView: View {
     
     // Current verse for highlighting
     @State private var highlightVerseNumber: Int? = nil
+    /// Verses found by search in the loaded chapter; the page scrolls to them instead of the top.
+    @State private var keyVerses: ClosedRange<Int>? = nil
+    /// A verse range (a search result) is not the whole chapter and never marks it read automatically.
+    @State private var isWholeChapter = false
 
     @State private var retryCount: Int = 0
 
@@ -92,7 +96,7 @@ struct PageMultilingualReadView: View {
             VStack(spacing: 0) {
                 // MARK: Header
                 AppHeaderBar {
-                    MenuButtonView()
+                    ReaderLeadingButton()
                         .environmentObject(settingsManager)
                 } center: {
                     Button {
@@ -329,6 +333,8 @@ struct PageMultilingualReadView: View {
                             .accessibilityIdentifier("multi-current-unit")
                         Text("\(currentStepIndex)")
                             .accessibilityIdentifier("multi-current-step")
+                        Text(keyVerses.map { "\($0.lowerBound)-\($0.upperBound)" } ?? "")
+                            .accessibilityIdentifier("multi-key-verses")
                     }
                     .font(.system(size: 1))
                     .foregroundStyle(.clear)
@@ -372,10 +378,10 @@ struct PageMultilingualReadView: View {
 
                 // Control buttons row - matching PageReadView style
                 HStack {
-                    let hasAudio = !stepPlayerItems.isEmpty
+                    let hasAudio = !isLoading && !stepPlayerItems.isEmpty
                     let buttonsColor = hasAudio ? Color("localAccentColor") : Color("localAccentColor").opacity(0.4)
-                    let prevColor = prevExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
-                    let nextColor = nextExcerpt.isEmpty ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
+                    let prevColor = (prevExcerpt.isEmpty || isLoading) ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
+                    let nextColor = (nextExcerpt.isEmpty || isLoading) ? Color("localAccentColor").opacity(0.4) : Color("localAccentColor")
 
                     // Previous chapter
                     Button {
@@ -390,7 +396,7 @@ struct PageMultilingualReadView: View {
                             .foregroundColor(prevColor)
                     }
                     .accessibilityIdentifier("multi-prev-chapter")
-                    .disabled(prevExcerpt.isEmpty)
+                    .disabled(prevExcerpt.isEmpty || isLoading)
                     Spacer()
 
                     // Previous Unit (Block)
@@ -472,7 +478,7 @@ struct PageMultilingualReadView: View {
                             .foregroundColor(nextColor)
                     }
                     .accessibilityIdentifier("multi-next-chapter")
-                    .disabled(nextExcerpt.isEmpty)
+                    .disabled(nextExcerpt.isEmpty || isLoading)
                 }
                 .foregroundColor(Color("localAccentColor"))
                 .padding(.horizontal, globalBasePadding)
@@ -709,6 +715,7 @@ struct PageMultilingualReadView: View {
         stepPlayerItems = [:]
         
         // Load data for each read step
+        isWholeChapter = false
         for (index, step) in readSteps.enumerated() {
             do {
                 if TestingEnvironment.shouldForceLoadError {
@@ -716,7 +723,7 @@ struct PageMultilingualReadView: View {
                         userInfo: [NSLocalizedDescriptionKey: "Simulated load error for UI testing"])
                 }
 
-                let (textVerses, audioVerses, audioUrl, _, part) = try await getExcerptTextualVersesOnline(
+                let (textVerses, audioVerses, audioUrl, isSingleChapter, part) = try await getExcerptTextualVersesOnline(
                     excerpts: settingsManager.currentExcerpt,
                     client: settingsManager.client,
                     translation: step.translationCode,
@@ -731,6 +738,9 @@ struct PageMultilingualReadView: View {
                     stepPlayerItems[index] = AVPlayerItem(url: url)
                 }
                 
+                if index == 0 {
+                    isWholeChapter = isSingleChapter
+                }
                 // Use first step's data for navigation info
                 if index == 0, let part = part {
                     prevExcerpt = part.prev_excerpt
@@ -752,6 +762,10 @@ struct PageMultilingualReadView: View {
             }
         }
         
+        keyVerses = stepTextVerses[0]?.first.flatMap {
+            settingsManager.searchKeyVerses(bookNumber: $0.bookDigitCode, chapter: $0.chapterDigitCode)
+        }
+
         // Build unit ranges based on first translation's structure
         buildUnitRanges()
         let verseNumbers = Set(stepTextVerses.values.flatMap { $0.map(\.number) })
@@ -1502,8 +1516,9 @@ struct PageMultilingualReadView: View {
         return settingsManager.isChapterRead(book: target.bookAlias, chapter: target.chapter)
     }
 
+    /// Automatic progress only; the reader marks a chapter manually with `toggleCurrentChapterReadState`.
     private func markCurrentChapterAsRead() {
-        guard let target = currentChapterProgressTarget else { return }
+        guard isWholeChapter, let target = currentChapterProgressTarget else { return }
         settingsManager.markChapterAsRead(book: target.bookAlias, chapter: target.chapter)
     }
 
@@ -1614,6 +1629,7 @@ struct PageMultilingualReadView: View {
                 .gray { opacity: 0.5; }
                 .highlighted-verse { color: \(selectedColor); }
                 .highlighted-verse .jesus { color: \(jesusSelectedColor); }
+                \(keyVerseCSS)
                 
                 .quote-container {
                     padding-left: 1.1rem;
@@ -1666,6 +1682,7 @@ struct PageMultilingualReadView: View {
         """
         
         // Generate content for each unit
+        var firstKeyVerseID: String?
         for (unitIdx, unitRange) in unitRanges.enumerated() {
             htmlString += "<div id=\"unit-\(unitIdx)\" class=\"unit\">"
             
@@ -1686,24 +1703,30 @@ struct PageMultilingualReadView: View {
                             for i in startIdx...endIdx {
                                 let verse = verses[i]
                                 let uniqueId = stepIdx * 10000 + verse.number
+                                // Outside the key verses of a search result: the verse and its headings are dimmed.
+                                let isContext = keyVerses.map { !(verse.number...(verse.number + verse.join)).overlaps($0) } ?? false
+                                let contextClass = isContext ? " context-verse" : ""
                                 
                                 // Display headers (titles/subtitles)
                                 let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
                                 for title in regularTitles {
-                                    htmlString += "<p class=\"title\">\(title.text)</p>"
+                                    htmlString += "<p class=\"title\(contextClass)\">\(title.text)</p>"
                                     if let reference = title.reference, !reference.isEmpty {
-                                        htmlString += "<p class=\"reference\">\(reference)</p>"
+                                        htmlString += "<p class=\"reference\(contextClass)\">\(reference)</p>"
                                     }
                                 }
 
                                 // Subtitles at start
                                 let startSubtitles = verse.beforeTitles.filter { $0.subtitle && ($0.positionHtml ?? 0) == 0 }
                                 for sub in startSubtitles {
-                                    htmlString += "<p class=\"subtitle\">\(sub.text)</p>"
+                                    htmlString += "<p class=\"subtitle\(contextClass)\">\(sub.text)</p>"
                                 }
                                 
+                                if !isContext && keyVerses != nil && firstKeyVerseID == nil {
+                                    firstKeyVerseID = "verse-\(uniqueId)"
+                                }
                                 htmlString += """
-                                <div id="verse-\(uniqueId)" class="verse-block" style="font-size: \(fontSize)px;">
+                                <div id="verse-\(uniqueId)" class="verse-block\(contextClass)" style="font-size: \(fontSize)px;">
                                     <span class="verse-number">\(verse.number).</span>
                                     <span>\(verse.html)</span>
                                 </div>
@@ -1723,7 +1746,10 @@ struct PageMultilingualReadView: View {
             
             htmlString += "</div>"
         }
-        
+
+        if let firstKeyVerseID {
+            htmlString += keyVerseScrollScript(elementID: firstKeyVerseID)
+        }
         htmlString += """
         </body>
         </html>

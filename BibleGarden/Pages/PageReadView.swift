@@ -55,6 +55,8 @@ struct PageReadView: View {
 
     @State private var textVerses: [BibleTextualVerseFull] = []
     @State private var currentVerseNumber: Int?
+    /// Verses found by search in the loaded chapter; the page scrolls to them instead of the top.
+    @State private var keyVerses: ClosedRange<Int>?
     @State private var prevExcerpt: String = ""
     @State private var nextExcerpt: String = ""
 
@@ -63,6 +65,7 @@ struct PageReadView: View {
     @State private var isTextLoading: Bool = true
     @State private var hasAudio: Bool = true
     @State private var hasText: Bool = true
+    @State private var isWholeChapter: Bool = false
 
     @State var scrollToVerseId: Int?
 
@@ -82,7 +85,7 @@ struct PageReadView: View {
 
                     // MARK: Header
                     AppHeaderBar {
-                        MenuButtonView()
+                        ReaderLeadingButton()
                             .environmentObject(settingsManager)
                     } center: {
                         Button {
@@ -154,7 +157,7 @@ struct PageReadView: View {
                             }
                             
                         HTMLTextView(
-                            htmlContent: generateHTMLContent(verses: textVerses, fontIncreasePercent: settingsManager.fontIncreasePercent),
+                            htmlContent: generateHTMLContent(verses: textVerses, fontIncreasePercent: settingsManager.fontIncreasePercent, keyVerses: keyVerses),
                             scrollToVerse: $currentVerseNumber,
                             onScrollMetricsChanged: { _, isAtBottom in
                                 handleTextScroll(isAtBottom: isAtBottom)
@@ -274,6 +277,8 @@ struct PageReadView: View {
 
                 installRemoteCommandHandlers()
 
+                let playOnOpen = settingsManager.playOnOpen
+                settingsManager.playOnOpen = false
                 pageSetupTask = Task {
                     self.audiopleer.onEndVerse = onEndVerse
                     self.audiopleer.onStartVerse = onStartVerse
@@ -288,6 +293,10 @@ struct PageReadView: View {
                     
                     // Setup observer for finishing audio to auto-switch chapters
                     setupAudioCompletionObserver(proxy: proxy)
+
+                    if playOnOpen {
+                        startCurrentChapter { audiopleer.doPlayOrPause() }
+                    }
                 }
 
                 scrollToVerseId = nil
@@ -337,6 +346,7 @@ struct PageReadView: View {
         // keep working while the next chapter is loading.
         audiopleer.detachCurrentItem()
         self.hasAudio = false
+        self.isWholeChapter = false
 
         do {
                 self.isTextLoading = true
@@ -379,21 +389,31 @@ struct PageReadView: View {
             guard !textVerses.isEmpty else {
                 throw NSError(domain: "updateExcerpt", code: 204, userInfo: [NSLocalizedDescriptionKey: "error.loading.chapter".localized])
             }
+            self.keyVerses = settingsManager.searchKeyVerses(
+                bookNumber: textVerses[0].bookDigitCode, chapter: textVerses[0].chapterDigitCode)
             self.hasText = true
+            self.isWholeChapter = isSingleChapter
             beginTextReadingTracking()
 
             // Update book and chapter information
             settingsManager.currentBookId = textVerses[0].bookDigitCode
             settingsManager.currentChapterId = textVerses[0].chapterDigitCode
             
-            self.currentVerseNumber = -1
+            self.currentVerseNumber = keyVerses == nil ? -1 : nil
             self.activeVerseIndex = -1
             if (part != nil) {
                 self.prevExcerpt = part!.prev_excerpt
                 self.nextExcerpt = part!.next_excerpt
                 withAnimation() {
                     settingsManager.currentExcerptTitle = part!.book.name
-                    settingsManager.currentExcerptSubtitle = "page.read.chapter_subtitle".localized(String(part!.chapter_number))
+                    if !self.isWholeChapter,
+                       let firstVerse = part!.verses.first, let lastVerse = part!.verses.last {
+                        let range = firstVerse.number == lastVerse.number
+                            ? "\(firstVerse.number)" : "\(firstVerse.number)–\(lastVerse.number)"
+                        settingsManager.currentExcerptSubtitle = "\(part!.chapter_number):\(range)"
+                    } else {
+                        settingsManager.currentExcerptSubtitle = "page.read.chapter_subtitle".localized(String(part!.chapter_number))
+                    }
                     settingsManager.currentBookId = part!.book.number
                     settingsManager.currentChapterId = part!.chapter_number
                 }
@@ -676,7 +696,7 @@ struct PageReadView: View {
                         self.markCurrentChapterAsRead()
                     }
                     
-                    if self.settingsManager.autoNextChapter && !self.nextExcerpt.isEmpty {
+                    if self.isWholeChapter && self.settingsManager.autoNextChapter && !self.nextExcerpt.isEmpty {
                         // Small delay for better UX
                         let sessionID = pipelineSessionID
                         let workItem = DispatchWorkItem {
@@ -1226,7 +1246,7 @@ struct PageReadView: View {
 	                        Image(systemName: "circle")
 	                            .font(.system(size: chapterMarkIndicatorSize))
 	                            .foregroundColor(Color("localAccentColor").opacity(0.6))
-	                        if settingsManager.autoProgressFrom90Percent && audioVerseCount > 0 {
+	                        if isWholeChapter && settingsManager.autoProgressFrom90Percent && audioVerseCount > 0 {
 	                            ChapterProgressArc(
 	                                progress: ninetyPercentVisualProgress,
 	                                lineWidth: chapterMarkProgressLineWidth
@@ -1301,7 +1321,7 @@ struct PageReadView: View {
     }
 
     private func markCurrentChapterAsRead() {
-        guard let target = currentChapterProgressTarget else { return }
+        guard isWholeChapter, let target = currentChapterProgressTarget else { return }
         settingsManager.markChapterAsRead(book: target.bookAlias, chapter: target.chapter)
     }
 
@@ -1384,6 +1404,8 @@ struct PageReadView: View {
                         .accessibilityIdentifier("read-verse-counter")
                     Text(debugHighlightedVerseID)
                         .accessibilityIdentifier("read-highlighted-verse-id")
+                    Text(keyVerses.map { "\($0.lowerBound)-\($0.upperBound)" } ?? "")
+                        .accessibilityIdentifier("read-key-verses")
                 }
                 .font(.system(size: 1))
                 .foregroundStyle(.clear)

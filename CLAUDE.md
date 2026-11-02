@@ -14,6 +14,7 @@ BibleGarden (display name "Bible Garden") is an iOS SwiftUI app for listening to
 - **Dependencies**: Managed via Xcode SPM (not standalone Package.swift)
   - `swift-openapi-runtime`, `swift-openapi-urlsession`, `swift-openapi-generator`
 - **UI tests**: `BibleGardenUITests` target (XCUITest). Tests require API availability and use `--uitesting` launch argument to reset UserDefaults. Pre-configured multilingual templates via `--multi-template` and `--multi-save-template` flags. No unit tests.
+  - Both readers keep their playback and chapter controls disabled while the passage loads. Before reading `isEnabled` or tapping such a control, wait with `app.waitForEnabled(_:)`: existence alone does not mean the passage has loaded, and a tap on a disabled button is silently lost.
 
 ### Configuration (required before building)
 
@@ -101,3 +102,66 @@ Uses a custom `LocalizationManager` singleton (not Apple's standard localization
 ### API Layer
 
 All API calls go through the generated OpenAPI client on `SettingsManager.client`. The API key is sent as `X-API-Key` header. Audio URLs require an `api_key` query parameter (handled by `SettingsManager.audioURL(...)` helpers). 
+
+### Scripture Search
+
+`PageSearchView` is available from the home screen and the side menu. Its
+`ScriptureSearchModel` lives in `SkeletonView`, preserving the query and results
+when a passage is opened and the user returns. Search uses the generated
+`search_scripture` operation (`POST /api/ai/scripture/search`) with the selected
+language/translation and the API maximum limit of ten. Its separate transport has a 45-second
+timeout. Requests are submitted explicitly — from the keyboard or the round
+button inside the field, shown only while the field holds a query the results do
+not already answer — cancelled on departure or query changes, and never retried
+automatically. A 429 response uses `Retry-After`;
+empty results and service failures have separate states.
+
+Reading links use `passage` coordinates and the book alias from the selected
+translation's book catalogue, preserving Psalm numbering. The existing reader
+handles the resulting verse range, playback and missing audio. Responses remain
+in memory and are not logged or persisted. Submitted queries are kept on the
+device only (`UserDefaults` key `searchRecentQueries`, JSON with dates): every
+query from today and yesterday stays, older ones only fill the list up to five.
+The history replaces the example queries on the empty search screen; tapping a
+query searches again. Clearing the field returns to that screen. Withdrawing
+consent deletes the history.
+
+The first search asks for versioned AI-processing consent; the information
+button allows withdrawal. Debug consent identifies the test processors
+(Cerebras, Google Gemini and llm.ai2.ru), verified through the test container configuration on
+2026-10-25. Release copy follows the recorded production decision (Google Gemini
+and the company server); verify it against deployment configuration before
+release and update the public Bible Garden privacy policy in `Site`.
+
+Search results require the API's `highlight` object and verse breakdown. Cards
+initially show the 1–3 key verses using translation-native verse numbers. The
+card is not a link: its "…" menu (also the long-press menu) holds every action.
+"Show context" expands the full passage with surrounding verses dimmed. "Listen"
+opens the reader on the full passage range and starts playback once the audio is
+ready (`SettingsManager.playOnOpen`, consumed by `PageReadView`). "Read the
+chapter" opens the whole chapter. "Multi Reading" opens multilingual
+reading of the passage, or its setup first when no reading step exists. Both
+readers then show `ReaderLeadingButton`, which returns to the preserved results
+instead of opening the side menu. They also mark the key verses
+(`SettingsManager.searchFocus`): the rest of the text is dimmed like card
+context, the page scrolls to the first key verse, and the playing verse stays
+at full strength. Loading another chapter or leaving search mode ends the
+focus. Multilingual reading pairs translations by verse number, so where a
+translation numbers verses differently the marked verse follows the number. Copy and
+share take the key verses with their reference and translation alias. While a
+request runs, placeholder cards and a cancel control replace the results.
+Automatic chapter continuation applies only when the API returns a whole chapter; a selected verse range stops at its
+end even when the user's automatic chapter continuation setting is enabled.
+Automatic progress also requires a whole chapter; reading or listening to a
+bounded result cannot mark the entire chapter read. Manual marking is retained.
+Invalid highlight boundaries produce
+an explicit response error. The test API added this contract on 2026-10-25
+(Bible-API PR #40, commit 81a6c94); the model rerank now uses Google Gemini,
+so the test consent version changed to require a fresh choice.
+
+`SearchTests` cover the flow from the home search field through the card menu
+to both readers and back, the history and consent withdrawal. The search request
+itself answers with a recorded response (`BibleGardenUITests/Fixtures/`, passed
+in the `UITEST_SEARCH_RESPONSE` environment variable and served only by Debug
+builds): the AI search of the test API is too unstable for CI. Translations,
+book catalogues and reading still use the live test API.

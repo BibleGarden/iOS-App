@@ -40,7 +40,29 @@ func getCSSColor(named colorName: String) -> String {
 }
 
 
-func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: Double) -> String {
+/// Key verses of a search result inside the text of a reader: the other verses are dimmed
+/// like the context in a search card, the playing verse is shown at full strength.
+let keyVerseCSS = """
+    .context-verse { opacity: 0.4; }
+    .context-verse.highlighted-verse { opacity: 1; }
+    """
+
+/// Scrolls the loaded page to the first key verse, at the position the player uses.
+func keyVerseScrollScript(elementID: String) -> String {
+    """
+    <script>
+    window.addEventListener('load', function() {
+        var target = document.getElementById('\(elementID)');
+        if (target) {
+            window.scrollTo(0, target.getBoundingClientRect().top + window.pageYOffset - window.innerHeight / 5);
+        }
+    });
+    </script>
+    """
+}
+
+/// - Parameter keyVerses: verses found by search; the rest of the text is dimmed.
+func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: Double, keyVerses: ClosedRange<Int>? = nil) -> String {
     let fontSize = 10 * (1 + fontIncreasePercent / 100)
     let selectedColor = getCSSColor(named: "DarkGreen-accent")
     let jesusColor = getCSSColor(named: "Jesus")
@@ -122,6 +144,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
                 .highlighted-verse .jesus {
                     color: \(jesusSelectedColor);
                 }
+                \(keyVerseCSS)
                                 
                 .note-icon {
                     width: 20px;
@@ -214,7 +237,12 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
         <body>
     """
 
+    var firstKeyVerseID: String?
     for verse in verses {
+        // Outside the key verses of a search result: the verse and its headings are dimmed.
+        let isContext = keyVerses.map { !(verse.number...(verse.number + verse.join)).overlaps($0) } ?? false
+        let contextClass = isContext ? " context-verse" : ""
+
         // Separate regular titles and subtitles
         let regularTitles = verse.beforeTitles.filter { !$0.subtitle }
         // Subtitles with position 0 go before the verse text
@@ -240,13 +268,13 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
 
             htmlString += """
                 <div id="top"></div>
-                <p id="title-\(title.id)" class="title">\(titleHTML)</p>
+                <p id="title-\(title.id)" class="title\(contextClass)">\(titleHTML)</p>
             """
 
             // reference
             if let reference = title.reference, !reference.isEmpty {
                 htmlString += """
-                    <p class="reference">\(reference)</p>
+                    <p class="reference\(contextClass)">\(reference)</p>
                 """
             }
 
@@ -269,7 +297,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
                 }
 
                 htmlString += """
-                    <p class="subtitle">\(metadataHTML)</p>
+                    <p class="subtitle\(contextClass)">\(metadataHTML)</p>
                 """
             }
         }
@@ -288,7 +316,7 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
                 }
             }
             htmlString += """
-                <span class="subtitle">\(subtitleHTML)</span>
+                <span class="subtitle\(contextClass)">\(subtitleHTML)</span>
             """
         }
 
@@ -336,15 +364,23 @@ func generateHTMLContent(verses: [BibleTextualVerseFull], fontIncreasePercent: D
         // Paragraphs
         let id_info = verse.join > 0 ? "\(verse.number)-\(verse.number+verse.join)" : "\(verse.number)"
 
-        let quoteContainer = verse.html.contains("class=\"quote\"") ? "quote-container" : ""
+        var classes = verse.html.contains("class=\"quote\"") ? ["quote-container"] : []
+        if isContext {
+            classes.append("context-verse")
+        } else if keyVerses != nil && firstKeyVerseID == nil {
+            firstKeyVerseID = "verse-\(verse.number)"
+        }
         if verse.startParagraph {
             htmlString += "<p>"
         }
         htmlString += """
-            <span id="verse-\(verse.number)" class="\(quoteContainer)"><span class="verse-number">\(id_info).</span><span>\(verseHTML)</span></span>
+            <span id="verse-\(verse.number)" class="\(classes.joined(separator: " "))"><span class="verse-number">\(id_info).</span><span>\(verseHTML)</span></span>
         """
     }
 
+    if let firstKeyVerseID {
+        htmlString += keyVerseScrollScript(elementID: firstKeyVerseID)
+    }
     htmlString += """
         </body>
         </html>

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B146A0010000000000000001 /* ScriptureSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B146A0010000000000000003 /* ScriptureSearch.swift */; };
+		B146A0010000000000000002 /* PageSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B146A0010000000000000004 /* PageSearchView.swift */; };
 		0458F5472CCE0FE20016C65F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0458F53C2CCE0AA20016C65F /* LaunchScreen.storyboard */; };
 		046B5DBB2EF8970E00653FA8 /* PageMultilingualConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B5DB92EF8970E00653FA8 /* PageMultilingualConfigView.swift */; };
 		046B5DBC2EF8970E00653FA8 /* PageMultilingualSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B5DBA2EF8970E00653FA8 /* PageMultilingualSetupView.swift */; };
@@ -59,6 +61,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B146A0010000000000000003 /* ScriptureSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptureSearch.swift; sourceTree = "<group>"; };
+		B146A0010000000000000004 /* PageSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageSearchView.swift; sourceTree = "<group>"; };
 		0458F53C2CCE0AA20016C65F /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		0458F54B2CCE111F0016C65F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		046B5DB92EF8970E00653FA8 /* PageMultilingualConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMultilingualConfigView.swift; sourceTree = "<group>"; };
@@ -176,6 +180,7 @@
 		4C3F9EB62C148EA200EA807C /* Pages */ = {
 			isa = PBXGroup;
 			children = (
+				B146A0010000000000000004 /* PageSearchView.swift */,
 				4C7691252BECEA1300C66FDC /* PageMainView.swift */,
 				046B5DFB2EF9534600653FA8 /* PageMultilingualReadView.swift */,
 				046B5DD42EF9105D00653FA8 /* PageMultilingualTemplatesView.swift */,
@@ -193,6 +198,7 @@
 		4C749DFE2C14ABC000CF4234 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B146A0010000000000000003 /* ScriptureSearch.swift */,
 				046B5DBF2EF905AE00653FA8 /* MultilingualRead.swift */,
 				4C749DFF2C14ABD100CF4234 /* Bible */,
 			);
@@ -420,6 +426,8 @@
 				046B5DBB2EF8970E00653FA8 /* PageMultilingualConfigView.swift in Sources */,
 				046B5DBC2EF8970E00653FA8 /* PageMultilingualSetupView.swift in Sources */,
 				047B3BC72BEEBADD009DEC11 /* PageReadView.swift in Sources */,
+				B146A0010000000000000001 /* ScriptureSearch.swift in Sources */,
+				B146A0010000000000000002 /* PageSearchView.swift in Sources */,
 				B15E47DD3DA8F375BD1C5C94 /* advTapIndicator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,0 +1,268 @@
+{
+  "language": "en",
+  "translation": 16,
+  "results": [
+    {
+      "canonical": {
+        "canonical_id": "v3:01.006.008-022",
+        "book_number": 1,
+        "chapter_number": 6,
+        "verse_start": 8,
+        "verse_end": 22
+      },
+      "passage": {
+        "translation": 16,
+        "translation_alias": "bsb",
+        "book_number": 1,
+        "chapter_number": 6,
+        "verse_start": 8,
+        "verse_end": 22,
+        "title": "Noah’s Favor with God",
+        "text": "Noah, however, found favor in the eyes of the Lord.\n\nThis is the account of Noah. Noah was a righteous man, blameless in his generation; Noah walked with God. And Noah had three sons: Shem, Ham, and Japheth.\n\nNow the earth was corrupt in the sight of God, and full of violence. And God looked upon the earth and saw that it was corrupt; for all living creatures on the earth had corrupted their ways.\n\nThen God said to Noah, “The end of all living creatures has come before Me, because through them the earth is full of violence. Now behold, I will destroy both them and the earth.\n\nMake for yourself an ark of gopher wood; make rooms in the ark and coat it with pitch inside and out. And this is how you are to build it: The ark is to be 300 cubits long, 50 cubits wide, and 30 cubits high. You are to make a roof for the ark, finish its walls a cubit from the top, place a door in the side of the ark, and build lower, middle, and upper decks.\n\nAnd behold, I will bring floodwaters upon the earth to destroy every creature under the heavens that has the breath of life. Everything on the earth will perish. But I will establish My covenant with you, and you will enter the ark — you and your sons and your wife and your sons’ wives with you.\n\nAnd you are to bring two of every living creature into the ark — male and female — to keep them alive with you. Two of every kind of bird and animal and crawling creature will come to you to be kept alive. You are also to take for yourself every kind of food that is eaten and gather it as food for yourselves and for the animals.”\n\nSo Noah did everything precisely as God had commanded him.",
+        "verses": [
+          {
+            "number": 8,
+            "text": "Noah, however, found favor in the eyes of the Lord.",
+            "paragraph_start": true
+          },
+          {
+            "number": 9,
+            "text": "This is the account of Noah. Noah was a righteous man, blameless in his generation; Noah walked with God.",
+            "paragraph_start": true
+          },
+          {
+            "number": 10,
+            "text": "And Noah had three sons: Shem, Ham, and Japheth.",
+            "paragraph_start": false
+          },
+          {
+            "number": 11,
+            "text": "Now the earth was corrupt in the sight of God, and full of violence.",
+            "paragraph_start": true
+          },
+          {
+            "number": 12,
+            "text": "And God looked upon the earth and saw that it was corrupt; for all living creatures on the earth had corrupted their ways.",
+            "paragraph_start": false
+          },
+          {
+            "number": 13,
+            "text": "Then God said to Noah, “The end of all living creatures has come before Me, because through them the earth is full of violence. Now behold, I will destroy both them and the earth.",
+            "paragraph_start": true
+          },
+          {
+            "number": 14,
+            "text": "Make for yourself an ark of gopher wood; make rooms in the ark and coat it with pitch inside and out.",
+            "paragraph_start": true
+          },
+          {
+            "number": 15,
+            "text": "And this is how you are to build it: The ark is to be 300 cubits long, 50 cubits wide, and 30 cubits high.",
+            "paragraph_start": false
+          },
+          {
+            "number": 16,
+            "text": "You are to make a roof for the ark, finish its walls a cubit from the top, place a door in the side of the ark, and build lower, middle, and upper decks.",
+            "paragraph_start": false
+          },
+          {
+            "number": 17,
+            "text": "And behold, I will bring floodwaters upon the earth to destroy every creature under the heavens that has the breath of life. Everything on the earth will perish.",
+            "paragraph_start": true
+          },
+          {
+            "number": 18,
+            "text": "But I will establish My covenant with you, and you will enter the ark — you and your sons and your wife and your sons’ wives with you.",
+            "paragraph_start": false
+          },
+          {
+            "number": 19,
+            "text": "And you are to bring two of every living creature into the ark — male and female — to keep them alive with you.",
+            "paragraph_start": true
+          },
+          {
+            "number": 20,
+            "text": "Two of every kind of bird and animal and crawling creature will come to you to be kept alive.",
+            "paragraph_start": false
+          },
+          {
+            "number": 21,
+            "text": "You are also to take for yourself every kind of food that is eaten and gather it as food for yourselves and for the animals.”",
+            "paragraph_start": false
+          },
+          {
+            "number": 22,
+            "text": "So Noah did everything precisely as God had commanded him.",
+            "paragraph_start": true
+          }
+        ]
+      },
+      "highlight": {
+        "canonical": {
+          "book_number": 1,
+          "chapter_number": 6,
+          "verse_start": 14,
+          "verse_end": 16
+        },
+        "passage": {
+          "chapter_number": 6,
+          "verse_start": 14,
+          "verse_end": 16
+        }
+      }
+    },
+    {
+      "canonical": {
+        "canonical_id": "v3:65.011.001-007",
+        "book_number": 65,
+        "chapter_number": 11,
+        "verse_start": 1,
+        "verse_end": 7
+      },
+      "passage": {
+        "translation": 16,
+        "translation_alias": "bsb",
+        "book_number": 65,
+        "chapter_number": 11,
+        "verse_start": 1,
+        "verse_end": 7,
+        "title": "Faith and Assurance",
+        "text": "Now faith is the assurance of what we hope for and the certainty of what we do not see. This is why the ancients were commended.\n\nBy faith we understand that the universe was formed at God’s command, so that what is seen was not made out of what was visible.\n\nBy faith Abel offered God a better sacrifice than Cain did. By faith he was commended as righteous when God gave approval to his gifts. And by faith he still speaks, even though he is dead.\n\nBy faith Enoch was taken up so that he did not see death: “He could not be found, because God had taken him away.” For before he was taken, he was commended as one who pleased God.\n\nAnd without faith it is impossible to please God, because anyone who approaches Him must believe that He exists and that He rewards those who earnestly seek Him.\n\nBy faith Noah, when warned about things not yet seen, in godly fear built an ark to save his family. By faith he condemned the world and became heir of the righteousness that comes by faith.",
+        "verses": [
+          {
+            "number": 1,
+            "text": "Now faith is the assurance of what we hope for and the certainty of what we do not see.",
+            "paragraph_start": true
+          },
+          {
+            "number": 2,
+            "text": "This is why the ancients were commended.",
+            "paragraph_start": false
+          },
+          {
+            "number": 3,
+            "text": "By faith we understand that the universe was formed at God’s command, so that what is seen was not made out of what was visible.",
+            "paragraph_start": true
+          },
+          {
+            "number": 4,
+            "text": "By faith Abel offered God a better sacrifice than Cain did. By faith he was commended as righteous when God gave approval to his gifts. And by faith he still speaks, even though he is dead.",
+            "paragraph_start": true
+          },
+          {
+            "number": 5,
+            "text": "By faith Enoch was taken up so that he did not see death: “He could not be found, because God had taken him away.” For before he was taken, he was commended as one who pleased God.",
+            "paragraph_start": true
+          },
+          {
+            "number": 6,
+            "text": "And without faith it is impossible to please God, because anyone who approaches Him must believe that He exists and that He rewards those who earnestly seek Him.",
+            "paragraph_start": true
+          },
+          {
+            "number": 7,
+            "text": "By faith Noah, when warned about things not yet seen, in godly fear built an ark to save his family. By faith he condemned the world and became heir of the righteousness that comes by faith.",
+            "paragraph_start": true
+          }
+        ]
+      },
+      "highlight": {
+        "canonical": {
+          "book_number": 65,
+          "chapter_number": 11,
+          "verse_start": 7,
+          "verse_end": 7
+        },
+        "passage": {
+          "chapter_number": 11,
+          "verse_start": 7,
+          "verse_end": 7
+        }
+      }
+    },
+    {
+      "canonical": {
+        "canonical_id": "v3:46.003.013-022",
+        "book_number": 46,
+        "chapter_number": 3,
+        "verse_start": 13,
+        "verse_end": 22
+      },
+      "passage": {
+        "translation": 16,
+        "translation_alias": "bsb",
+        "book_number": 46,
+        "chapter_number": 3,
+        "verse_start": 13,
+        "verse_end": 22,
+        "title": "Turning from Evil",
+        "text": "Who can harm you if you are zealous for what is good?\n\nBut even if you should suffer for what is right, you are blessed. “Do not fear what they fear; do not be shaken.” But in your hearts sanctify Christ as Lord. Always be prepared to give a defense to everyone who asks you the reason for the hope that is in you. But respond with gentleness and respect, keeping a clear conscience, so that those who slander you may be put to shame by your good behavior in Christ. For it is better, if it is God’s will, to suffer for doing good than for doing evil.\n\nFor Christ also suffered for sins once for all, the righteous for the unrighteous, to bring you to God. He was put to death in the body but made alive in the Spirit, in whom He also went and preached to the spirits in prison who disobeyed long ago when God waited patiently in the days of Noah while the ark was being built. In the ark a few people, only eight souls, were saved through water.\n\nAnd this water symbolizes the baptism that now saves you also — not the removal of dirt from the body, but the pledge of a clear conscience toward God — through the resurrection of Jesus Christ, who has gone into heaven and is at the right hand of God, with angels, authorities, and powers subject to Him.",
+        "verses": [
+          {
+            "number": 13,
+            "text": "Who can harm you if you are zealous for what is good?",
+            "paragraph_start": true
+          },
+          {
+            "number": 14,
+            "text": "But even if you should suffer for what is right, you are blessed. “Do not fear what they fear; do not be shaken.”",
+            "paragraph_start": true
+          },
+          {
+            "number": 15,
+            "text": "But in your hearts sanctify Christ as Lord. Always be prepared to give a defense to everyone who asks you the reason for the hope that is in you. But respond with gentleness and respect,",
+            "paragraph_start": false
+          },
+          {
+            "number": 16,
+            "text": "keeping a clear conscience, so that those who slander you may be put to shame by your good behavior in Christ.",
+            "paragraph_start": false
+          },
+          {
+            "number": 17,
+            "text": "For it is better, if it is God’s will, to suffer for doing good than for doing evil.",
+            "paragraph_start": false
+          },
+          {
+            "number": 18,
+            "text": "For Christ also suffered for sins once for all, the righteous for the unrighteous, to bring you to God. He was put to death in the body but made alive in the Spirit,",
+            "paragraph_start": true
+          },
+          {
+            "number": 19,
+            "text": "in whom He also went and preached to the spirits in prison",
+            "paragraph_start": false
+          },
+          {
+            "number": 20,
+            "text": "who disobeyed long ago when God waited patiently in the days of Noah while the ark was being built. In the ark a few people, only eight souls, were saved through water.",
+            "paragraph_start": false
+          },
+          {
+            "number": 21,
+            "text": "And this water symbolizes the baptism that now saves you also — not the removal of dirt from the body, but the pledge of a clear conscience toward God — through the resurrection of Jesus Christ,",
+            "paragraph_start": true
+          },
+          {
+            "number": 22,
+            "text": "who has gone into heaven and is at the right hand of God, with angels, authorities, and powers subject to Him.",
+            "paragraph_start": false
+          }
+        ]
+      },
+      "highlight": {
+        "canonical": {
+          "book_number": 46,
+          "chapter_number": 3,
+          "verse_start": 20,
+          "verse_end": 20
+        },
+        "passage": {
+          "chapter_number": 3,
+          "verse_start": 20,
+          "verse_end": 20
+        }
+      }
+    }
+  ]
+}

@@ -175,6 +175,13 @@ extension XCUIApplication {
         return element.exists && element.isHittable
     }
 
+    /// Wait until the element exists and is enabled. Reading controls stay
+    /// disabled while the passage loads, so `isEnabled` read right after the
+    /// page appears depends on how fast the API answers.
+    func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval = 20) -> Bool {
+        pollElement(timeout: timeout) { element.exists && element.isEnabled }
+    }
+
     /// Wait for an element's label to change from a known value
     func waitForLabelChange(element: XCUIElement, from oldLabel: String, timeout: TimeInterval = 10) -> Bool {
         pollElement(timeout: timeout) { element.exists && element.label != oldLabel }

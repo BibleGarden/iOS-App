@@ -3,6 +3,7 @@ import SwiftUI
 enum MenuItem: Hashable {
     case main
     case read
+    case search
     case select
     case progress
     case setup
@@ -115,6 +116,27 @@ struct MenuView: View {
                     }
                     .accessibilityIdentifier("menu-read")
                     .accessibilityAddTraits(settingsManager.selectedMenuItem == .read ? .isSelected : [])
+
+                    Button {
+                        selectItem(.search)
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            SmartSearchIcon(size: 14, weight: .semibold)
+                                .padding(.top, 2)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("menu.search".localized)
+                                    .font(.system(.headline))
+                                    .fontWeight(.bold)
+                                Text("menu.search.subtitle".localized)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(colorFor(.search).opacity(0.5))
+                                    .lineLimit(1)
+                            }
+                        }
+                        .foregroundColor(colorFor(.search))
+                    }
+                    .accessibilityIdentifier("menu-search")
+                    .accessibilityAddTraits(settingsManager.selectedMenuItem == .search ? .isSelected : [])
 
                     // 4. Прогресс
                     Button {
@@ -353,6 +375,7 @@ struct MenuView: View {
     }
 
     private func selectItem(_ item: MenuItem) {
+        settingsManager.readingFromSearch = false
         settingsManager.selectedMenuItem = item
         withAnimation(.spring()) {
             settingsManager.showMenu = false
@@ -465,6 +488,31 @@ struct MenuButtonView: View {
                 .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
         }
         .accessibilityIdentifier("menu-button")
+    }
+}
+
+/// Leading header control of the readers: back to the search results when
+/// the reading was opened from search, the side menu otherwise.
+struct ReaderLeadingButton: View {
+
+    @EnvironmentObject var settingsManager: SettingsManager
+
+    var body: some View {
+        if settingsManager.readingFromSearch {
+            Button {
+                settingsManager.readingFromSearch = false
+                settingsManager.selectedMenuItem = .search
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 25, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
+            }
+            .accessibilityLabel("search.back".localized)
+            .accessibilityIdentifier("read-back-search")
+        } else {
+            MenuButtonView()
+        }
     }
 }
 
