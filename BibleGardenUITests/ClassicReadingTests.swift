@@ -1098,14 +1098,14 @@ final class ClassicReadingBoundaryTests: XCTestCase {
         app.launch()
         app.navigateToReadingPage()
 
+        // Both buttons stay disabled while the chapter loads.
+        let nextBtn = app.buttons["read-next-chapter"]
+        XCTAssertTrue(app.waitForEnabled(nextBtn),
+                      "Next chapter should be enabled at Genesis 1")
+
         let prevBtn = app.buttons["read-prev-chapter"]
-        XCTAssertTrue(prevBtn.waitForExistence(timeout: 5))
         XCTAssertFalse(prevBtn.isEnabled,
                        "Previous chapter should be disabled at Genesis 1")
-
-        let nextBtn = app.buttons["read-next-chapter"]
-        XCTAssertTrue(nextBtn.isEnabled,
-                      "Next chapter should be enabled at Genesis 1")
     }
 
     // #17 — Запускаем приложение на Откровение 22 (последняя глава Библии).
@@ -1117,14 +1117,14 @@ final class ClassicReadingBoundaryTests: XCTestCase {
         app.launch()
         app.navigateToReadingPage()
 
+        // Both buttons stay disabled while the chapter loads.
+        let prevBtn = app.buttons["read-prev-chapter"]
+        XCTAssertTrue(app.waitForEnabled(prevBtn),
+                      "Previous chapter should be enabled at Revelation 22")
+
         let nextBtn = app.buttons["read-next-chapter"]
-        XCTAssertTrue(nextBtn.waitForExistence(timeout: 5))
         XCTAssertFalse(nextBtn.isEnabled,
                        "Next chapter should be disabled at Revelation 22")
-
-        let prevBtn = app.buttons["read-prev-chapter"]
-        XCTAssertTrue(prevBtn.isEnabled,
-                      "Previous chapter should be enabled at Revelation 22")
     }
 }
 

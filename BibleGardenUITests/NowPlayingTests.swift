@@ -27,16 +27,6 @@ final class NowPlayingOwnershipTests: XCTestCase {
         app = nil
     }
 
-    /// Wait until the element exists and becomes enabled
-    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval = 20) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if element.exists && element.isEnabled { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
-        }
-        return false
-    }
-
     // #52 — Обычное чтение владеет Now Playing: команды Play/Pause включены,
     // remote Pause останавливает воспроизведение, remote Play запускает его снова.
     // Результат: команды включены, статус команды — success, плеер реально встаёт на паузу и снова играет.
@@ -47,7 +37,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
                       "Classic playback should become ready before starting")
 
         let readPlayPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(waitForEnabled(readPlayPause), "Classic play button should be enabled")
+        XCTAssertTrue(app.waitForEnabled(readPlayPause), "Classic play button should be enabled")
         readPlayPause.tap()
 
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 30),
@@ -88,7 +78,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
         app.navigateToMultiReadingPage()
 
         let multiPlayPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
+        XCTAssertTrue(app.waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
         multiPlayPause.tap()
 
         // Ждём реального старта аудио (AVPlayer играет), а не только логического состояния
@@ -139,7 +129,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
                       "Classic playback should become ready before starting")
 
         let readPlayPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(waitForEnabled(readPlayPause), "Classic play button should be enabled")
+        XCTAssertTrue(app.waitForEnabled(readPlayPause), "Classic play button should be enabled")
         readPlayPause.tap()
 
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 30),
@@ -155,7 +145,7 @@ final class NowPlayingOwnershipTests: XCTestCase {
         app.navigateToMultiReadingPage()
 
         let multiPlayPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
+        XCTAssertTrue(app.waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
         multiPlayPause.tap()
 
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 30),
