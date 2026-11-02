@@ -99,7 +99,8 @@ final class SearchTests: XCTestCase {
             Outcome(urlError: URLError.Code.timedOut.rawValue),
             Outcome(urlError: URLError.Code.notConnectedToInternet.rawValue),
             Outcome(body: Self.emptyResponse),
-            Outcome(status: 429, retryAfter: "3", body: Self.errorResponse),
+            // Long enough for the attempt during the countdown even on a slow runner.
+            Outcome(status: 429, retryAfter: "10", body: Self.errorResponse),
         ])
         openSearch()
         submit(query)
@@ -133,7 +134,7 @@ final class SearchTests: XCTestCase {
         XCTAssertFalse(app.buttons["search-submit"].exists, "Searching again should wait for Retry-After")
         // A request now would have no scripted answer and stop the app.
         submit()
-        XCTAssertTrue(app.buttons["search-submit"].waitForExistence(timeout: 6),
+        XCTAssertTrue(app.buttons["search-submit"].waitForExistence(timeout: 15),
                       "Searching should be possible again once Retry-After has passed")
     }
 
