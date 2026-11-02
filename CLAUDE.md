@@ -160,8 +160,13 @@ an explicit response error. The test API added this contract on 2026-10-25
 so the test consent version changed to require a fresh choice.
 
 `SearchTests` cover the flow from the home search field through the card menu
-to both readers and back, the history and consent withdrawal. The search request
-itself answers with a recorded response (`BibleGardenUITests/Fixtures/`, passed
-in the `UITEST_SEARCH_RESPONSE` environment variable and served only by Debug
-builds): the AI search of the test API is too unstable for CI. Translations,
-book catalogues and reading still use the live test API.
+to both readers and back, the history and consent withdrawal, declining consent
+without a request, service, timeout and connection failures, an empty answer,
+the rate limit with `Retry-After`, a late answer to a replaced query and "Listen"
+on a passage without audio. The search request itself answers with a recorded
+response (`BibleGardenUITests/Fixtures/`, passed in the `UITEST_SEARCH_RESPONSE`
+environment variable and served only by Debug builds): the AI search of the test
+API is too unstable for CI. `UITEST_SEARCH_OUTCOMES` scripts the n-th search
+request (status, `Retry-After`, delay, `URLError`, body); a request beyond the
+script stops the app. Translations, book catalogues and reading still use the
+live test API.

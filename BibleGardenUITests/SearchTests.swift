@@ -87,32 +87,135 @@ final class SearchTests: XCTestCase {
                       "Clearing the history should bring the examples back")
     }
 
+    /// Declining the consent sends nothing; service failures, a network timeout, no connection,
+    /// an empty answer and the rate limit each show their own state.
+    @MainActor
+    func testFailuresEmptyAnswerAndRateLimit() {
+        // Each search request takes the next answer, so the first request after the declined
+        // consent getting the first answer proves that declining sent nothing.
+        launch(outcomes: [
+            Outcome(status: 503, body: Self.errorResponse),
+            Outcome(urlError: URLError.Code.timedOut.rawValue),
+            Outcome(urlError: URLError.Code.notConnectedToInternet.rawValue),
+            Outcome(body: Self.emptyResponse),
+            Outcome(status: 429, retryAfter: "3", body: Self.errorResponse),
+        ])
+        openSearch()
+        submit(query)
+        let decline = app.buttons["search-consent-decline"]
+        XCTAssertTrue(decline.waitForExistence(timeout: 5), "The first search should ask for AI consent")
+        decline.tap()
+        XCTAssertFalse(app.staticTexts["Finding relevant passages"].waitForExistence(timeout: 2),
+                       "Declining the consent should not start a search")
+
+        submit()
+        allowConsent()
+        assertError("The search service is unavailable")
+
+        submit()
+        assertError("The search took too long")
+
+        submit()
+        assertError("Couldn’t reach the server")
+
+        submit()
+        XCTAssertTrue(app.staticTexts["No matching passages"].waitForExistence(timeout: 10),
+                      "An empty answer should show the empty state, not an error")
+
+        submit()
+        assertError("The search limit has been reached")
+        let countdown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Try again in'")).firstMatch
+        XCTAssertTrue(countdown.exists, "The field should count down the Retry-After seconds")
+        XCTAssertFalse(app.buttons["search-submit"].exists, "Searching again should wait for Retry-After")
+        XCTAssertTrue(app.buttons["search-submit"].waitForExistence(timeout: 6),
+                      "Searching should be possible again once Retry-After has passed")
+    }
+
+    /// The answer to a replaced query arrives after the new results and must not replace them;
+    /// "Listen" on a passage without audio opens the reader with the warning and plays nothing.
+    @MainActor
+    func testLateAnswerKeepsNewResultsAndListenWithoutAudio() {
+        launch(extraArguments: ["--force-no-audio"], outcomes: [
+            Outcome(delaySeconds: 4, body: Self.emptyResponse),
+            Outcome(),
+        ])
+        openSearch()
+        submit(query)
+        allowConsent()
+        XCTAssertTrue(app.staticTexts["Finding relevant passages"].waitForExistence(timeout: 5), "The first search should be running")
+
+        submit(" Noah")
+        XCTAssertTrue(resultActions.firstMatch.waitForExistence(timeout: 10), "The new query should get its results")
+        XCTAssertFalse(app.staticTexts["No matching passages"].waitForExistence(timeout: 6),
+                       "The late empty answer of the replaced query should be ignored")
+        XCTAssertTrue(resultActions.firstMatch.exists, "The results of the new query should stay")
+
+        openCardAction("Listen")
+        XCTAssertTrue(app.descendants(matching: .any)["read-audio-warning-panel"].firstMatch.waitForExistence(timeout: 15),
+                      "The reader should warn that the passage has no audio")
+        XCTAssertFalse(app.buttons["read-play-pause"].isEnabled, "Play should be disabled without audio")
+        XCTAssertFalse(app.waitForReadPlaybackState("playing", timeout: 3), "Nothing should play without audio")
+    }
+
     // MARK: - Steps
 
-    private func launch(extraArguments: [String] = []) {
+    /// A scripted answer of the search request, see `RecordedSearchTransport` in the app.
+    private struct Outcome: Encodable {
+        var status: Int?
+        var retryAfter: String?
+        var delaySeconds: Double?
+        var urlError: Int?
+        var body: String?
+    }
+
+    private static let emptyResponse = #"{"language":"en","translation":16,"results":[]}"#
+    private static let errorResponse = #"{"detail":"Scripted failure"}"#
+
+    private func launch(extraArguments: [String] = [], outcomes: [Outcome]? = nil) {
         app = XCUIApplication()
         // The recorded response is for BSB: the search starts with the translation of the
         // device language, so the device runs in English whatever the simulator locale is.
         app.launchArguments = ["--uitesting", "--app-language", "en",
                                "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
         app.launchEnvironment["UITEST_SEARCH_RESPONSE"] = Self.recordedResponse
+        if let outcomes {
+            app.launchEnvironment["UITEST_SEARCH_OUTCOMES"] = String(decoding: try! JSONEncoder().encode(outcomes), as: UTF8.self)
+        }
         app.launch()
+    }
+
+    private func openSearch() {
+        let entry = app.buttons["card-search"]
+        XCTAssertTrue(app.waitForElementHittable(entry, timeout: 10), "Home search field not found")
+        entry.tap()
+        XCTAssertTrue(app.textFields["search-query"].waitForExistence(timeout: 5), "Search field not found")
+    }
+
+    /// Appends `text` to the query and submits it from the keyboard.
+    private func submit(_ text: String = "") {
+        let field = app.textFields["search-query"]
+        field.tap()
+        field.typeText(text + "\n")
+    }
+
+    private func allowConsent() {
+        let allow = app.buttons["search-consent-allow"]
+        XCTAssertTrue(allow.waitForExistence(timeout: 5), "The first search should ask for AI consent")
+        allow.tap()
+    }
+
+    private func assertError(_ detailPrefix: String) {
+        let detail = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", detailPrefix)).firstMatch
+        XCTAssertTrue(detail.waitForExistence(timeout: 10),
+                      "Expected the error '\(detailPrefix)…', got \(app.staticTexts.allElementsBoundByIndex.map(\.label))")
     }
 
     /// Types the query from the home search field, accepts the AI consent and waits for the results.
     private func searchFromHome() {
-        let entry = app.buttons["card-search"]
-        XCTAssertTrue(app.waitForElementHittable(entry, timeout: 10), "Home search field not found")
-        entry.tap()
+        openSearch()
+        submit(query)
 
-        let field = app.textFields["search-query"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "Search field not found")
-        field.tap()
-        field.typeText(query + "\n")
-
-        let allow = app.buttons["search-consent-allow"]
-        XCTAssertTrue(allow.waitForExistence(timeout: 5), "The first search should ask for AI consent")
-        allow.tap()
+        allowConsent()
 
         let firstCard = resultActions.firstMatch
         let errorTitle = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Search couldn'")).firstMatch
