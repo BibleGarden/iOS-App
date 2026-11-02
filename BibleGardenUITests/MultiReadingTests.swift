@@ -602,8 +602,7 @@ final class MultiReadingTests: XCTestCase {
     @MainActor
     func testUnitNavigationWhilePlaying() {
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
 
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
@@ -985,8 +984,7 @@ final class MultiReadingSectionTests: XCTestCase {
     @MainActor
     func testSectionNavigationWhilePlaying() {
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
 
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
@@ -1022,8 +1020,7 @@ final class MultiReadingSectionTests: XCTestCase {
     @MainActor
     func testUnitNavigationWhilePlaying() {
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
 
         let unitBefore = app.multiCurrentUnit() ?? "-1"
 
@@ -1219,8 +1216,7 @@ final class MultiReadingStepTests: XCTestCase {
     @MainActor
     func testMultiStepPlaythrough() {
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
 
         let stepBefore = app.multiCurrentStep() ?? "0"
         XCTAssertEqual(stepBefore, "0", "Should start at step 0")
@@ -1246,8 +1242,7 @@ final class MultiReadingStepTests: XCTestCase {
     @MainActor
     func testPauseStepShowsHourglass() {
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
 
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
@@ -1365,7 +1360,7 @@ final class MultiReadingAudioEndProgressTests: XCTestCase {
                        "Chapter should be unread before audio finishes")
 
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
         playPause.tap()
         _ = app.waitForMultiPlaybackState("playing", timeout: 15)
 
@@ -1526,8 +1521,7 @@ final class MultiReadingBackgroundTests: XCTestCase {
     @MainActor
     func testBackgroundPlaybackContinues() {
         let playPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
-        guard playPause.isEnabled else { return }
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
 
         playPause.tap()
         XCTAssertTrue(app.waitForMultiPlaybackState("playing", timeout: 15), "Should start playing")

@@ -34,7 +34,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "Classic playback should become ready before starting")
 
         let readPlayPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(readPlayPause.waitForExistence(timeout: 5), "Classic play button should exist")
+        XCTAssertTrue(app.waitForEnabled(readPlayPause), "Classic play button should be enabled")
         readPlayPause.tap()
 
         let readState = app.staticTexts["read-playback-state"]
@@ -60,7 +60,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "No playback should remain active after leaving classic reading")
 
         let multiPlayPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(multiPlayPause.waitForExistence(timeout: 5), "Multilingual play button should exist")
+        XCTAssertTrue(app.waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
         multiPlayPause.tap()
 
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),
@@ -79,7 +79,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "Classic playback should become ready before starting")
 
         let readPlayPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(readPlayPause.waitForExistence(timeout: 5), "Classic play button should exist")
+        XCTAssertTrue(app.waitForEnabled(readPlayPause), "Classic play button should be enabled")
         readPlayPause.tap()
 
         let readState = app.staticTexts["read-playback-state"]
@@ -126,7 +126,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "Classic playback should return to the ready state without auto-start")
 
         let readPlayPauseAfterReturn = app.buttons["read-play-pause"]
-        XCTAssertTrue(readPlayPauseAfterReturn.waitForExistence(timeout: 5), "Classic play button should exist after return")
+        XCTAssertTrue(app.waitForEnabled(readPlayPauseAfterReturn), "Classic play button should be enabled after return")
         readPlayPauseAfterReturn.tap()
 
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 30),
@@ -145,7 +145,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "Classic playback should become ready before starting")
 
         let firstPlayPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(firstPlayPause.waitForExistence(timeout: 5), "Classic play button should exist")
+        XCTAssertTrue(app.waitForEnabled(firstPlayPause), "Classic play button should be enabled")
         firstPlayPause.tap()
 
         let readState = app.staticTexts["read-playback-state"]
@@ -172,7 +172,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "Classic playback should become ready again after return")
 
         let secondPlayPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(secondPlayPause.waitForExistence(timeout: 5), "Classic play button should exist after return")
+        XCTAssertTrue(app.waitForEnabled(secondPlayPause), "Classic play button should be enabled after return")
         secondPlayPause.tap()
 
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "classicRead", timeout: 30),
@@ -193,7 +193,7 @@ final class PlaybackIsolationTests: XCTestCase {
         app.navigateToMultiReadingPage()
 
         let multiPlayPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(multiPlayPause.waitForExistence(timeout: 5), "Multilingual play button should exist")
+        XCTAssertTrue(app.waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
         multiPlayPause.tap()
 
         // Сначала дожидаемся фактического воспроизведения (готовности аудио),
@@ -240,7 +240,7 @@ final class PlaybackIsolationTests: XCTestCase {
         app.navigateToMultiReadingPage()
 
         let multiPlayPause = app.buttons["multi-play-pause"]
-        XCTAssertTrue(multiPlayPause.waitForExistence(timeout: 5), "Multilingual play button should exist")
+        XCTAssertTrue(app.waitForEnabled(multiPlayPause), "Multilingual play button should be enabled")
         multiPlayPause.tap()
 
         // Сначала дожидаемся фактического воспроизведения, потом сверяем
@@ -297,7 +297,7 @@ final class PlaybackIsolationTests: XCTestCase {
                       "Old multilingual pipeline should not wake up in the background")
 
         let multiPlayPauseAfterReturn = app.buttons["multi-play-pause"]
-        XCTAssertTrue(multiPlayPauseAfterReturn.waitForExistence(timeout: 5), "Multilingual play button should exist after return")
+        XCTAssertTrue(app.waitForEnabled(multiPlayPauseAfterReturn), "Multilingual play button should be enabled after return")
         multiPlayPauseAfterReturn.tap()
 
         XCTAssertTrue(app.waitForDebugPlayerTimeControlStatus("playing", forOwner: "multilingualRead", timeout: 30),

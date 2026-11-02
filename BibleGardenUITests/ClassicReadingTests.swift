@@ -1384,7 +1384,7 @@ final class ClassicReadingAutoNextTests: XCTestCase {
 
         // Запускаем чтение
         let playPause = app.buttons["read-play-pause"]
-        XCTAssertTrue(playPause.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.waitForEnabled(playPause), "Play button should be enabled")
         playPause.tap()
         XCTAssertTrue(app.waitForReadPlaybackState("playing", timeout: 15),
                       "The chapter should start playing")
