@@ -87,14 +87,15 @@ final class SearchTests: XCTestCase {
                       "Clearing the history should bring the examples back")
     }
 
-    /// Declining the consent sends nothing; service failures, a network timeout, no connection,
-    /// an empty answer and the rate limit each show their own state.
+    /// Declining the consent sends nothing; service failures, gateway and network timeouts,
+    /// no connection, an empty answer and the rate limit each show their own state.
     @MainActor
     func testFailuresEmptyAnswerAndRateLimit() {
         // Each search request takes the next answer, so the first request after the declined
         // consent getting the first answer proves that declining sent nothing.
         launch(outcomes: [
             Outcome(status: 503, body: Self.errorResponse),
+            Outcome(status: 504, body: Self.errorResponse),
             Outcome(urlError: URLError.Code.timedOut.rawValue),
             Outcome(urlError: URLError.Code.notConnectedToInternet.rawValue),
             Outcome(body: Self.emptyResponse),
@@ -116,6 +117,9 @@ final class SearchTests: XCTestCase {
         assertError("The search took too long")
 
         submit()
+        assertError("The search took too long")
+
+        submit()
         assertError("Couldn’t reach the server")
 
         submit()
@@ -127,16 +131,18 @@ final class SearchTests: XCTestCase {
         let countdown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Try again in'")).firstMatch
         XCTAssertTrue(countdown.exists, "The field should count down the Retry-After seconds")
         XCTAssertFalse(app.buttons["search-submit"].exists, "Searching again should wait for Retry-After")
+        // A request now would have no scripted answer and stop the app.
+        submit()
         XCTAssertTrue(app.buttons["search-submit"].waitForExistence(timeout: 6),
                       "Searching should be possible again once Retry-After has passed")
     }
 
-    /// The answer to a replaced query arrives after the new results and must not replace them;
+    /// The failure of a replaced query arrives after the new results and must not replace them;
     /// "Listen" on a passage without audio opens the reader with the warning and plays nothing.
     @MainActor
     func testLateAnswerKeepsNewResultsAndListenWithoutAudio() {
         launch(extraArguments: ["--force-no-audio"], outcomes: [
-            Outcome(delaySeconds: 4, body: Self.emptyResponse),
+            Outcome(status: 503, delaySeconds: 8, body: Self.errorResponse),
             Outcome(),
         ])
         openSearch()
@@ -146,8 +152,9 @@ final class SearchTests: XCTestCase {
 
         submit(" Noah")
         XCTAssertTrue(resultActions.firstMatch.waitForExistence(timeout: 10), "The new query should get its results")
-        XCTAssertFalse(app.staticTexts["No matching passages"].waitForExistence(timeout: 6),
-                       "The late empty answer of the replaced query should be ignored")
+        let lateError = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Search couldn'")).firstMatch
+        XCTAssertFalse(lateError.waitForExistence(timeout: 10),
+                       "The late failure of the replaced query should be ignored")
         XCTAssertTrue(resultActions.firstMatch.exists, "The results of the new query should stay")
 
         openCardAction("Listen")
